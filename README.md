@@ -1,6 +1,6 @@
 # Backend Core — Beautyn Marketplace
 
-This is the main API server for the Beauty Marketplace platform. It handles business logic, authentication, booking requests, and communication with the CRM integrations service.
+This is the main API server for the Beautyn Marketplace platform. It handles business logic, authentication, booking requests, and communication with the CRM integrations service.
 
 ---
 
