@@ -1,10 +1,4 @@
-import {
-  Controller,
-  Post,
-  Body,
-  HttpCode,
-  HttpStatus,
-} from '@nestjs/common';
+import { Controller, Post, Body, HttpCode, HttpStatus } from '@nestjs/common';
 import {
   ApiTags,
   ApiCreatedResponse,
@@ -40,8 +34,7 @@ export class AuthPublicController {
     type: LoginResponseDto,
   })
   async login(@Body() dto: LoginDto) {
-    const data = await this.authService.login(dto);
-    return { success: true, data };
+    return this.authService.login(dto);
   }
 
   @Post('register')
@@ -58,8 +51,7 @@ export class AuthPublicController {
     type: LoginResponseDto,
   })
   async register(@Body() dto: RegisterDto) {
-    const data = await this.authService.register(dto);
-    return { success: true, data };
+    return this.authService.register(dto);
   }
 
   @Post('logout')
@@ -80,8 +72,7 @@ export class AuthPublicController {
     },
   })
   async forgotPassword(@Body() dto: ForgotPasswordDto) {
-    const data = await this.authService.forgotPassword(dto);
-    return { success: true, data };
+    return this.authService.forgotPassword(dto);
   }
 
   @Post('reset')
@@ -90,12 +81,14 @@ export class AuthPublicController {
   @ApiBody({ type: ResetPasswordDto })
   @ApiOkResponse({
     schema: {
-      example: { success: true, data: { accessToken: '<jwt>', expiresIn: 900 } },
+      example: {
+        success: true,
+        data: { accessToken: '<jwt>', expiresIn: 900 },
+      },
     },
     type: LoginResponseDto,
   })
   async resetPassword(@Body() dto: ResetPasswordDto) {
-    const data = await this.authService.resetPassword(dto);
-    return { success: true, data };
+    return this.authService.resetPassword(dto);
   }
 }
