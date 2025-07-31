@@ -26,7 +26,10 @@ export class AuthPublicController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'User login' })
   @ApiBody({ type: LoginDto })
-  @ApiOkResponse(envelopeSchema(LoginResponseDto))
+  @ApiOkResponse(envelopeSchema(LoginResponseDto, {
+    accessToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
+    expiresIn: 900,
+  }))
   async login(@Body() dto: LoginDto) {
     return this.authService.login(dto);
   }
@@ -35,7 +38,10 @@ export class AuthPublicController {
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'User registration' })
   @ApiBody({ type: RegisterDto })
-  @ApiCreatedResponse(envelopeSchema(RegisterResponseDto))
+  @ApiCreatedResponse(envelopeSchema(RegisterResponseDto, {
+    accessToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
+    expiresIn: 900,
+  }))
   async register(@Body() dto: RegisterDto) {
     return this.authService.register(dto);
   }
@@ -43,7 +49,9 @@ export class AuthPublicController {
   @Post('logout')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'User logout' })
-  @ApiOkResponse(envelopeSchema(MessageResponseDto))
+  @ApiOkResponse(envelopeSchema(MessageResponseDto, {
+    message: 'Did logout successfully',
+  }))
   async logout() {
     await this.authService.logout();
   }
@@ -52,7 +60,9 @@ export class AuthPublicController {
   @HttpCode(HttpStatus.ACCEPTED)
   @ApiOperation({ summary: 'Send password reset email' })
   @ApiBody({ type: ForgotPasswordDto })
-  @ApiAcceptedResponse(envelopeSchema(MessageResponseDto))
+  @ApiAcceptedResponse(envelopeSchema(MessageResponseDto, {
+    message: 'Email sent',
+  }))
   async forgotPassword(@Body() dto: ForgotPasswordDto) {
     return this.authService.forgotPassword(dto);
   }
@@ -61,7 +71,10 @@ export class AuthPublicController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Reset password with token' })
   @ApiBody({ type: ResetPasswordDto })
-  @ApiOkResponse(envelopeSchema(MessageResponseDto))
+  @ApiOkResponse(envelopeSchema(RegisterResponseDto, {
+    accessToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
+    expiresIn: 900,
+  }))
   async resetPassword(@Body() dto: ResetPasswordDto) {
     return this.authService.resetPassword(dto);
   }
