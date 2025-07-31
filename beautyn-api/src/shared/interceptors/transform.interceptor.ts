@@ -13,7 +13,7 @@ export class TransformInterceptor<T>
   intercept(_c: ExecutionContext, next: CallHandler<T>) {
     return next.handle().pipe(
       map((data) => {
-        if (data && typeof data === 'object' && 'success' in data) return data;
+        if (data && typeof data === 'object' && data.success === true) return data;
         return { success: true, data: data ?? null };
       }),
     );
