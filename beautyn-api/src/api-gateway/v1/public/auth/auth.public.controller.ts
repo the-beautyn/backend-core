@@ -3,7 +3,6 @@ import {
   ApiTags,
   ApiCreatedResponse,
   ApiOkResponse,
-  ApiNoContentResponse,
   ApiAcceptedResponse,
   ApiOperation,
   ApiBody,
@@ -14,6 +13,9 @@ import { RegisterDto } from '../../../../auth/dto/v1/register.dto';
 import { ForgotPasswordDto } from '../../../../auth/dto/v1/forgot-password.dto';
 import { ResetPasswordDto } from '../../../../auth/dto/v1/reset-password.dto';
 import { LoginResponseDto } from '../../../../auth/dto/v1/login-response.dto';
+import { RegisterResponseDto } from '../../../../auth/dto/v1/register-response.dto';
+import { MessageResponseDto } from '../../../../auth/dto/v1/message-response.dto';
+import { envelopeSchema } from '../../../../shared/utils/swagger-envelope.util';
 
 @ApiTags('Auth')
 @Controller('api/v1/auth')
@@ -24,15 +26,10 @@ export class AuthPublicController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'User login' })
   @ApiBody({ type: LoginDto })
-  @ApiOkResponse({
-    schema: {
-      example: {
-        success: true,
-        data: { accessToken: '<jwt>', expiresIn: 900 },
-      },
-    },
-    type: LoginResponseDto,
-  })
+  @ApiOkResponse(envelopeSchema(LoginResponseDto, {
+    accessToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
+    expiresIn: 900,
+  }))
   async login(@Body() dto: LoginDto) {
     return this.authService.login(dto);
   }
@@ -41,15 +38,10 @@ export class AuthPublicController {
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'User registration' })
   @ApiBody({ type: RegisterDto })
-  @ApiCreatedResponse({
-    schema: {
-      example: {
-        success: true,
-        data: { accessToken: '<jwt>', expiresIn: 900 },
-      },
-    },
-    type: LoginResponseDto,
-  })
+  @ApiCreatedResponse(envelopeSchema(RegisterResponseDto, {
+    accessToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
+    expiresIn: 900,
+  }))
   async register(@Body() dto: RegisterDto) {
     return this.authService.register(dto);
   }
@@ -57,7 +49,9 @@ export class AuthPublicController {
   @Post('logout')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'User logout' })
-  @ApiNoContentResponse()
+  @ApiOkResponse(envelopeSchema(MessageResponseDto, {
+    message: 'Did logout successfully',
+  }))
   async logout() {
     await this.authService.logout();
   }
@@ -66,11 +60,9 @@ export class AuthPublicController {
   @HttpCode(HttpStatus.ACCEPTED)
   @ApiOperation({ summary: 'Send password reset email' })
   @ApiBody({ type: ForgotPasswordDto })
-  @ApiAcceptedResponse({
-    schema: {
-      example: { success: true, data: { message: 'Email sent' } },
-    },
-  })
+  @ApiAcceptedResponse(envelopeSchema(MessageResponseDto, {
+    message: 'Email sent',
+  }))
   async forgotPassword(@Body() dto: ForgotPasswordDto) {
     return this.authService.forgotPassword(dto);
   }
@@ -79,15 +71,10 @@ export class AuthPublicController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Reset password with token' })
   @ApiBody({ type: ResetPasswordDto })
-  @ApiOkResponse({
-    schema: {
-      example: {
-        success: true,
-        data: { accessToken: '<jwt>', expiresIn: 900 },
-      },
-    },
-    type: LoginResponseDto,
-  })
+  @ApiOkResponse(envelopeSchema(RegisterResponseDto, {
+    accessToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
+    expiresIn: 900,
+  }))
   async resetPassword(@Body() dto: ResetPasswordDto) {
     return this.authService.resetPassword(dto);
   }
