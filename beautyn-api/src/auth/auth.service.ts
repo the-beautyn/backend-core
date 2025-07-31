@@ -11,7 +11,7 @@ export class AuthService {
   }
 
   async register(_dto: RegisterDto) {
-    return { id: 'uuid', email: 'user@example.com' };
+    return { accessToken: '<jwt>', expiresIn: 900 };
   }
 
   async logout() {
@@ -23,6 +23,6 @@ export class AuthService {
   }
 
   async resetPassword(_dto: ResetPasswordDto) {
-    return { message: 'Password updated' };
+    return { accessToken: '<jwt>', expiresIn: 900 };
   }
 }
