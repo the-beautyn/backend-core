@@ -18,6 +18,10 @@ export class AppConfigService {
   }
 
   get jwtExpiresIn() {
-    return '30d';
+    const expiresIn = this.cfg.get<string>('JWT_EXPIRES_IN');
+    if (!expiresIn && this.nodeEnv !== 'development') {
+      throw new Error('[Config] JWT_EXPIRES_IN is required in production.');
+    }
+    return expiresIn ?? '30d';
   }
 }
