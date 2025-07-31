@@ -5,12 +5,21 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
-import { ApiTags, ApiCreatedResponse, ApiOkResponse, ApiNoContentResponse, ApiAcceptedResponse } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiCreatedResponse,
+  ApiOkResponse,
+  ApiNoContentResponse,
+  ApiAcceptedResponse,
+  ApiOperation,
+  ApiBody,
+} from '@nestjs/swagger';
 import { AuthService } from '../../../../auth/auth.service';
 import { LoginDto } from '../../../../auth/dto/v1/login.dto';
 import { RegisterDto } from '../../../../auth/dto/v1/register.dto';
 import { ForgotPasswordDto } from '../../../../auth/dto/v1/forgot-password.dto';
 import { ResetPasswordDto } from '../../../../auth/dto/v1/reset-password.dto';
+import { LoginResponseDto } from '../../../../auth/dto/v1/login-response.dto';
 
 @ApiTags('Auth')
 @Controller('api/v1/auth')
@@ -19,7 +28,17 @@ export class AuthPublicController {
 
   @Post('login')
   @HttpCode(HttpStatus.OK)
-  @ApiOkResponse()
+  @ApiOperation({ summary: 'User login' })
+  @ApiBody({ type: LoginDto })
+  @ApiOkResponse({
+    schema: {
+      example: {
+        success: true,
+        data: { accessToken: '<jwt>', expiresIn: 900 },
+      },
+    },
+    type: LoginResponseDto,
+  })
   async login(@Body() dto: LoginDto) {
     const data = await this.authService.login(dto);
     return { success: true, data };
@@ -27,7 +46,17 @@ export class AuthPublicController {
 
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
-  @ApiCreatedResponse()
+  @ApiOperation({ summary: 'User registration' })
+  @ApiBody({ type: RegisterDto })
+  @ApiCreatedResponse({
+    schema: {
+      example: {
+        success: true,
+        data: { accessToken: '<jwt>', expiresIn: 900 },
+      },
+    },
+    type: LoginResponseDto,
+  })
   async register(@Body() dto: RegisterDto) {
     const data = await this.authService.register(dto);
     return { success: true, data };
@@ -35,6 +64,7 @@ export class AuthPublicController {
 
   @Post('logout')
   @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'User logout' })
   @ApiNoContentResponse()
   async logout() {
     await this.authService.logout();
@@ -42,7 +72,13 @@ export class AuthPublicController {
 
   @Post('forgot')
   @HttpCode(HttpStatus.ACCEPTED)
-  @ApiAcceptedResponse()
+  @ApiOperation({ summary: 'Send password reset email' })
+  @ApiBody({ type: ForgotPasswordDto })
+  @ApiAcceptedResponse({
+    schema: {
+      example: { success: true, data: { message: 'Email sent' } },
+    },
+  })
   async forgotPassword(@Body() dto: ForgotPasswordDto) {
     const data = await this.authService.forgotPassword(dto);
     return { success: true, data };
@@ -50,7 +86,14 @@ export class AuthPublicController {
 
   @Post('reset')
   @HttpCode(HttpStatus.OK)
-  @ApiOkResponse()
+  @ApiOperation({ summary: 'Reset password with token' })
+  @ApiBody({ type: ResetPasswordDto })
+  @ApiOkResponse({
+    schema: {
+      example: { success: true, data: { accessToken: '<jwt>', expiresIn: 900 } },
+    },
+    type: LoginResponseDto,
+  })
   async resetPassword(@Body() dto: ResetPasswordDto) {
     const data = await this.authService.resetPassword(dto);
     return { success: true, data };
