@@ -11,7 +11,7 @@ export class AuthService {
   }
 
   async register(_dto: RegisterDto) {
-    return { id: 'uuid', email: 'user@example.com' };
+    throw new NotImplementedException('The register method is not implemented.');
   }
 
   async logout() {
