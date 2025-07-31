@@ -5,6 +5,8 @@ export class ResetPasswordDto {
   @IsNotEmpty()
   token: string;
 
+  @IsString()
+  @IsNotEmpty()
   @MinLength(8)
   @MaxLength(50)
   newPassword: string;
