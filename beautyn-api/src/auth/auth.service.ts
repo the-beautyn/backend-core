@@ -7,11 +7,11 @@ import { ResetPasswordDto } from './dto/v1/reset-password.dto';
 @Injectable()
 export class AuthService {
   async login(_dto: LoginDto) {
-    return { accessToken: '<jwt>', expiresIn: 900 };
+    return { accessToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...', expiresIn: 900 };
   }
 
   async register(_dto: RegisterDto) {
-    return { accessToken: '<jwt>', expiresIn: 900 };
+    return { accessToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...', expiresIn: 900 };
   }
 
   async logout() {
@@ -23,6 +23,6 @@ export class AuthService {
   }
 
   async resetPassword(_dto: ResetPasswordDto) {
-    return { accessToken: '<jwt>', expiresIn: 900 };
+    return { accessToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...', expiresIn: 900 };
   }
 }
