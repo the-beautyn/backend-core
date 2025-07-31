@@ -7,7 +7,7 @@ import { ResetPasswordDto } from './dto/v1/reset-password.dto';
 @Injectable()
 export class AuthService {
   async login(_dto: LoginDto) {
-    return { accessToken: '<jwt>', expiresIn: 900 };
+    throw new Error('NotImplementedException: The login method is not implemented.');
   }
 
   async register(_dto: RegisterDto) {
