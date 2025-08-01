@@ -5,8 +5,8 @@ import { RevokedTokenRepository } from './revoked-token.repository';
 export class RevokedTokenService {
   constructor(private readonly repo: RevokedTokenRepository) {}
 
-  revoke(jti: string, exp: number) {
-    return this.repo.add(jti, new Date(exp * 1000));
+  async revoke(jti: string, exp: number): Promise<RevokedToken> {
+    return await this.repo.add(jti, new Date(exp * 1000));
   }
 
   isRevoked(jti: string) {
