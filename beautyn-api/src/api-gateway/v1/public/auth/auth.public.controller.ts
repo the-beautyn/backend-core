@@ -14,6 +14,7 @@ import { ForgotPasswordDto } from '../../../../auth/dto/v1/forgot-password.dto';
 import { ResetPasswordDto } from '../../../../auth/dto/v1/reset-password.dto';
 import { LoginResponseDto } from '../../../../auth/dto/v1/login-response.dto';
 import { RegisterResponseDto } from '../../../../auth/dto/v1/register-response.dto';
+import { ResetPasswordResponseDto } from '../../../../auth/dto/v1/reset-password-response.dto';
 import { MessageResponseDto } from '../../../../auth/dto/v1/message-response.dto';
 import { envelopeSchema } from '../../../../shared/utils/swagger-envelope.util';
 
@@ -80,7 +81,7 @@ export class AuthPublicController {
   @ApiOperation({ summary: 'Reset password with token' })
   @ApiBody({ type: ResetPasswordDto })
   @ApiOkResponse(
-    envelopeSchema(RegisterResponseDto, {
+    envelopeSchema(ResetPasswordResponseDto, {
       accessToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
       expiresIn: 900,
     }),

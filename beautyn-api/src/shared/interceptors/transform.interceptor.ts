@@ -21,10 +21,10 @@ export class TransformInterceptor<T>
     next: CallHandler<T>,
   ): Observable<Envelope<T>> {
     return next.handle().pipe(
-      map((data: any) => {
+      map((data: T) => {
         // If handler already produced an envelope, pass it through
         if (data && typeof data === 'object' && 'success' in data) {
-          return data as Envelope<T>;
+          return data as unknown as Envelope<T>;
         }
         return { success: true, data: data ?? null };
       }),
