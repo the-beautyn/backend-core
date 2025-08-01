@@ -9,7 +9,7 @@ export class RevokedTokenService {
     return await this.repo.add(jti, new Date(exp * 1000));
   }
 
-  isRevoked(jti: string) {
+  isRevoked(jti: string): Promise<boolean> {
     return this.repo.isRevoked(jti);
   }
 }
