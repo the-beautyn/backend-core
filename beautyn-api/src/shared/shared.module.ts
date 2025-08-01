@@ -13,6 +13,7 @@ import { HashService } from './services/hash.service';
       isGlobal: true,
       envFilePath: [
         `.env.${process.env.NODE_ENV || 'dev'}`,
+        '.env',
       ],
       ignoreEnvFile: false,
     }),
