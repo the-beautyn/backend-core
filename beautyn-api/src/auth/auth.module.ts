@@ -6,6 +6,8 @@ import { SharedModule } from '../shared/shared.module';
 import { AppConfigService } from '../shared/services/app-config.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { UsersModule } from '../users/users.module';
+import { RevokedTokenRepository } from './revocation/revoked-token.repository';
+import { RevokedTokenService } from './revocation/revoked-token.service';
 
 @Module({
   imports: [
@@ -21,7 +23,12 @@ import { UsersModule } from '../users/users.module';
     SharedModule,
     UsersModule,
   ],
-  providers: [AuthService, JwtStrategy],
-  exports: [AuthService],
+  providers: [
+    AuthService,
+    JwtStrategy,
+    RevokedTokenRepository,
+    RevokedTokenService,
+  ],
+  exports: [AuthService, RevokedTokenService],
 })
 export class AuthModule {}

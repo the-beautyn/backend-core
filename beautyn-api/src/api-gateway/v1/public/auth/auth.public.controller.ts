@@ -1,4 +1,12 @@
-import { Controller, Post, Body, HttpCode, HttpStatus } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  HttpCode,
+  HttpStatus,
+  UseGuards,
+  Req,
+} from '@nestjs/common';
 import {
   ApiTags,
   ApiCreatedResponse,
@@ -6,6 +14,8 @@ import {
   ApiAcceptedResponse,
   ApiOperation,
   ApiBody,
+  ApiBearerAuth,
+  ApiNoContentResponse,
 } from '@nestjs/swagger';
 import { AuthService } from '../../../../auth/auth.service';
 import { LoginDto } from '../../../../auth/dto/v1/login.dto';
@@ -17,6 +27,8 @@ import { RegisterResponseDto } from '../../../../auth/dto/v1/register-response.d
 import { ResetPasswordResponseDto } from '../../../../auth/dto/v1/reset-password-response.dto';
 import { MessageResponseDto } from '../../../../auth/dto/v1/message-response.dto';
 import { envelopeSchema } from '../../../../shared/utils/swagger-envelope.util';
+import { JwtAuthGuard } from '../../../../shared/guards/jwt-auth.guard';
+import { Request } from 'express';
 
 @ApiTags('Auth')
 @Controller('api/v1/auth')
@@ -52,15 +64,18 @@ export class AuthPublicController {
   }
 
   @Post('logout')
-  @HttpCode(HttpStatus.NO_CONTENT)
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(204)
   @ApiOperation({ summary: 'User logout' })
-  @ApiOkResponse(
+  @ApiBearerAuth()
+  @ApiNoContentResponse(
     envelopeSchema(MessageResponseDto, {
       message: 'Did logout successfully',
     }),
   )
-  async logout() {
-    await this.authService.logout();
+  async logout(@Req() req: Request & { user: { jti: string; exp: number } }) {
+    const { jti, exp } = req.user;
+    await this.authService.logout(jti, exp);
   }
 
   @Post('forgot')
@@ -72,7 +87,7 @@ export class AuthPublicController {
       message: 'Email sent',
     }),
   )
-  async forgotPassword(@Body() dto: ForgotPasswordDto) {
+  forgotPassword(@Body() dto: ForgotPasswordDto) {
     return this.authService.forgotPassword(dto);
   }
 
@@ -86,7 +101,7 @@ export class AuthPublicController {
       expiresIn: 900,
     }),
   )
-  async resetPassword(@Body() dto: ResetPasswordDto) {
+  resetPassword(@Body() dto: ResetPasswordDto) {
     return this.authService.resetPassword(dto);
   }
 }
