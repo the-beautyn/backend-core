@@ -29,11 +29,15 @@ export class RevokedTokenRepository {
       .then(Boolean);
     if (isRevoked) {
       // Add to cache if found in database
-      const token = await this.prisma.revokedToken.findUnique({ where: { jti } });
-      const ttl = token.expiresAt.getTime() - Date.now();
-      if (ttl > 0) {
-        const timeout = setTimeout(() => this.cache.delete(jti), ttl);
-        this.cache.set(jti, timeout);
+      const token = await this.prisma.revokedToken.findUnique({
+        where: { jti },
+      });
+      if (token) {
+        const ttl = token.expiresAt.getTime() - Date.now();
+        if (ttl > 0) {
+          const timeout = setTimeout(() => this.cache.delete(jti), ttl);
+          this.cache.set(jti, timeout);
+        }
       }
     }
     return isRevoked;

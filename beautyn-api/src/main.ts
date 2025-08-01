@@ -28,9 +28,9 @@ async function bootstrap() {
     ],
   });
   SwaggerModule.setup('api/docs', app, doc);
-  
+
   // Serve Swagger JSON
-  app.use('/api-json', (req, res) => {
+  app.use('/api-json', (req: any, res: any) => {
     res.json(doc);
   });
 

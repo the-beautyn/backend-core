@@ -66,8 +66,13 @@ export class AuthPublicController {
   @Post('logout')
   @UseGuards(JwtAuthGuard)
   @HttpCode(204)
+  @ApiOperation({ summary: 'User logout' })
   @ApiBearerAuth()
-  @ApiNoContentResponse({ description: 'Logged out' })
+  @ApiNoContentResponse(
+    envelopeSchema(MessageResponseDto, {
+      message: 'Did logout successfully',
+    }),
+  )
   async logout(@Req() req: Request & { user: { jti: string; exp: number } }) {
     const { jti, exp } = req.user;
     await this.authService.logout(jti, exp);

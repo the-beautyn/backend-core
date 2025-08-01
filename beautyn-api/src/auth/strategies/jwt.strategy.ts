@@ -7,6 +7,8 @@ import { RevokedTokenService } from '../revocation/revoked-token.service';
 interface JwtPayload {
   sub: string;
   role: 'client' | 'owner' | 'admin';
+  jti: string;
+  exp: number;
 }
 
 @Injectable()
