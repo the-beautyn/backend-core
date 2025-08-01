@@ -1,3 +1,11 @@
+/**
+ * UsersService Tests
+ * 
+ * Tests the UsersService which handles user data operations including:
+ * - User creation with email, password hash, and role
+ * - User retrieval by email
+ * - Database persistence and retrieval functionality
+ */
 import { INestApplication } from '@nestjs/common';
 import { UserRole } from '@prisma/client';
 import { UsersService } from '../src/users/users.service';

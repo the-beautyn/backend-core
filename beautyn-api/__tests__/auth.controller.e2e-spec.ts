@@ -1,3 +1,19 @@
+/**
+ * AuthController End-to-End Tests
+ * 
+ * Tests the complete authentication flow through HTTP endpoints:
+ * - User registration via POST /api/v1/auth/register
+ * - User login and token generation
+ * - Protected route access with JWT authentication
+ * - User logout and token invalidation
+ * - Authentication state verification (health check before/after logout)
+ * 
+ * These tests verify the full request/response cycle including:
+ * - HTTP status codes
+ * - Response body structure
+ * - JWT token handling
+ * - Authorization header processing
+ */
 import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';

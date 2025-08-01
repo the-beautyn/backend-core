@@ -1,4 +1,8 @@
 import type { JestConfigWithTsJest } from 'ts-jest';
+import { config as dotenvConfig } from 'dotenv';
+
+// Load test environment variables
+dotenvConfig({ path: '.env.test' });
 
 const config: JestConfigWithTsJest = {
   preset: 'ts-jest',
@@ -11,6 +15,7 @@ const config: JestConfigWithTsJest = {
   },
   collectCoverageFrom: ['**/*.(t|j)s'],
   coverageDirectory: './coverage',
+  setupFilesAfterEnv: ['<rootDir>/test-env.js'],
 };
 
 export default config;

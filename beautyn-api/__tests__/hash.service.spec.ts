@@ -1,3 +1,11 @@
+/**
+ * HashService Tests
+ * 
+ * Tests the HashService which provides password hashing functionality:
+ * - Password hashing using secure algorithms
+ * - Password verification against stored hashes
+ * - Round-trip verification to ensure hash/verify consistency
+ */
 import { HashService } from '../src/shared/services/hash.service';
 
 describe('HashService', () => {
