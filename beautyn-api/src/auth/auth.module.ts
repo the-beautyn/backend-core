@@ -21,7 +21,7 @@ import { UsersModule } from '../users/users.module';
     SharedModule,
     UsersModule,
   ],
-  providers: [AuthService, JwtStrategy, UsersService],
+  providers: [AuthService, JwtStrategy],
   exports: [AuthService],
 })
 export class AuthModule {}
