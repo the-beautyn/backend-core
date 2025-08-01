@@ -48,7 +48,7 @@ export class AuthService {
     return { accessToken: token, expiresIn: 60 * 60 * 24 * 30 };
   }
 
-  logout(jti: string, exp: number) {
+  async logout(jti: string, exp: number): Promise<RevokedToken> {
     return this.revoked.revoke(jti, exp);
   }
 
