@@ -25,10 +25,6 @@ describe('AuthController (e2e)', () => {
   let accessToken: string;
 
   beforeAll(async () => {
-    process.env.DATABASE_URL = 'file:./test.db?connection_limit=1&mode=memory';
-    process.env.JWT_SECRET = 'test-secret';
-    process.env.JWT_EXPIRES_IN = '1h';
-    execSync('npx prisma db push', { stdio: 'inherit', env: { ...process.env } });
     const moduleRef = await Test.createTestingModule({
       imports: [AppModule],
     }).compile();

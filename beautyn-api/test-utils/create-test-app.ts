@@ -8,9 +8,6 @@ export async function createTestApp(imports: any[] = []): Promise<INestApplicati
   // Setup test environment
   setupTestEnvironment();
   
-  // Set Prisma schema to use test schema
-  process.env.PRISMA_SCHEMA_PATH = 'prisma/schema.test.prisma';
-  
   const moduleRef: TestingModule = await Test.createTestingModule({
     imports: [SharedModule, ...imports],
   }).compile();

@@ -1,11 +1,11 @@
 /**
  * AppController End-to-End Tests
- * 
+ *
  * Tests the main application controller and basic application functionality:
  * - Root endpoint accessibility (/)
  * - Basic HTTP response handling
  * - Application startup and routing
- * 
+ *
  * These tests verify that the application starts correctly and responds
  * to basic requests, serving as a smoke test for the entire application.
  */
@@ -14,21 +14,15 @@ import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { App } from 'supertest/types';
 import { AppModule } from './../src/app.module';
+import { config } from 'dotenv';
 
 describe('AppController (e2e)', () => {
   let app: INestApplication<App>;
 
   beforeEach(async () => {
     // Load test environment variables from .env.test
-    const { config } = require('dotenv');
     config({ path: '.env.test' });
-    
-    // Explicitly set required environment variables for e2e tests
-    process.env.DATABASE_URL = 'file:./test.db?connection_limit=1&mode=memory';
-    process.env.JWT_SECRET = 'test-secret-key-for-testing-only';
-    process.env.JWT_EXPIRES_IN = '1h';
-    process.env.NODE_ENV = 'test';
-    
+
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     }).compile();

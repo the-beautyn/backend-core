@@ -11,9 +11,7 @@ import { HashService } from './services/hash.service';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath: [
-        `.env.${process.env.NODE_ENV || 'dev'}`,
-      ],
+      envFilePath: [`.env.${process.env.NODE_ENV || 'dev'}`],
       ignoreEnvFile: false,
     }),
   ],

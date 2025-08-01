@@ -17,7 +17,6 @@ describe('UsersService', () => {
   let service: UsersService;
 
   beforeAll(async () => {
-    process.env.DATABASE_URL = 'file:./test.db?connection_limit=1&mode=memory';
     app = await createTestApp([UsersModule]);
     service = app.get(UsersService);
   });
