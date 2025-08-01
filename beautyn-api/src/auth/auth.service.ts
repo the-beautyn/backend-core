@@ -27,8 +27,10 @@ export class AuthService {
 
     const hash = await this.hash.hash(dto.password);
     const user = await this.users.create(dto.email, hash, dto.role);
+    const payload = { sub: user.id, role: user.role };
+    const token = this.jwt.sign(payload);
 
-    return { id: user.id, email: user.email };
+    return { accessToken: token, expiresIn: 60 * 60 * 24 * 30 };
   }
 
   async login(dto: LoginDto) {

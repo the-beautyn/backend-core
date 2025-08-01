@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { UsersRepository } from './users.repository';
+import { UserRole } from '@prisma/client';
 
 @Injectable()
 export class UsersService {
@@ -9,7 +10,7 @@ export class UsersService {
     return this.repo.findByEmail(email);
   }
 
-  create(email: string, passwordHash: string, role: string) {
+  create(email: string, passwordHash: string, role: UserRole) {
     return this.repo.create(email, passwordHash, role);
   }
 }
