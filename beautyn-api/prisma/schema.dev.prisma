@@ -1,0 +1,38 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum UserRole {
+  admin
+  client
+  owner
+}
+
+model User {
+  id                    String  @id @default(uuid())
+  email                 String  @unique
+  passwordHash          String
+  role                  UserRole
+  name                  String?
+  secondName            String?
+  phone                 String?
+  avatarUrl             String?
+  isProfileCreated      Boolean @default(false)
+  isOnboardingCompleted Boolean @default(false)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
+
+model RevokedToken {
+  id        String   @id @default(uuid())
+  jti       String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([expiresAt])
+} 
