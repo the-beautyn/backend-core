@@ -34,6 +34,11 @@ Thumbs.db
 /beautyn-api/.nestjs/
 /beautyn-api/swagger-static/
 
+# Prisma
+/beautyn-api/prisma/dev.db             # local SQLite
+/beautyn-api/prisma/*.db-journal       # SQLite WAL files
+/beautyn-api/.prisma/                  # generated client cache (if any)
+
 ####################################
 # 🔐  Environment & secrets (scoped)
 /beautyn-api/.env*

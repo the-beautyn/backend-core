@@ -5,6 +5,7 @@ import { AuthService } from './auth.service';
 import { SharedModule } from '../shared/shared.module';
 import { AppConfigService } from '../shared/services/app-config.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
+import { UsersModule } from '../users/users.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { JwtStrategy } from './strategies/jwt.strategy';
     }),
     PassportModule,
     SharedModule,
+    UsersModule,
   ],
   providers: [AuthService, JwtStrategy],
   exports: [AuthService],
