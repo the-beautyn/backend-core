@@ -1,3 +1,14 @@
+/**
+ * AppController Unit Tests
+ *
+ * Tests the main application controller functionality:
+ * - Root endpoint response (getHello method)
+ * - Controller method behavior
+ * - Service integration with AppService
+ *
+ * These are unit tests that verify the controller logic in isolation,
+ * mocking dependencies to focus on the controller's specific responsibilities.
+ */
 import { Test, TestingModule } from '@nestjs/testing';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
