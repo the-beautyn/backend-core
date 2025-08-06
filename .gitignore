@@ -1,0 +1,58 @@
+####################################
+# 📝  Global ignores (OS / editors)
+####################################
+.DS_Store
+Thumbs.db
+*.swp
+*~
+
+# IDE / editor folders
+.vscode/
+.idea/
+*.sublime-*
+
+####################################
+# 🔧  NestJS build artefacts (scoped)
+####################################
+# Dependencies
+/beautyn-api/node_modules/
+
+# Compiled output (Nest CLI)
+/beautyn-api/dist/
+
+# Test coverage
+/beautyn-api/coverage/
+/beautyn-api/.nyc_output/
+
+# Logs & runtime files
+/beautyn-api/*.log
+/beautyn-api/logs/
+/beautyn-api/pids/
+/beautyn-api/*.pid
+
+# NestJS CLI cache & generated docs
+/beautyn-api/.nestjs/
+/beautyn-api/swagger-static/
+
+# Prisma
+/beautyn-api/prisma/dev.db             # local SQLite
+/beautyn-api/prisma/*.db-journal       # SQLite WAL files
+/beautyn-api/.prisma/                  # generated client cache (if any)
+
+####################################
+# 🔐  Environment & secrets (scoped)
+/beautyn-api/.env*
+# root-level .env (if you create one)
+.env*
+
+####################################
+# 📦  Package-manager lockfiles (scoped)
+/beautyn-api/package-lock.json
+/beautyn-api/yarn.lock
+/beautyn-api/pnpm-lock.yaml
+
+####################################
+# 🛠️  Misc temp files
+*.tmp
+tmp/
+temp/
