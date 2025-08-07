@@ -36,6 +36,5 @@ export async function cleanupTestApp(app: INestApplication): Promise<void> {
 
 async function cleanupTestData(prisma: PrismaService): Promise<void> {
   // Delete all test data in reverse order of dependencies
-  await prisma.revokedToken.deleteMany();
-  await prisma.user.deleteMany();
+  await prisma.users.deleteMany();
 }

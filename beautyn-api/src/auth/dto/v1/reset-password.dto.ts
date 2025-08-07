@@ -8,7 +8,7 @@ export class ResetPasswordDto {
   })
   @IsString()
   @IsNotEmpty()
-  token: string;
+  otpToken: string;
 
   @ApiProperty({
     example: 'N3wP@ssword!',

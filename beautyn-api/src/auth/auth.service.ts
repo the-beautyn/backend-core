@@ -2,64 +2,93 @@ import {
   Injectable,
   ConflictException,
   UnauthorizedException,
+  BadRequestException,
 } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
 import { LoginDto } from './dto/v1/login.dto';
 import { RegisterDto } from './dto/v1/register.dto';
 import { ForgotPasswordDto } from './dto/v1/forgot-password.dto';
 import { ResetPasswordDto } from './dto/v1/reset-password.dto';
 import { UsersService } from '../users/users.service';
-import { HashService } from '../shared/services/hash.service';
-import { AppConfigService } from '../shared/services/app-config.service';
-import { randomUUID } from 'crypto';
-import { RevokedTokenService } from './revocation/revoked-token.service';
+import { SupabaseClient } from '@supabase/supabase-js';
 
 @Injectable()
 export class AuthService {
   constructor(
     private readonly users: UsersService,
-    private readonly hash: HashService,
-    private readonly jwt: JwtService,
-    private readonly cfg: AppConfigService,
-    private readonly revoked: RevokedTokenService,
+    private readonly sb: SupabaseClient
   ) {}
 
-  async register(dto: RegisterDto) {
-    const existing = await this.users.findByEmail(dto.email);
-    if (existing) throw new ConflictException('Email already taken');
+  async register({ email, password, role }: RegisterDto) {
+    const { data, error } = await this.sb.auth.signUp({
+      email,
+      password,
+      options: { data: { user_role: role } },   // lands in JWT → RLS
+    });
+    if (error) throw new BadRequestException(error.message);
 
-    const hash = await this.hash.hash(dto.password);
-    const user = await this.users.create(dto.email, hash, dto.role);
-    const payload = { sub: user.id, role: user.role, jti: randomUUID() };
-    const token = this.jwt.sign(payload);
+    // When “Confirm email” is ON session is null. :contentReference[oaicite:1]{index=1}
+    if (!data.session)
+      return { message: 'Check your inbox to confirm registration' };
 
-    return { accessToken: token, expiresIn: 60 * 60 * 24 * 30 };
+    const user = await this.users.create(email, role);
+
+    return {
+      accessToken: data.session.access_token,
+      refreshToken: data.session.refresh_token,
+      expiresIn: data.session.expires_in,
+    };
   }
 
   async login(dto: LoginDto) {
-    const user = await this.users.findByEmail(dto.email);
-    if (!user) throw new UnauthorizedException('Invalid credentials');
+    const { data, error } = await this.sb.auth.signInWithPassword({
+      email: dto.email,
+      password: dto.password,
+    });                                                            // :contentReference[oaicite:2]{index=2}
+    if (error) throw new UnauthorizedException(error.message);
 
-    const ok = await this.hash.verify(user.passwordHash, dto.password);
-    if (!ok) throw new UnauthorizedException('Invalid credentials');
-
-    const payload = { sub: user.id, role: user.role, jti: randomUUID() };
-    const token = this.jwt.sign(payload);
-    return { accessToken: token, expiresIn: 60 * 60 * 24 * 30 };
-  }
-
-  async logout(jti: string, exp: number) {
-    return this.revoked.revoke(jti, exp);
-  }
-
-  forgotPassword(_dto: ForgotPasswordDto) {
-    return { message: 'Email sent' };
-  }
-
-  resetPassword(_dto: ResetPasswordDto) {
     return {
-      accessToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
-      expiresIn: 900,
+      accessToken: data.session.access_token,
+      refreshToken: data.session.refresh_token,
+      expiresIn: data.session.expires_in,
+    };
+  }
+
+  async logout(accessToken: string) {
+    // Build a “scoped” client that holds the user session
+    const userSb = this.sb
+      .auth
+      .setSession({ access_token: accessToken, refresh_token: '' });
+
+    const { error } = await this.sb.auth.signOut();                 // :contentReference[oaicite:3]{index=3}
+    if (error) throw new BadRequestException(error.message);
+    return { message: 'Logged out (refresh tokens revoked)' };
+  }
+
+  async forgotPassword({ email }: ForgotPasswordDto) {
+    const { error } = await this.sb.auth.resetPasswordForEmail(email, {
+      redirectTo: `${process.env.APP_URL}/auth/reset`,              // your deep-link
+    });                                                             // :contentReference[oaicite:4]{index=4}
+    if (error) throw new BadRequestException(error.message);
+    return { message: 'Password-reset email sent' };
+  }
+
+  async resetPassword(dto: ResetPasswordDto) {
+    // dto: { token_hash: string, newPassword: string }   ← OTP style
+    const { data, error } = await this.sb.auth.verifyOtp({
+      type: 'recovery',
+      token_hash: dto.otpToken,
+    });
+    if (error) throw new BadRequestException(error.message);
+
+    const { error: updErr } = await this.sb.auth.updateUser({
+      password: dto.newPassword,
+    });
+    if (updErr) throw new BadRequestException(updErr.message);
+
+    return {
+      accessToken: data.session?.access_token,
+      refreshToken: data.session?.refresh_token,
+      expiresIn: data.session?.expires_in,
     };
   }
 }

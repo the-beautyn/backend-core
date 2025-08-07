@@ -10,7 +10,7 @@ export class UsersService {
     return this.repo.findByEmail(email);
   }
 
-  create(email: string, passwordHash: string, role: UserRole) {
-    return this.repo.create(email, passwordHash, role);
+  create(email: string, role: UserRole) {
+    return this.repo.create(email, role);
   }
 }

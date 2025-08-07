@@ -25,4 +25,17 @@ if (!process.env.LOG_LEVEL) {
 
 if (!process.env.SWAGGER_ENABLED) {
   process.env.SWAGGER_ENABLED = "false";
+}
+
+// Supabase test environment variables
+if (!process.env.SUPABASE_URL) {
+  process.env.SUPABASE_URL = "http://127.0.0.1:54321";
+}
+
+if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+  process.env.SUPABASE_SERVICE_ROLE_KEY = "test-service-role-key";
+}
+
+if (!process.env.APP_URL) {
+  process.env.APP_URL = "http://localhost:3000";
 } 

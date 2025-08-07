@@ -42,6 +42,7 @@ export class AuthPublicController {
   @ApiOkResponse(
     envelopeSchema(LoginResponseDto, {
       accessToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
+      refreshToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
       expiresIn: 900,
     }),
   )
@@ -56,6 +57,7 @@ export class AuthPublicController {
   @ApiCreatedResponse(
     envelopeSchema(RegisterResponseDto, {
       accessToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
+      refreshToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
       expiresIn: 900,
     }),
   )
@@ -73,9 +75,9 @@ export class AuthPublicController {
       message: 'Did logout successfully',
     }),
   )
-  async logout(@Req() req: Request & { user: { jti: string; exp: number } }) {
-    const { jti, exp } = req.user;
-    await this.authService.logout(jti, exp);
+  async logout(@Req() req: Request & { user: { accessToken: string; } }) {
+    const { accessToken } = req.user;
+    await this.authService.logout(accessToken);
   }
 
   @Post('forgot')
@@ -87,7 +89,7 @@ export class AuthPublicController {
       message: 'Email sent',
     }),
   )
-  forgotPassword(@Body() dto: ForgotPasswordDto) {
+  async forgotPassword(@Body() dto: ForgotPasswordDto) {
     return this.authService.forgotPassword(dto);
   }
 
@@ -98,10 +100,11 @@ export class AuthPublicController {
   @ApiOkResponse(
     envelopeSchema(ResetPasswordResponseDto, {
       accessToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
+      refreshToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
       expiresIn: 900,
     }),
   )
-  resetPassword(@Body() dto: ResetPasswordDto) {
+  async resetPassword(@Body() dto: ResetPasswordDto) {
     return this.authService.resetPassword(dto);
   }
 }

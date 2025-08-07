@@ -8,6 +8,12 @@ export class RegisterResponseDto {
   accessToken: string;
 
   @ApiProperty({
+    example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
+    description: 'JWT refresh token',
+  })
+  refreshToken: string;
+
+  @ApiProperty({
     example: 900,
     description: 'Expiration time in seconds',
   })
