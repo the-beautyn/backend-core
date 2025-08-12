@@ -26,7 +26,7 @@ export class AuthService {
     });
     if (error) throw new BadRequestException(error.message);
 
-    // When “Confirm email” is ON session is null. :contentReference[oaicite:1]{index=1}
+    // When "Confirm email" is ON, session is null.
     if (!data.session)
       return { message: 'Check your inbox to confirm registration' };
 
