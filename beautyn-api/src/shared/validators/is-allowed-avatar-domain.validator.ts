@@ -6,7 +6,7 @@ const ALLOWED_AVATAR_DOMAINS = [
   'supabase.com', 
   'githubusercontent.com',
   'gravatar.com',
-  'googleapis.com', // Changed from google.com to googleapis.com for Google Cloud Storage
+  'googleapis.com',
   'googleusercontent.com',
   'facebook.com',
   'fbcdn.net',
