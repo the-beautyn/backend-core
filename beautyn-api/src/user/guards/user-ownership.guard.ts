@@ -9,6 +9,9 @@ export class UserOwnershipGuard implements CanActivate {
     if (!paramId) {
       throw new BadRequestException('Missing required parameter: id');
     }
+    if (!request.user || !userId) {
+      return false;
+    }
     return paramId === userId;
   }
 }
