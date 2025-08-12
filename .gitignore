@@ -56,3 +56,13 @@ Thumbs.db
 *.tmp
 tmp/
 temp/
+
+###############################################################################
+# Supabase CLI (local containers, caches, temp files)  ─── stored in /beautyn-api
+###############################################################################
+/beautyn-api/.supabase/                      # runtime state from `supabase start`
+/beautyn-api/supabase/.temp/                 # CLI download / build cache
+/beautyn-api/supabase/docker/**              # auto-generated docker-compose / env
+/beautyn-api/supabase/backups/
+/beautyn-api/supabase/dump*.sql
+/beautyn-api/*.dump.sql                      # ad-hoc pg_dump exports
