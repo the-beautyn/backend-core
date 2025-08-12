@@ -1,7 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../shared/database/prisma.service';
 import { Users, UserRole } from '@prisma/client';
 import { randomUUID } from 'crypto';
+import { isUUID, isEmail } from 'class-validator';
 
 const userSelect = {
   id: true,
@@ -36,6 +37,25 @@ export class UserRepository {
   }
 
   createWithId(id: string, email: string, role: UserRole) {
+    // Validate UUID format using class-validator
+    if (!id || typeof id !== 'string') {
+      throw new BadRequestException('id is required and must be a string');
+    }
+    if (!isUUID(id)) {
+      throw new BadRequestException('id must be a valid UUID format');
+    }
+
+    // Validate email format using class-validator
+    if (!email || typeof email !== 'string') {
+      throw new BadRequestException('email is required and must be a string');
+    }
+    if (!isEmail(email)) {
+      throw new BadRequestException('email must be a valid email address');
+    }
+    if (email.length > 254) {
+      throw new BadRequestException('email must not exceed 254 characters');
+    }
+
     return this.prisma.users.create({
       data: { 
         id,          // Use the provided ID (from Supabase)

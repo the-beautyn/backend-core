@@ -1,5 +1,6 @@
-import { IsOptional, IsString, Matches, IsUrl } from 'class-validator';
+import { IsOptional, IsString, IsUrl } from 'class-validator';
 import { IsAllowedAvatarDomain } from '../../shared/validators/is-allowed-avatar-domain.validator';
+import { IsValidPhone } from '../../shared/validators/is-valid-phone.validator';
 
 export class UpdateUserDto {
   @IsOptional()
@@ -12,10 +13,11 @@ export class UpdateUserDto {
 
   @IsOptional()
   /**
-   * Phone number must be in E.164 international format: starts with '+', followed by country code and 8-15 digits.
-   * Example: +12345678901
+   * Phone number must be in international format (E.164).
+   * Supports all valid international phone numbers using Google's libphonenumber.
+   * Examples: +1234567890, +44123456789, +81312345678, +3796698
    */
-  @Matches(/^\+[1-9]\d{7,14}$/)
+  @IsValidPhone()
   phone?: string;
 
   @IsOptional()
