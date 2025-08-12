@@ -1,0 +1,14 @@
+import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
+
+@Injectable()
+export class UserOwnershipGuard implements CanActivate {
+  canActivate(context: ExecutionContext): boolean {
+    const request = context.switchToHttp().getRequest();
+    const paramId = request.params?.id;
+    const userId = request.user?.id;
+    if (!paramId) {
+      return true;
+    }
+    return paramId === userId;
+  }
+}
