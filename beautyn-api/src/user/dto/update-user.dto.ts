@@ -10,6 +10,10 @@ export class UpdateUserDto {
   second_name?: string;
 
   @IsOptional()
+  /**
+   * Phone number must be in E.164 international format: starts with '+', followed by country code and 8-15 digits.
+   * Example: +12345678901
+   */
   @Matches(/^\+[1-9]\d{7,14}$/)
   phone?: string;
 
