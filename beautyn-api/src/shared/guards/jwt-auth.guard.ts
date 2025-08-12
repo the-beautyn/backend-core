@@ -22,8 +22,13 @@ export class JwtAuthGuard implements CanActivate {
         throw new UnauthorizedException('Invalid token');
       }
 
-      // Attach user to request for use in controllers
-      request.user = user;
+      // Map Supabase user to expected request user structure
+      request.user = {
+        ...user,                        // Include all Supabase user fields
+        id: user.id,                    // Ensure user ID is available
+        role: user.user_metadata?.user_role || null,  // Extract role from metadata
+      };
+      
       return true;
     } catch (error) {
       throw new UnauthorizedException('Token validation failed');

@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException, UnauthorizedException } from '@nestjs/common';
 import { AuthService } from '../../auth/auth.service';
-import { UsersService } from '../../users/users.service';
+import { UserService } from '../../user/user.service';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { RegisterDto } from '../../auth/dto/v1/register.dto';
 import { LoginDto } from '../../auth/dto/v1/login.dto';
@@ -11,7 +11,7 @@ import { UserRole } from '@prisma/client';
 
 describe('AuthService', () => {
   let service: AuthService;
-  let usersService: jest.Mocked<UsersService>;
+  let userService: jest.Mocked<UserService>;
   let supabaseClient: jest.Mocked<SupabaseClient>;
 
   // Mock data
@@ -48,8 +48,9 @@ describe('AuthService', () => {
   };
 
   beforeEach(async () => {
-    const mockUsersService = {
+    const mockUserService = {
       create: jest.fn(),
+      createWithId: jest.fn(),
       findByEmail: jest.fn(),
     };
 
@@ -71,8 +72,8 @@ describe('AuthService', () => {
       providers: [
         AuthService,
         {
-          provide: UsersService,
-          useValue: mockUsersService,
+          provide: UserService,
+          useValue: mockUserService,
         },
         {
           provide: SupabaseClient,
@@ -82,7 +83,7 @@ describe('AuthService', () => {
     }).compile();
 
     service = module.get<AuthService>(AuthService);
-    usersService = module.get(UsersService);
+    userService = module.get(UserService);
     supabaseClient = module.get(SupabaseClient);
   });
 
@@ -108,7 +109,7 @@ describe('AuthService', () => {
       };
 
       supabaseClient.auth.signUp.mockResolvedValue(mockSignUpResponse);
-      usersService.create.mockResolvedValue(mockUser);
+      userService.createWithId.mockResolvedValue(mockUser);
 
       // Act
       const result = await service.register(registerDto);
@@ -119,7 +120,7 @@ describe('AuthService', () => {
         password: registerDto.password,
         options: { data: { user_role: registerDto.role } },
       });
-      expect(usersService.create).toHaveBeenCalledWith(registerDto.email, registerDto.role);
+      expect(userService.createWithId).toHaveBeenCalledWith(mockSupabaseUser.id, registerDto.email, registerDto.role);
       expect(result).toEqual({
         accessToken: mockSession.access_token,
         refreshToken: mockSession.refresh_token,
@@ -148,7 +149,7 @@ describe('AuthService', () => {
         password: registerDto.password,
         options: { data: { user_role: registerDto.role } },
       });
-      expect(usersService.create).not.toHaveBeenCalled();
+      expect(userService.createWithId).not.toHaveBeenCalled();
       expect(result).toEqual({
         message: 'Check your inbox to confirm registration',
       });
@@ -168,7 +169,7 @@ describe('AuthService', () => {
       await expect(service.register(registerDto)).rejects.toThrow(
         new BadRequestException(mockError.message),
       );
-      expect(usersService.create).not.toHaveBeenCalled();
+      expect(userService.createWithId).not.toHaveBeenCalled();
     });
   });
 
