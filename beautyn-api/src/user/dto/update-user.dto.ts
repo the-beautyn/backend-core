@@ -15,5 +15,6 @@ export class UpdateUserDto {
 
   @IsOptional()
   @IsUrl({ protocols: ['https'] })
+  @IsAllowedAvatarDomain({ message: 'avatar_url must be hosted on an allowed domain.' })
   avatar_url?: string;
 }
