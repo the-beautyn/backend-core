@@ -110,12 +110,6 @@ export class UserService {
     return !!user?.isProfileCreated;
   }
 
-  async changePassword(): Promise<never> {
-    throw new NotImplementedException(
-      'Password changes are handled by AuthModule/SharedPasswordService',
-    );
-  }
-
   // Auth-related methods (migrated from users module)
   findByEmail(email: string) {
     return this.repo.findByEmail(email);
