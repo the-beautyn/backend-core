@@ -8,13 +8,13 @@ import { LoginDto } from './dto/v1/login.dto';
 import { RegisterDto } from './dto/v1/register.dto';
 import { ForgotPasswordDto } from './dto/v1/forgot-password.dto';
 import { ResetPasswordDto } from './dto/v1/reset-password.dto';
-import { UsersService } from '../users/users.service';
+import { UserService } from '../user/user.service';
 import { SupabaseClient } from '@supabase/supabase-js';
 
 @Injectable()
 export class AuthService {
   constructor(
-    private readonly users: UsersService,
+    private readonly users: UserService,
     private readonly sb: SupabaseClient
   ) {}
 
@@ -30,7 +30,8 @@ export class AuthService {
     if (!data.session)
       return { message: 'Check your inbox to confirm registration' };
 
-    const user = await this.users.create(email, role);
+    // Use the SAME user ID from Supabase auth
+    const user = await this.users.createWithId(data.user!.id, email, role);
 
     return {
       accessToken: data.session.access_token,

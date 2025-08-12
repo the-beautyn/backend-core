@@ -1,4 +1,5 @@
 import { NestFactory } from '@nestjs/core';
+import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { TransformInterceptor } from './shared/interceptors/transform.interceptor';
@@ -9,6 +10,17 @@ import { MessageResponseDto } from './auth/dto/v1/message-response.dto';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  
+  // Enable validation for all endpoints
+  app.useGlobalPipes(new ValidationPipe({
+    whitelist: true,        // Remove properties not in DTO
+    forbidNonWhitelisted: true,  // Throw error for extra properties
+    transform: true,        // Auto-transform payloads to DTO instances
+    transformOptions: {
+      enableImplicitConversion: true,  // Convert strings to numbers etc.
+    },
+  }));
+
   const transformInterceptor = app.get(TransformInterceptor);
   app.useGlobalInterceptors(transformInterceptor);
 
