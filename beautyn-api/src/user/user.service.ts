@@ -95,6 +95,10 @@ export class UserService {
   }
 
   async setOnboardingCompleted(id: string): Promise<UserResponseDto> {
+    const existing = await this.repo.findById(id);
+    if (!existing) {
+      throw new NotFoundException('User not found');
+    }
     const updated = await this.repo.updateById(id, {
       isOnboardingCompleted: true,
     });
