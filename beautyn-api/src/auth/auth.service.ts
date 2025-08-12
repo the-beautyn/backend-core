@@ -67,7 +67,7 @@ export class AuthService {
   async forgotPassword({ email }: ForgotPasswordDto) {
     const { error } = await this.sb.auth.resetPasswordForEmail(email, {
       redirectTo: `${process.env.APP_URL}/auth/reset`,              // your deep-link
-    });                                                             // :contentReference[oaicite:4]{index=4}
+    });
     if (error) throw new BadRequestException(error.message);
     return { message: 'Password-reset email sent' };
   }
