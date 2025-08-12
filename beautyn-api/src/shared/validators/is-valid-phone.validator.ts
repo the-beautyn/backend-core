@@ -1,14 +1,19 @@
 import { registerDecorator, ValidationOptions, ValidationArguments } from 'class-validator';
 import { parsePhoneNumber, isValidPhoneNumber } from 'libphonenumber-js';
 
+// Constants for phone number validation
+export const INTERNATIONAL_PREFIX = '+';
+export const PHONE_VALIDATOR_NAME = 'isValidPhone';
+
 /**
- * Custom validator to check if a phone number is valid using libphonenumber-js
- * Supports all international phone number formats
+ * Custom validator for international phone numbers using libphonenumber-js
+ * Focuses on Ukrainian numbers but accepts all valid international numbers
+ * Uses Google's libphonenumber database for accurate validation
  */
 export function IsValidPhone(validationOptions?: ValidationOptions) {
   return function (object: Object, propertyName: string) {
     registerDecorator({
-      name: 'isValidPhone',
+      name: PHONE_VALIDATOR_NAME,
       target: object.constructor,
       propertyName: propertyName,
       options: validationOptions,
@@ -18,8 +23,13 @@ export function IsValidPhone(validationOptions?: ValidationOptions) {
             return true; // Let other validators handle empty/non-string values
           }
 
+          // Must start with + (international format)
+          if (!value.startsWith(INTERNATIONAL_PREFIX)) {
+            return false;
+          }
+
           try {
-            // Check if the phone number is valid
+            // Use libphonenumber-js for validation
             if (!isValidPhoneNumber(value)) {
               return false;
             }
@@ -27,11 +37,6 @@ export function IsValidPhone(validationOptions?: ValidationOptions) {
             // Parse the phone number to get more details
             const phoneNumber = parsePhoneNumber(value);
             
-            // Ensure it's in international format (starts with +)
-            if (!value.startsWith('+')) {
-              return false;
-            }
-
             // Ensure the parsed number is valid
             return phoneNumber && phoneNumber.isValid();
           } catch (error) {
@@ -39,7 +44,7 @@ export function IsValidPhone(validationOptions?: ValidationOptions) {
           }
         },
         defaultMessage(args: ValidationArguments) {
-          return `${args.property} must be a valid phone number in international format (e.g., +1234567890)`;
+          return `${args.property} must be a valid phone number in international format (e.g., ${INTERNATIONAL_PREFIX}380501234567 for Ukraine)`;
         },
       },
     });

@@ -1,27 +1,46 @@
 import { validate } from 'class-validator';
-import { IsValidPhone } from './is-valid-phone.validator';
+import { IsValidPhone, INTERNATIONAL_PREFIX } from './is-valid-phone.validator';
 
 class TestDto {
   @IsValidPhone()
   phone?: string;
 }
 
-describe('IsValidPhone', () => {
-  it('should pass validation for valid international phone numbers', async () => {
-    const validPhones = [
-      '+1234567890',           // USA (10 digits)
-      '+442071234567',         // UK (10 digits)
-      '+4930123456789',        // Germany (11 digits)
-      '+81312345678',          // Japan (10 digits)
-      '+3796698',              // Vatican City (5 digits)
-      '+6745550123',           // Nauru (8 digits)
-      '+37793150600',          // Monaco (8 digits)
-      '+85212345678',          // Hong Kong (8 digits)
-      '+97150123456',          // UAE (9 digits)
-      '+5511123456789',        // Brazil (11 digits)
+describe('IsValidPhone (Ukrainian + International)', () => {
+  it('should pass validation for valid Ukrainian phone numbers', async () => {
+    const validUkrainianPhones = [
+      '+380501234567',   // Mobile - Kyivstar
+      '+380671234567',   // Mobile - Vodafone  
+      '+380931234567',   // Mobile - Lifecell
+      '+380442345678',   // Landline - Kyiv
+      '+380322345678',   // Landline - Lviv
+      '+380482345678',   // Landline - Odesa
+      '+380391234567',   // Mobile - PEOPLEnet
+      '+380631234567',   // Mobile - 3mob
     ];
 
-    for (const phone of validPhones) {
+    for (const phone of validUkrainianPhones) {
+      const dto = new TestDto();
+      dto.phone = phone;
+      
+      const errors = await validate(dto);
+      expect(errors).toHaveLength(0);
+    }
+  });
+
+  it('should pass validation for valid international phone numbers', async () => {
+    const validInternationalPhones = [
+      '+12025551234',        // USA (Washington DC)
+      '+442071234567',       // UK (London)
+      '+4930123456789',      // Germany (Berlin)  
+      '+33142123456',        // France (Paris)
+      '+81312345678',        // Japan (Tokyo)
+      '+61212345678',        // Australia (Sydney)
+      '+971501234567',       // UAE (Dubai)
+      '+4915112345678',      // Germany mobile
+    ];
+
+    for (const phone of validInternationalPhones) {
       const dto = new TestDto();
       dto.phone = phone;
       
@@ -32,30 +51,27 @@ describe('IsValidPhone', () => {
 
   it('should fail validation for invalid phone numbers', async () => {
     const invalidPhones = [
-      '1234567890',            // Missing + prefix
-      '+',                     // Just a plus sign
-      '+0123456789',           // Leading zero after country code
-      '+123',                  // Too short
-      '+123456789012345678',   // Too long
-      '+abc123456789',         // Contains letters
-      '+1-234-567-8901',       // Contains dashes (libphonenumber might accept this, but let's test)
-      'invalid',               // Not a number at all
-      '+999999999999999',      // Invalid country code
+      { phone: '380501234567', reason: 'Missing international prefix' },
+      { phone: INTERNATIONAL_PREFIX, reason: 'Just the international prefix' },
+      { phone: '+123', reason: 'Too short' },
+      { phone: '+1234567890123456', reason: 'Too long (>15 digits)' },
+      { phone: '+380abc123456', reason: 'Contains letters' },
+      { phone: 'invalid', reason: 'Not a number at all' },
+      { phone: '+999123456789', reason: 'Invalid country code (999)' },
+      { phone: '+0123456789', reason: 'Starts with 0 (invalid country code)' },
     ];
 
-    for (const phone of invalidPhones) {
+    for (const { phone, reason } of invalidPhones) {
       const dto = new TestDto();
       dto.phone = phone;
       
       const errors = await validate(dto);
       
-      // Some of these might still be valid according to libphonenumber
-      // So we'll check if they're actually invalid
-      if (phone === '1234567890' || phone === '+' || phone === '+123' || 
-          phone === '+abc123456789' || phone === 'invalid') {
-        expect(errors.length).toBeGreaterThan(0);
-        expect(errors[0].constraints?.isValidPhone).toContain('must be a valid phone number');
+      // Check that invalid phone numbers are properly rejected
+      if (errors.length === 0) {
+        throw new Error(`Expected ${phone} to be invalid (${reason}), but it passed validation`);
       }
+      expect(errors[0].constraints?.isValidPhone).toContain('must be a valid phone number');
     }
   });
 
@@ -75,19 +91,18 @@ describe('IsValidPhone', () => {
     }
   });
 
-  it('should validate specific country examples', async () => {
-    const countryExamples = [
-      { country: 'United States', phone: '+15551234567' },
-      { country: 'United Kingdom', phone: '+447911123456' },
-      { country: 'Germany', phone: '+4930123456789' },
-      { country: 'France', phone: '+33123456789' },
-      { country: 'Japan', phone: '+81312345678' },
-      { country: 'Australia', phone: '+61212345678' },
-      { country: 'Canada', phone: '+14165551234' },
-      { country: 'Brazil', phone: '+5511123456789' },
+  it('should validate different Ukrainian operators', async () => {
+    const operatorExamples = [
+      { operator: 'Kyivstar', phone: '+380501234567' },
+      { operator: 'Vodafone', phone: '+380661234567' },
+      { operator: 'Lifecell', phone: '+380931234567' },
+      { operator: 'PEOPLEnet', phone: '+380391234567' },
+      { operator: '3mob', phone: '+380631234567' },
+      { operator: 'Kyiv landline', phone: '+380442345678' },
+      { operator: 'Lviv landline', phone: '+380322345678' },
     ];
 
-    for (const example of countryExamples) {
+    for (const example of operatorExamples) {
       const dto = new TestDto();
       dto.phone = example.phone;
       

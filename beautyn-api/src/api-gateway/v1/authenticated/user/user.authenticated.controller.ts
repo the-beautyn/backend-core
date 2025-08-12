@@ -20,7 +20,6 @@ import { JwtAuthGuard } from '../../../../shared/guards/jwt-auth.guard';
 import { UpdateUserDto } from '../../../../user/dto/update-user.dto';
 import { UserResponseDto } from '../../../../user/dto/user-response.dto';
 import { TransformUserResponseInterceptor } from '../../../../user/interceptors/transform-user-response.interceptor';
-import { envelopeSchema } from 'src/shared/utils/swagger-envelope.util';
 
 @ApiTags('User')
 @ApiBearerAuth()

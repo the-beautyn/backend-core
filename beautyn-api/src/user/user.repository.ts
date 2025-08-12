@@ -4,6 +4,9 @@ import { Users, UserRole } from '@prisma/client';
 import { randomUUID } from 'crypto';
 import { isUUID, isEmail } from 'class-validator';
 
+// Max length for email addresses per RFC guidelines
+const MAX_EMAIL_LENGTH = 254;
+
 const userSelect = {
   id: true,
   email: true,
@@ -52,8 +55,8 @@ export class UserRepository {
     if (!isEmail(email)) {
       throw new BadRequestException('email must be a valid email address');
     }
-    if (email.length > 254) {
-      throw new BadRequestException('email must not exceed 254 characters');
+    if (email.length > MAX_EMAIL_LENGTH) {
+      throw new BadRequestException(`email must not exceed ${MAX_EMAIL_LENGTH} characters`);
     }
 
     return this.prisma.users.create({

@@ -13,9 +13,10 @@ export class UpdateUserDto {
 
   @IsOptional()
   /**
-   * Phone number must be in international format (E.164).
-   * Supports all valid international phone numbers using Google's libphonenumber.
-   * Examples: +1234567890, +44123456789, +81312345678, +3796698
+   * Phone number in international format.
+   * Ukrainian numbers: +380XXXXXXXXX (detailed validation)
+   * Other countries: +[country code][number] (basic validation)
+   * Examples: +380501234567 (Ukraine), +12125551234 (USA)
    */
   @IsValidPhone()
   phone?: string;
