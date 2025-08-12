@@ -7,7 +7,7 @@ import { UserRepository } from './user.repository';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UserResponseDto } from './dto/user-response.dto';
 import { NotificationUserDto } from './dto/notification-user.dto';
-import { Users } from '@prisma/client';
+import { Users, UserRole } from '@prisma/client';
 
 export function computeProfileCreated(
   role: 'client' | 'owner' | 'admin',
@@ -42,7 +42,7 @@ export class UserService {
   async findById(id: string): Promise<UserResponseDto> {
     const user = await this.repo.findById(id);
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException(`User not found with ID: ${id}`);
     }
     return this.toResponse(user);
   }
@@ -114,5 +114,14 @@ export class UserService {
     throw new NotImplementedException(
       'Password changes are handled by AuthModule/SharedPasswordService',
     );
+  }
+
+  // Auth-related methods (migrated from users module)
+  findByEmail(email: string) {
+    return this.repo.findByEmail(email);
+  }
+
+  createWithId(id: string, email: string, role: UserRole) {
+    return this.repo.createWithId(id, email, role);
   }
 }

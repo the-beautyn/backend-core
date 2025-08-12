@@ -93,6 +93,7 @@ describe('UserService', () => {
   });
 
   it('setOnboardingCompleted flips flag', async () => {
+    repo.findById.mockResolvedValue(baseUser);
     repo.updateById.mockResolvedValue({ ...baseUser, isOnboardingCompleted: true });
     const result = await service.setOnboardingCompleted('u1');
     expect(result.is_onboarding_completed).toBe(true);

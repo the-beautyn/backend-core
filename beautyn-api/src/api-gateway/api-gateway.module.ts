@@ -1,8 +1,8 @@
 import { Module } from '@nestjs/common';
 import { PublicApiModule } from './public-api.module';
-import { AuthenticatedModule } from './v1/authenticated/authenticated.module'; // TODO: ensure this module is imported when enabling authenticated routes
+import { AuthenticatedApiModule } from './authenticated-api.module';
 
 @Module({
-  imports: [PublicApiModule, AuthenticatedModule], // TODO: register AuthenticatedModule for protected endpoints
+  imports: [PublicApiModule, AuthenticatedApiModule]
 })
 export class ApiGatewayModule {}

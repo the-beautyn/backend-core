@@ -1,4 +1,4 @@
-import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
+import { CanActivate, ExecutionContext, Injectable, BadRequestException } from '@nestjs/common';
 
 @Injectable()
 export class UserOwnershipGuard implements CanActivate {

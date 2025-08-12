@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../shared/database/prisma.service';
-import { Users } from '@prisma/client';
+import { Users, UserRole } from '@prisma/client';
+import { randomUUID } from 'crypto';
 
 const userSelect = {
   id: true,
@@ -12,6 +13,8 @@ const userSelect = {
   avatarUrl: true,
   isProfileCreated: true,
   isOnboardingCompleted: true,
+  subscriptionId: true,
+  crmId: true,
   createdAt: true,
   updatedAt: true,
 };
@@ -30,5 +33,16 @@ export class UserRepository {
 
   updateById(id: string, data: Partial<Users>) {
     return this.prisma.users.update({ where: { id }, data, select: userSelect });
+  }
+
+  createWithId(id: string, email: string, role: UserRole) {
+    return this.prisma.users.create({
+      data: { 
+        id,          // Use the provided ID (from Supabase)
+        email, 
+        role 
+      },
+      select: userSelect
+    });
   }
 }

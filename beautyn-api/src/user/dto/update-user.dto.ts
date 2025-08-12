@@ -1,4 +1,5 @@
 import { IsOptional, IsString, Matches, IsUrl } from 'class-validator';
+import { IsAllowedAvatarDomain } from '../../shared/validators/is-allowed-avatar-domain.validator';
 
 export class UpdateUserDto {
   @IsOptional()

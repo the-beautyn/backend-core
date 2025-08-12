@@ -12,20 +12,22 @@ import {
   ApiOperation,
   ApiOkResponse,
   ApiBearerAuth,
+  ApiBody,
 } from '@nestjs/swagger';
 import { Request } from 'express';
-import { UserService } from '../../../user/user.service';
-import { JwtAuthGuard } from '../../../shared/guards/jwt-auth.guard';
-import { UpdateUserDto } from '../../../user/dto/update-user.dto';
-import { UserResponseDto } from '../../../user/dto/user-response.dto';
-import { TransformUserResponseInterceptor } from '../../../user/interceptors/transform-user-response.interceptor';
+import { UserService } from '../../../../user/user.service';
+import { JwtAuthGuard } from '../../../../shared/guards/jwt-auth.guard';
+import { UpdateUserDto } from '../../../../user/dto/update-user.dto';
+import { UserResponseDto } from '../../../../user/dto/user-response.dto';
+import { TransformUserResponseInterceptor } from '../../../../user/interceptors/transform-user-response.interceptor';
+import { envelopeSchema } from 'src/shared/utils/swagger-envelope.util';
 
-@ApiTags('user')
+@ApiTags('User')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
 @UseInterceptors(TransformUserResponseInterceptor)
-@Controller('user')
-export class UserController {
+@Controller('api/v1/user')
+export class UserAuthenticatedController {
   constructor(private readonly userService: UserService) {}
 
   @Get('me')
@@ -37,6 +39,7 @@ export class UserController {
 
   @Patch('update')
   @ApiOperation({ summary: 'Update current user profile' })
+  @ApiBody({ type: UpdateUserDto })
   @ApiOkResponse({ type: UserResponseDto })
   async update(
     @Req() req: Request & { user: { id: string } },
