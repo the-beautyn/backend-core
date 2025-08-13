@@ -16,6 +16,9 @@ import {
   ApiBody,
   ApiBearerAuth,
   ApiNoContentResponse,
+  ApiBadRequestResponse,
+  ApiUnauthorizedResponse,
+  ApiForbiddenResponse,
 } from '@nestjs/swagger';
 import { AuthService } from '../../../../auth/auth.service';
 import { LoginDto } from '../../../../auth/dto/v1/login.dto';
@@ -26,7 +29,7 @@ import { LoginResponseDto } from '../../../../auth/dto/v1/login-response.dto';
 import { RegisterResponseDto } from '../../../../auth/dto/v1/register-response.dto';
 import { ResetPasswordResponseDto } from '../../../../auth/dto/v1/reset-password-response.dto';
 import { MessageResponseDto } from '../../../../auth/dto/v1/message-response.dto';
-import { envelopeSchema } from '../../../../shared/utils/swagger-envelope.util';
+import { envelopeRef, envelopeErrorSchema, envelopeSuccessOnly } from '../../../../shared/utils/swagger-envelope.util';
 import { JwtAuthGuard } from '../../../../shared/guards/jwt-auth.guard';
 import { Request } from 'express';
 
@@ -39,12 +42,9 @@ export class AuthPublicController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'User login' })
   @ApiBody({ type: LoginDto })
-  @ApiOkResponse(
-    envelopeSchema(LoginResponseDto, {
-      accessToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
-      refreshToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
-      expiresIn: 900,
-    }),
+  @ApiOkResponse(envelopeRef(LoginResponseDto))
+  @ApiUnauthorizedResponse(
+    envelopeErrorSchema({ statusCode: 401, message: 'Unauthorized', error: 'Unauthorized' })
   )
   async login(@Body() dto: LoginDto) {
     return this.authService.login(dto);
@@ -54,12 +54,9 @@ export class AuthPublicController {
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'User registration' })
   @ApiBody({ type: RegisterDto })
-  @ApiCreatedResponse(
-    envelopeSchema(RegisterResponseDto, {
-      accessToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
-      refreshToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
-      expiresIn: 900,
-    }),
+  @ApiCreatedResponse(envelopeRef(RegisterResponseDto))
+  @ApiBadRequestResponse(
+    envelopeErrorSchema({ statusCode: 400, message: 'Bad Request', error: 'Bad Request' })
   )
   async register(@Body() dto: RegisterDto) {
     return this.authService.register(dto);
@@ -67,42 +64,39 @@ export class AuthPublicController {
 
   @Post('logout')
   @UseGuards(JwtAuthGuard)
-  @HttpCode(204)
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'User logout' })
   @ApiBearerAuth()
-  @ApiNoContentResponse(
-    envelopeSchema(MessageResponseDto, {
-      message: 'Did logout successfully',
-    }),
+  @ApiOkResponse(envelopeSuccessOnly())
+  @ApiForbiddenResponse(
+    envelopeErrorSchema({ statusCode: 403, message: 'Forbidden', error: 'Forbidden' })
   )
   async logout(@Req() req: Request & { user: { accessToken: string; } }) {
     const { accessToken } = req.user;
     await this.authService.logout(accessToken);
+    return { success: true };
   }
 
   @Post('forgot')
   @HttpCode(HttpStatus.ACCEPTED)
   @ApiOperation({ summary: 'Send password reset email' })
   @ApiBody({ type: ForgotPasswordDto })
-  @ApiAcceptedResponse(
-    envelopeSchema(MessageResponseDto, {
-      message: 'Email sent',
-    }),
+  @ApiAcceptedResponse(envelopeSuccessOnly())
+  @ApiBadRequestResponse(
+    envelopeErrorSchema({ statusCode: 400, message: 'Bad Request', error: 'Bad Request' })
   )
   async forgotPassword(@Body() dto: ForgotPasswordDto) {
-    return this.authService.forgotPassword(dto);
+    await this.authService.forgotPassword(dto);
+    return { success: true };
   }
 
   @Post('reset')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Reset password with token' })
   @ApiBody({ type: ResetPasswordDto })
-  @ApiOkResponse(
-    envelopeSchema(ResetPasswordResponseDto, {
-      accessToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
-      refreshToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
-      expiresIn: 900,
-    }),
+  @ApiOkResponse(envelopeRef(ResetPasswordResponseDto))
+  @ApiBadRequestResponse(
+    envelopeErrorSchema({ statusCode: 400, message: 'Bad Request', error: 'Bad Request' })
   )
   async resetPassword(@Body() dto: ResetPasswordDto) {
     return this.authService.resetPassword(dto);

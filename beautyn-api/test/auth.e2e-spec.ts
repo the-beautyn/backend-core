@@ -271,7 +271,7 @@ describe('Auth (e2e)', () => {
       const response = await request(app.getHttpServer())
         .post('/api/v1/auth/logout')
         .set('Authorization', 'Bearer mock-access-token')
-        .expect(204);
+        .expect(200);
     });
 
     it('should return 403 when no token provided', async () => {
@@ -303,9 +303,7 @@ describe('Auth (e2e)', () => {
         .send(forgotPasswordDto)
         .expect(202);
 
-      expect(response.body).toEqual({
-        message: 'Password-reset email sent',
-      });
+      expect(response.body).toEqual({ success: true });
     });
 
     it('should return 400 when email not found', async () => {
