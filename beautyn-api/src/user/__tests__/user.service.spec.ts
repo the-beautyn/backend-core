@@ -19,9 +19,15 @@ const baseUser: Users = {
   updatedAt: new Date('2024-01-01T00:00:00.000Z'),
 };
 
+type UserRepoMock = {
+  findById: jest.Mock<Promise<Users | null>, [string]>;
+  findByEmail: jest.Mock<Promise<Users | null>, [string]>;
+  updateById: jest.Mock<Promise<Users>, [string, Partial<Users>]>;
+};
+
 describe('UserService', () => {
   let service: UserService;
-  let repo: jest.Mocked<UserRepository>;
+  let repo: UserRepoMock;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -39,17 +45,22 @@ describe('UserService', () => {
     }).compile();
 
     service = module.get(UserService);
-    repo = module.get(UserRepository) as jest.Mocked<UserRepository>;
+    repo = module.get(UserRepository) as unknown as UserRepoMock;
   });
 
   it('updateProfile sets is_profile_created=true for client with name+second_name', async () => {
     repo.findById.mockResolvedValue({ ...baseUser });
-    repo.updateById.mockImplementation(async (_id, data) => ({
-      ...baseUser,
-      name: data.name!,
-      secondName: data.secondName!,
-      isProfileCreated: data.isProfileCreated!,
-    }));
+    repo.updateById.mockImplementation(
+      async (_id: string, data: Partial<Users>): Promise<Users> => ({
+        ...baseUser,
+        name: data.name !== undefined ? data.name : baseUser.name,
+        secondName: data.secondName !== undefined ? data.secondName : baseUser.secondName,
+        isProfileCreated:
+          data.isProfileCreated !== undefined
+            ? data.isProfileCreated
+            : baseUser.isProfileCreated,
+      }),
+    );
 
     const result = await service.updateProfile('u1', {
       name: 'John',
@@ -63,13 +74,18 @@ describe('UserService', () => {
     const owner = { ...baseUser, role: UserRole.owner };
     repo.findById.mockResolvedValue(owner);
 
-    repo.updateById.mockImplementation(async (_id, data) => ({
-      ...owner,
-      name: data.name ?? owner.name,
-      secondName: data.secondName ?? owner.secondName,
-      phone: data.phone ?? owner.phone,
-      isProfileCreated: data.isProfileCreated!,
-    }));
+    repo.updateById.mockImplementation(
+      async (_id: string, data: Partial<Users>): Promise<Users> => ({
+        ...owner,
+        name: data.name !== undefined ? data.name : owner.name,
+        secondName: data.secondName !== undefined ? data.secondName : owner.secondName,
+        phone: data.phone !== undefined ? data.phone : owner.phone,
+        isProfileCreated:
+          data.isProfileCreated !== undefined
+            ? data.isProfileCreated
+            : owner.isProfileCreated,
+      }),
+    );
 
     const res1 = await service.updateProfile('u1', {
       name: 'Jane',

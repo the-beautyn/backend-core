@@ -108,7 +108,7 @@ describe('AuthService', () => {
         error: null,
       };
 
-      supabaseClient.auth.signUp.mockResolvedValue(mockSignUpResponse);
+      (supabaseClient.auth.signUp as unknown as jest.Mock).mockResolvedValue(mockSignUpResponse);
       userService.createWithId.mockResolvedValue(mockUser);
 
       // Act
@@ -138,7 +138,7 @@ describe('AuthService', () => {
         error: null,
       };
 
-      supabaseClient.auth.signUp.mockResolvedValue(mockSignUpResponse);
+      (supabaseClient.auth.signUp as unknown as jest.Mock).mockResolvedValue(mockSignUpResponse);
 
       // Act
       const result = await service.register(registerDto);
@@ -163,7 +163,7 @@ describe('AuthService', () => {
         error: mockError,
       };
 
-      supabaseClient.auth.signUp.mockResolvedValue(mockSignUpResponse);
+      (supabaseClient.auth.signUp as unknown as jest.Mock).mockResolvedValue(mockSignUpResponse);
 
       // Act & Assert
       await expect(service.register(registerDto)).rejects.toThrow(
@@ -189,7 +189,7 @@ describe('AuthService', () => {
         error: null,
       };
 
-      supabaseClient.auth.signInWithPassword.mockResolvedValue(mockSignInResponse);
+      (supabaseClient.auth.signInWithPassword as unknown as jest.Mock).mockResolvedValue(mockSignInResponse);
 
       // Act
       const result = await service.login(loginDto);
@@ -214,7 +214,7 @@ describe('AuthService', () => {
         error: mockError,
       };
 
-      supabaseClient.auth.signInWithPassword.mockResolvedValue(mockSignInResponse);
+      (supabaseClient.auth.signInWithPassword as unknown as jest.Mock).mockResolvedValue(mockSignInResponse);
 
       // Act & Assert
       await expect(service.login(loginDto)).rejects.toThrow(
@@ -233,8 +233,8 @@ describe('AuthService', () => {
         error: null,
       };
 
-      supabaseClient.auth.setSession.mockReturnValue(mockSetSessionResponse);
-      supabaseClient.auth.signOut.mockResolvedValue(mockSignOutResponse);
+      (supabaseClient.auth.setSession as unknown as jest.Mock).mockReturnValue(mockSetSessionResponse);
+      (supabaseClient.auth.signOut as unknown as jest.Mock).mockResolvedValue(mockSignOutResponse);
 
       // Act
       const result = await service.logout(accessToken);
@@ -258,8 +258,8 @@ describe('AuthService', () => {
         error: mockError,
       };
 
-      supabaseClient.auth.setSession.mockReturnValue(mockSetSessionResponse);
-      supabaseClient.auth.signOut.mockResolvedValue(mockSignOutResponse);
+      (supabaseClient.auth.setSession as unknown as jest.Mock).mockReturnValue(mockSetSessionResponse);
+      (supabaseClient.auth.signOut as unknown as jest.Mock).mockResolvedValue(mockSignOutResponse);
 
       // Act & Assert
       await expect(service.logout(accessToken)).rejects.toThrow(
@@ -283,7 +283,7 @@ describe('AuthService', () => {
         error: null,
       };
 
-      supabaseClient.auth.resetPasswordForEmail.mockResolvedValue(mockResetResponse);
+      (supabaseClient.auth.resetPasswordForEmail as unknown as jest.Mock).mockResolvedValue(mockResetResponse);
 
       // Act
       const result = await service.forgotPassword(forgotPasswordDto);
@@ -307,7 +307,7 @@ describe('AuthService', () => {
         error: mockError,
       };
 
-      supabaseClient.auth.resetPasswordForEmail.mockResolvedValue(mockResetResponse);
+      (supabaseClient.auth.resetPasswordForEmail as unknown as jest.Mock).mockResolvedValue(mockResetResponse);
 
       // Act & Assert
       await expect(service.forgotPassword(forgotPasswordDto)).rejects.toThrow(
@@ -337,8 +337,8 @@ describe('AuthService', () => {
         error: null,
       };
 
-      supabaseClient.auth.verifyOtp.mockResolvedValue(mockVerifyOtpResponse);
-      supabaseClient.auth.updateUser.mockResolvedValue(mockUpdateUserResponse);
+      (supabaseClient.auth.verifyOtp as unknown as jest.Mock).mockResolvedValue(mockVerifyOtpResponse);
+      (supabaseClient.auth.updateUser as unknown as jest.Mock).mockResolvedValue(mockUpdateUserResponse);
 
       // Act
       const result = await service.resetPassword(resetPasswordDto);
@@ -366,7 +366,7 @@ describe('AuthService', () => {
         error: mockError,
       };
 
-      supabaseClient.auth.verifyOtp.mockResolvedValue(mockVerifyOtpResponse);
+      (supabaseClient.auth.verifyOtp as unknown as jest.Mock).mockResolvedValue(mockVerifyOtpResponse);
 
       // Act & Assert
       await expect(service.resetPassword(resetPasswordDto)).rejects.toThrow(
@@ -391,8 +391,8 @@ describe('AuthService', () => {
         error: mockUpdateError,
       };
 
-      supabaseClient.auth.verifyOtp.mockResolvedValue(mockVerifyOtpResponse);
-      supabaseClient.auth.updateUser.mockResolvedValue(mockUpdateUserResponse);
+      (supabaseClient.auth.verifyOtp as unknown as jest.Mock).mockResolvedValue(mockVerifyOtpResponse);
+      (supabaseClient.auth.updateUser as unknown as jest.Mock).mockResolvedValue(mockUpdateUserResponse);
 
       // Act & Assert
       await expect(service.resetPassword(resetPasswordDto)).rejects.toThrow(

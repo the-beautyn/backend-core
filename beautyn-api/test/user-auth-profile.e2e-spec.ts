@@ -154,6 +154,151 @@ describe('User Auth + Profile Creation (e2e)', () => {
       is_profile_created: true,
     });
   });
+
+  it('logs in with an already created profile and fetches it', async () => {
+    mockUserId = randomUUID();
+    const email = 'login-created@example.com';
+    const password = 'Password123!';
+
+    // Seed an already-created profile
+    await prisma.users.create({
+      data: {
+        id: mockUserId,
+        email,
+        role: UserRole.client,
+        name: 'Alice',
+        secondName: 'Smith',
+        phone: '+12125550000',
+        avatarUrl: 'https://example.com/avatar.png',
+        isProfileCreated: true,
+      },
+    });
+
+    // Mock Supabase login
+    (supabaseClient.auth.signInWithPassword as jest.Mock).mockResolvedValue({
+      data: {
+        user: { id: mockUserId, email },
+        session: {
+          access_token: mockAccessToken,
+          refresh_token: 'mock-refresh-token',
+          expires_in: 3600,
+        },
+      },
+      error: null,
+    });
+
+    // 1) Login
+    const loginRes = await request(app.getHttpServer())
+      .post('/api/v1/auth/login')
+      .send({ email, password })
+      .expect(200);
+
+    expect(loginRes.body).toEqual({
+      accessToken: mockAccessToken,
+      refreshToken: 'mock-refresh-token',
+      expiresIn: 3600,
+    });
+
+    // 2) Get current user
+    const meRes = await request(app.getHttpServer())
+      .get('/api/v1/user/me')
+      .set('Authorization', `Bearer ${mockAccessToken}`)
+      .expect(200);
+
+    expect(meRes.body).toMatchObject({
+      id: mockUserId,
+      email,
+      name: 'Alice',
+      second_name: 'Smith',
+      phone: '+12125550000',
+      avatar_url: 'https://example.com/avatar.png',
+      is_profile_created: true,
+    });
+  });
+
+  it('logs in with incomplete profile, completes it, and finishes', async () => {
+    mockUserId = randomUUID();
+    const email = 'login-incomplete@example.com';
+    const password = 'Password123!';
+
+    // Seed an incomplete profile
+    await prisma.users.create({
+      data: {
+        id: mockUserId,
+        email,
+        role: UserRole.client,
+        isProfileCreated: false,
+      },
+    });
+
+    // Mock Supabase login
+    (supabaseClient.auth.signInWithPassword as jest.Mock).mockResolvedValue({
+      data: {
+        user: { id: mockUserId, email },
+        session: {
+          access_token: mockAccessToken,
+          refresh_token: 'mock-refresh-token',
+          expires_in: 3600,
+        },
+      },
+      error: null,
+    });
+
+    // 1) Login
+    await request(app.getHttpServer())
+      .post('/api/v1/auth/login')
+      .send({ email, password })
+      .expect(200);
+
+    // 2) Get current user (incomplete)
+    const meBefore = await request(app.getHttpServer())
+      .get('/api/v1/user/me')
+      .set('Authorization', `Bearer ${mockAccessToken}`)
+      .expect(200);
+
+    expect(meBefore.body).toMatchObject({
+      id: mockUserId,
+      email,
+      is_profile_created: false,
+      name: null,
+      second_name: null,
+      avatar_url: null,
+    });
+
+    // 3) Complete profile
+    const updateDto = {
+      name: 'Bob',
+      second_name: 'Jones',
+      // profile image optional; still valid
+    };
+
+    const updateRes = await request(app.getHttpServer())
+      .patch('/api/v1/user/update')
+      .set('Authorization', `Bearer ${mockAccessToken}`)
+      .send(updateDto)
+      .expect(200);
+
+    expect(updateRes.body).toMatchObject({
+      email,
+      name: 'Bob',
+      second_name: 'Jones',
+      is_profile_created: true,
+    });
+
+    // 4) Get current user (completed)
+    const meAfter = await request(app.getHttpServer())
+      .get('/api/v1/user/me')
+      .set('Authorization', `Bearer ${mockAccessToken}`)
+      .expect(200);
+
+    expect(meAfter.body).toMatchObject({
+      id: mockUserId,
+      email,
+      name: 'Bob',
+      second_name: 'Jones',
+      is_profile_created: true,
+    });
+  });
 });
 
 
