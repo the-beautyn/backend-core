@@ -1,9 +1,15 @@
 // Test environment setup
 // This file is loaded by Jest before running tests
+const { config } = require('dotenv');
+const path = require('path');
 
-// Ensure DATABASE_URL is set for tests
+// Load env from project root
+config({ path: path.join(__dirname, '.env') });
+config({ path: path.join(__dirname, '.env.test') });
+
+// Ensure DATABASE_URL is set for tests (use Postgres by default to match Prisma provider)
 if (!process.env.DATABASE_URL) {
-  process.env.DATABASE_URL = "file:./test.db?connection_limit=1&mode=memory";
+  process.env.DATABASE_URL = 'postgresql://postgres:postgres@localhost:54322/postgres?schema=public';
 }
 
 // Set other test environment variables if not already set

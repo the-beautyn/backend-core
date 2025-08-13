@@ -7,6 +7,8 @@ import { LoginResponseDto } from './auth/dto/v1/login-response.dto';
 import { RegisterResponseDto } from './auth/dto/v1/register-response.dto';
 import { ResetPasswordResponseDto } from './auth/dto/v1/reset-password-response.dto';
 import { MessageResponseDto } from './auth/dto/v1/message-response.dto';
+import { ErrorResponseDto } from './shared/dto/error-response.dto';
+import { UserResponseDto } from './user/dto/user-response.dto';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -37,6 +39,8 @@ async function bootstrap() {
       RegisterResponseDto,
       ResetPasswordResponseDto,
       MessageResponseDto,
+      ErrorResponseDto,
+      UserResponseDto,
     ],
   });
   SwaggerModule.setup('api/docs', app, doc);
