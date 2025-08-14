@@ -70,9 +70,10 @@ ALTER TYPE "public"."user_role" OWNER TO "postgres";
 
 CREATE OR REPLACE FUNCTION "public"."set_subscription_plan_updated_at"() RETURNS "trigger"
     LANGUAGE "plpgsql"
+    SET "search_path" TO ''
     AS $$
 BEGIN
-  NEW.updated_at = NOW();
+  NEW.updated_at = now();
   RETURN NEW;
 END;
 $$;
@@ -83,9 +84,10 @@ ALTER FUNCTION "public"."set_subscription_plan_updated_at"() OWNER TO "postgres"
 
 CREATE OR REPLACE FUNCTION "public"."set_users_updated_at"() RETURNS "trigger"
     LANGUAGE "plpgsql"
+    SET "search_path" TO ''
     AS $$
 BEGIN
-  NEW.updated_at = NOW();
+  NEW.updated_at = now();
   RETURN NEW;
 END;
 $$;
@@ -118,11 +120,10 @@ ALTER TABLE "public"."subscription_plan" OWNER TO "postgres";
 CREATE TABLE IF NOT EXISTS "public"."users" (
     "id" "uuid" NOT NULL,
     "email" character varying(255) NOT NULL,
-    "password_hash" character varying(255) NOT NULL,
     "role" "public"."user_role" DEFAULT 'client'::"public"."user_role" NOT NULL,
-    "name" character varying(100) NOT NULL,
-    "second_name" character varying(100) NOT NULL,
-    "phone" character varying(30) NOT NULL,
+    "name" character varying(100),
+    "second_name" character varying(100),
+    "phone" character varying(30),
     "avatar_url" "text",
     "is_profile_created" boolean DEFAULT false NOT NULL,
     "is_onboarding_completed" boolean DEFAULT false NOT NULL,
@@ -181,6 +182,10 @@ ALTER TABLE "public"."users" ENABLE ROW LEVEL SECURITY;
 
 
 ALTER PUBLICATION "supabase_realtime" OWNER TO "postgres";
+
+
+
+
 
 
 
