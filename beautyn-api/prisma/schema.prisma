@@ -4,7 +4,8 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
+  url       = env("DATABASE_URL") // pooled, transaction mode (6543) + ?pgbouncer=true
+  directUrl = env("DIRECT_URL")   // direct/session mode (5432) for migrations
 }
 
 model SubscriptionPlan {

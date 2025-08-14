@@ -13,13 +13,6 @@ if (!process.env.DATABASE_URL) {
 }
 
 // Set other test environment variables if not already set
-if (!process.env.JWT_SECRET) {
-  process.env.JWT_SECRET = "test-secret-key-for-testing-only";
-}
-
-if (!process.env.JWT_EXPIRES_IN) {
-  process.env.JWT_EXPIRES_IN = "1h";
-}
 
 if (!process.env.NODE_ENV) {
   process.env.NODE_ENV = "test";

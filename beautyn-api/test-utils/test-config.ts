@@ -7,12 +7,6 @@ export const TEST_CONFIG = {
   // Test database URL - use SQLite in-memory for faster tests
   DATABASE_URL: process.env.DATABASE_URL || "file:./test.db?connection_limit=1&mode=memory",
   
-  // JWT secret for testing
-  JWT_SECRET: process.env.JWT_SECRET || "test-secret-key-for-testing-only",
-  
-  // JWT expiration for testing
-  JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN || "1h",
-  
   // Node environment
   NODE_ENV: process.env.NODE_ENV || "test",
   
@@ -32,8 +26,6 @@ export const setupTestEnvironment = () => {
   if (!process.env.DATABASE_URL) {
     process.env.DATABASE_URL = TEST_CONFIG.DATABASE_URL;
   }
-  process.env.JWT_SECRET = TEST_CONFIG.JWT_SECRET;
-  process.env.JWT_EXPIRES_IN = TEST_CONFIG.JWT_EXPIRES_IN;
   process.env.NODE_ENV = TEST_CONFIG.NODE_ENV;
   process.env.LOG_LEVEL = TEST_CONFIG.LOG_LEVEL;
   process.env.SWAGGER_ENABLED = TEST_CONFIG.SWAGGER_ENABLED.toString();

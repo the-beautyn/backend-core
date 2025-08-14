@@ -1,5 +1,6 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { TransformInterceptor } from './shared/interceptors/transform.interceptor';
@@ -50,6 +51,9 @@ async function bootstrap() {
     res.json(doc);
   });
 
-  await app.listen(3000);
+  const configService = app.get(ConfigService);
+  const configuredPort = configService.get<string>('PORT');
+  const portToListen = Number.parseInt(configuredPort ?? '3000', 10);
+  await app.listen(portToListen);
 }
 void bootstrap();
