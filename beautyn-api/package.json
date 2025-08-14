@@ -8,10 +8,10 @@
   "scripts": {
     "build": "nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
-    "start": "NODE_ENV=${NODE_ENV:-prod} prisma generate --schema=./prisma/schema.prisma && npm run build && NODE_ENV=${NODE_ENV:-prod} node dist/main.js",
+    "start": "NODE_ENV=${NODE_ENV:-production} prisma generate --schema=./prisma/schema.prisma && npm run build && NODE_ENV=${NODE_ENV:-production} node dist/main.js",
     "start:dev": "NODE_ENV=dev prisma generate --schema=./prisma/schema.prisma && NODE_ENV=dev nest start --watch",
-    "start:stage": "NODE_ENV=stage prisma generate --schema=./prisma/schema.prisma && npm run build && NODE_ENV=stage node dist/main.js",
-    "start:prod": "NODE_ENV=prod prisma generate --schema=./prisma/schema.prisma && npm run build && NODE_ENV=prod node dist/main.js",
+    "start:stage": "NODE_ENV=staging prisma generate --schema=./prisma/schema.prisma && npm run build && NODE_ENV=staging node dist/main.js",
+    "start:prod": "NODE_ENV=production prisma generate --schema=./prisma/schema.prisma && npm run build && NODE_ENV=production node dist/main.js",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
