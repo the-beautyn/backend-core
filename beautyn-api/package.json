@@ -9,7 +9,7 @@
     "build": "nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "NODE_ENV=${NODE_ENV:-production} dotenv -e .env.${NODE_ENV:-production} -- prisma generate --schema=./prisma/schema.prisma && npm run build && NODE_ENV=${NODE_ENV:-production} node dist/src/main.js",
-    "start:dev": "NODE_ENV=dev prisma generate --schema=./prisma/schema.prisma && NODE_ENV=dev nest start --watch",
+    "start:dev": "NODE_ENV=dev dotenv -e .env.dev -- prisma generate --schema=./prisma/schema.prisma && NODE_ENV=dev dotenv -e .env.dev -- nest start --watch",
     "start:stage": "NODE_ENV=staging dotenv -e .env.staging -- prisma generate --schema=./prisma/schema.prisma && npm run build && NODE_ENV=staging node dist/src/main.js",
     "start:prod": "NODE_ENV=production dotenv -e .env.production -- prisma generate --schema=./prisma/schema.prisma && npm run build && NODE_ENV=production node dist/src/main.js",
     "test": "jest",

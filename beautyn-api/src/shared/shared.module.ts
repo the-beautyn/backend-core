@@ -13,6 +13,7 @@ import { HashService } from './services/hash.service';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
+      // Check env-specific first; if it exists, load it; otherwise fall back to base
       envFilePath: [
         `.env.${process.env.NODE_ENV || 'dev'}`,
         '.env',
