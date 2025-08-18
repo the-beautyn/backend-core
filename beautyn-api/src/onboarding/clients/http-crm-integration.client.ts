@@ -19,7 +19,7 @@ export class HttpCrmIntegrationClient implements CrmIntegrationClient {
         salon_uuid: input.externalSalonUuid,
       }),
     });
-    if (!res.ok) throw new Error(`CRM_LINK_${res.status}_${await res.text().catch(()=> '')}`);
+    if (!res.ok) throw new Error(`CRM_LINK_${res.status}_${await res.text().catch(()=> 'UNKNOWN_ERROR')}`);
     const data = await res.json();
     return { jobId: data.job_id };
   }
