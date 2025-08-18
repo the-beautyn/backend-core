@@ -15,7 +15,8 @@ import {
   ApiUnauthorizedResponse,
   ApiNotImplementedResponse,
 } from '@nestjs/swagger';
-import { Request, Response } from 'express';
+import { Request } from 'express';
+import type { Response } from 'express';
 import { JwtAuthGuard } from '../../../shared/guards/jwt-auth.guard';
 import { envelopeRef, envelopeErrorSchema } from '../../../shared/utils/swagger-envelope.util';
 import { OnboardingService } from '../../../onboarding/onboarding.service';
