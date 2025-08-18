@@ -27,7 +27,9 @@ export class EnvelopeExceptionFilter implements ExceptionFilter {
       } else {
         Logger.error('Unknown exception', JSON.stringify(exception), 'EnvelopeExceptionFilter');
       }
-    } catch (_) {}
+    } catch (err) {
+      console.error('Failed to log exception in EnvelopeExceptionFilter:', err);
+    }
 
     const isHttp = exception instanceof HttpException;
     const status = isHttp
