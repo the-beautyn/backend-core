@@ -30,6 +30,6 @@ export class HttpCrmIntegrationClient implements CrmIntegrationClient {
       headers: this.headers(),
       body: JSON.stringify({ salon_id: salonId }),
     });
-    if (!res.ok) throw new Error(`CRM_SYNC_${res.status}_${await res.text().catch(()=> '')}`);
+    if (!res.ok) throw new Error(`CRM_SYNC_${res.status}_${await res.text().catch(()=> 'UNKNOWN_ERROR')}`);
   }
 }
