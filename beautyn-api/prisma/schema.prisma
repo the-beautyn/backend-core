@@ -39,6 +39,7 @@ model Users {
   createdAt             DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt             DateTime          @default(now()) @map("updated_at") @db.Timestamptz(6)
   subscriptionPlan      SubscriptionPlan? @relation(fields: [subscriptionId], references: [id])
+  onboardingStep        OnboardingStep?
 
   @@map("users")
 }
@@ -50,4 +51,23 @@ enum UserRole {
   admin  @map("admin")
 
   @@map("user_role")
+}
+
+enum OnboardingStepState {
+  CRM
+  SUBSCRIPTION
+  COMPLETED
+}
+
+model OnboardingStep {
+  id              String              @id @default(uuid()) @db.Uuid
+  userId          String              @unique @db.Uuid
+  crmConnected    Boolean             @default(false)
+  subscriptionSet Boolean             @default(false)
+  currentStep     OnboardingStepState @default(CRM)
+  completed       Boolean             @default(false)
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  user Users @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
