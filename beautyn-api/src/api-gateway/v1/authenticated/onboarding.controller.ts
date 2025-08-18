@@ -23,6 +23,8 @@ import { OnboardingService } from '../../../onboarding/onboarding.service';
 import { OnboardingProgressDto } from '../../../onboarding/dto/onboarding-progress.dto';
 import { DiscoverEasyWeekDto } from '../../../onboarding/dto/discover-easyweek.dto';
 import { FinalizeEasyWeekDto } from '../../../onboarding/dto/finalize-easyweek.dto';
+import { FinalizeEasyWeekResponseDto } from '../../../onboarding/dto/finalize-easyweek-response.dto';
+import { DiscoverEasyWeekResponseDto } from '../../../onboarding/dto/discover-easyweek-response.dto';
 
 @ApiTags('Onboarding')
 @ApiBearerAuth()
@@ -44,19 +46,7 @@ export class OnboardingController {
   @Post('easyweek/discover')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Discover EasyWeek salons for given credentials' })
-  @ApiOkResponse({
-    schema: {
-      properties: {
-        salons: {
-          type: 'array',
-          items: {
-            type: 'object',
-            properties: { uuid: { type: 'string' }, name: { type: 'string' } },
-          },
-        },
-      },
-    },
-  })
+  @ApiOkResponse(envelopeRef(DiscoverEasyWeekResponseDto))
   async discover(@Req() req: Request & { user: { id: string } }, @Body() dto: DiscoverEasyWeekDto) {
     const userId = req.user.id as string;
     return this.onboardingService.discoverEasyWeekSalons(
@@ -66,10 +56,10 @@ export class OnboardingController {
     );
   }
 
-  @Post('connect/easyweek')
+  @Post('easyweek/connect')
   @HttpCode(HttpStatus.ACCEPTED)
   @ApiOperation({ summary: 'Finalize EasyWeek link with selected salon' })
-  @ApiAcceptedResponse({ schema: { properties: { job_id: { type: 'string' } } } })
+  @ApiAcceptedResponse(envelopeRef(FinalizeEasyWeekResponseDto))
   async finalize(@Req() req: Request & { user: { id: string } }, @Body() dto: FinalizeEasyWeekDto) {
     const userId = req.user.id as string;
     const { jobId } = await this.onboardingService.finalizeEasyWeekLink(

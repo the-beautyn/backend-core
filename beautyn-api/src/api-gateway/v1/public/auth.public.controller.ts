@@ -20,17 +20,16 @@ import {
   ApiUnauthorizedResponse,
   ApiForbiddenResponse,
 } from '@nestjs/swagger';
-import { AuthService } from '../../../../auth/auth.service';
-import { LoginDto } from '../../../../auth/dto/v1/login.dto';
-import { RegisterDto } from '../../../../auth/dto/v1/register.dto';
-import { ForgotPasswordDto } from '../../../../auth/dto/v1/forgot-password.dto';
-import { ResetPasswordDto } from '../../../../auth/dto/v1/reset-password.dto';
-import { LoginResponseDto } from '../../../../auth/dto/v1/login-response.dto';
-import { RegisterResponseDto } from '../../../../auth/dto/v1/register-response.dto';
-import { ResetPasswordResponseDto } from '../../../../auth/dto/v1/reset-password-response.dto';
-import { MessageResponseDto } from '../../../../auth/dto/v1/message-response.dto';
-import { envelopeRef, envelopeErrorSchema, envelopeSuccessOnly } from '../../../../shared/utils/swagger-envelope.util';
-import { JwtAuthGuard } from '../../../../shared/guards/jwt-auth.guard';
+import { AuthService } from '../../../auth/auth.service';
+import { LoginDto } from '../../../auth/dto/v1/login.dto';
+import { RegisterDto } from '../../../auth/dto/v1/register.dto';
+import { ForgotPasswordDto } from '../../../auth/dto/v1/forgot-password.dto';
+import { ResetPasswordDto } from '../../../auth/dto/v1/reset-password.dto';
+import { LoginResponseDto } from '../../../auth/dto/v1/login-response.dto';
+import { RegisterResponseDto } from '../../../auth/dto/v1/register-response.dto';
+import { ResetPasswordResponseDto } from '../../../auth/dto/v1/reset-password-response.dto';
+import { envelopeRef, envelopeErrorSchema, envelopeSuccessOnly } from '../../../shared/utils/swagger-envelope.util';
+import { JwtAuthGuard } from '../../../shared/guards/jwt-auth.guard';
 import { Request } from 'express';
 
 @ApiTags('Auth')

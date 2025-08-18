@@ -3,11 +3,13 @@ import { INestApplication, UnauthorizedException } from '@nestjs/common';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/shared/database/prisma.service';
+import { TransformInterceptor } from '../src/shared/interceptors/transform.interceptor';
 import { JwtAuthGuard } from '../src/shared/guards/jwt-auth.guard';
 
 describe('Onboarding (e2e)', () => {
   let app: INestApplication;
   let prisma: PrismaService;
+  const userId = '123e4567-e89b-12d3-a456-426614174000';
 
   beforeAll(async () => {
     const mockJwtGuard = {
@@ -17,7 +19,7 @@ describe('Onboarding (e2e)', () => {
         if (!auth || !auth.startsWith('Bearer ')) {
           throw new UnauthorizedException();
         }
-        req.user = { id: 'user-1' };
+        req.user = { id: userId };
         return true;
       }),
     };
@@ -30,6 +32,8 @@ describe('Onboarding (e2e)', () => {
       .compile();
 
     app = moduleFixture.createNestApplication();
+    const ti = app.get(TransformInterceptor);
+    app.useGlobalInterceptors(ti);
     await app.init();
 
     prisma = app.get(PrismaService);
@@ -52,8 +56,10 @@ describe('Onboarding (e2e)', () => {
 
   it('GET /api/v1/onboarding/progress with JWT returns progress', async () => {
     await prisma.users.create({
-      data: { id: 'user-1', email: 'test@example.com', role: 'owner' },
+      data: { id: userId, email: 'test@example.com', role: 'owner' },
     });
+    // Seed onboarding step to avoid FK race in create path
+    await prisma.onboardingStep.create({ data: { userId } });
 
     const res = await request(app.getHttpServer())
       .get('/api/v1/onboarding/progress')

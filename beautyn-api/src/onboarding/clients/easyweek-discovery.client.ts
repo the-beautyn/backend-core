@@ -6,7 +6,7 @@ export abstract class EasyWeekDiscoveryClient {
 export class HttpEasyWeekDiscoveryClient implements EasyWeekDiscoveryClient {
   private readonly base = 'https://my.easyweek.io/api/public/v2';
   async listLocations(authToken: string, workspaceSlug: string): Promise<EasyWeekLocation[]> {
-    const headers = { 'Authorization': authToken, 'Workspace': workspaceSlug } as Record<string,string>;
+    const headers = { 'Authorization': 'Bearer ' + authToken, 'Workspace': workspaceSlug } as Record<string,string>;
     const out: EasyWeekLocation[] = [];
     let url: string | null = `${this.base}/locations`;
     while (url) {

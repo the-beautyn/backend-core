@@ -69,16 +69,16 @@ describe('Onboarding EasyWeek (e2e)', () => {
     });
   });
 
-  it('POST /api/v1/onboarding/connect/easyweek without JWT returns 401', () => {
+  it('POST /api/v1/onboarding/easyweek/connect without JWT returns 401', () => {
     return request(app.getHttpServer())
-      .post('/api/v1/onboarding/connect/easyweek')
+      .post('/api/v1/onboarding/easyweek/connect')
       .send({})
       .expect(401);
   });
 
-  it('POST /api/v1/onboarding/connect/easyweek with JWT returns job id', async () => {
+  it('POST /api/v1/onboarding/easyweek/connect with JWT returns job id', async () => {
     const res = await request(app.getHttpServer())
-      .post('/api/v1/onboarding/connect/easyweek')
+      .post('/api/v1/onboarding/easyweek/connect')
       .set('Authorization', 'Bearer valid')
       .send({ auth_token: 't', workspace_slug: 'ws', salon_uuid: 'ext-1' })
       .expect(202);
