@@ -10,7 +10,9 @@ export class PrismaService
     super({
       log: process.env.NODE_ENV === 'production'
         ? ['error']
-        : ['query', 'info', 'warn', 'error'],
+        : (process.env.PRISMA_QUERY_LOG === 'true'
+            ? ['query', 'info', 'warn', 'error']
+            : ['info', 'warn', 'error']),
     });
   }
   async onModuleInit() {
