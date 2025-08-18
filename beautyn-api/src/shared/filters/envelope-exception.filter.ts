@@ -5,12 +5,31 @@ import {
   HttpException,
   HttpStatus,
 } from '@nestjs/common';
+import { Logger } from '@nestjs/common';
 
 @Catch()
 export class EnvelopeExceptionFilter implements ExceptionFilter {
   catch(exception: unknown, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse();
+
+    // Always log exceptions to the console for debugging (especially 500s)
+    try {
+      if (exception instanceof HttpException) {
+        const res = exception.getResponse();
+        Logger.error(
+          `HTTP ${exception.getStatus()} - ${JSON.stringify(res)}`,
+          exception.stack,
+          'EnvelopeExceptionFilter',
+        );
+      } else if (exception instanceof Error) {
+        Logger.error(exception.message, exception.stack, 'EnvelopeExceptionFilter');
+      } else {
+        Logger.error('Unknown exception', JSON.stringify(exception), 'EnvelopeExceptionFilter');
+      }
+    } catch (err) {
+      console.error('Failed to log exception in EnvelopeExceptionFilter:', err);
+    }
 
     const isHttp = exception instanceof HttpException;
     const status = isHttp
@@ -31,7 +50,18 @@ export class EnvelopeExceptionFilter implements ExceptionFilter {
     // Standardize envelope
     const body = {
       success: false,
-      data: payload,
+      data: {
+        ...payload,
+        // In non-production, include error details to speed up debugging
+        ...(process.env.NODE_ENV !== 'production'
+          ? {
+              _error:
+                exception instanceof Error
+                  ? { message: exception.message, stack: exception.stack }
+                  : exception,
+            }
+          : {}),
+      },
     };
 
     response.status(status).json(body);
