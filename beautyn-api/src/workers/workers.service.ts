@@ -96,6 +96,17 @@ export class WorkersService {
     return slots;
   }
 
+  private normalizeWorkSchedule(input: unknown): Prisma.InputJsonValue | undefined {
+    if (!input) return undefined;
+    if (!isRecord(input)) return undefined;
+    const out: Record<string, Array<{ from: string; to: string }>> = {};
+    for (const [key, value] of Object.entries(input)) {
+      if (!isSlotArray(value)) continue;
+      out[key] = value.map((v) => ({ from: v.from, to: v.to }));
+    }
+    return Object.keys(out).length > 0 ? (out as unknown as Prisma.InputJsonValue) : undefined;
+  }
+
   async syncFromCrm(payload: WorkersSyncDto): Promise<{ upserted: number; unlinked: number }> {
     let upserted = 0;
     let unlinked = 0;
@@ -176,22 +187,3 @@ function isSlotArray(value: unknown): value is Array<{ from: string; to: string 
   }
   return true;
 }
-
-declare module './workers.service' {
-  interface WorkersService {
-    normalizeWorkSchedule(input: unknown): Prisma.InputJsonValue | undefined;
-  }
-}
-
-WorkersService.prototype.normalizeWorkSchedule = function (
-  input: unknown,
-): Prisma.InputJsonValue | undefined {
-  if (!input) return undefined;
-  if (!isRecord(input)) return undefined;
-  const out: Record<string, Array<{ from: string; to: string }>> = {};
-  for (const [key, value] of Object.entries(input)) {
-    if (!isSlotArray(value)) continue;
-    out[key] = value.map((v) => ({ from: v.from, to: v.to }));
-  }
-  return Object.keys(out).length > 0 ? (out as unknown as Prisma.InputJsonValue) : undefined;
-};
