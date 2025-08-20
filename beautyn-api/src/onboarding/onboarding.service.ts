@@ -36,8 +36,22 @@ export class OnboardingService {
     return { jobId };
   }
 
+  async markCrmLinked(salonId: string, provider: 'ALTEGIO' | 'EASYWEEK'): Promise<void> {
+    const userId = await this.resolveOwnerUserIdBySalon(salonId);
+    await this.prisma.onboardingStep.upsert({
+      where: { userId },
+      create: { userId, crmConnected: true, currentStep: 'SUBSCRIPTION' },
+      update: { crmConnected: true, currentStep: 'SUBSCRIPTION' },
+    });
+  }
+
   private async resolveCurrentSalonId(userId: string): Promise<string> {
     if (!userId) throw new BadRequestException('user required');
+    return 'REPLACE_ME_WITH_LOOKUP';
+  }
+
+  private async resolveOwnerUserIdBySalon(salonId: string): Promise<string> {
+    if (!salonId) throw new BadRequestException('salon required');
     return 'REPLACE_ME_WITH_LOOKUP';
   }
 
