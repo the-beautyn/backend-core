@@ -19,7 +19,9 @@ export class SalonsController {
   }
 
   @Get(':id/images')
-  images(@Param('id') id: string) {
+  async images(@Param('id') id: string) {
+    const salon = await this.salonService.findById(id);
+    if (!salon) throw new NotFoundException('Salon not found');
     return this.salonService.listImages(id);
   }
 }
