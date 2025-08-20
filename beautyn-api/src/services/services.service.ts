@@ -45,7 +45,7 @@ export class ServicesService {
   }
 
   async listCategories(salonId: string): Promise<CategoryDto[]> {
-    const categories = await (this.prisma as any).category.findMany({
+    const categories = await this.prisma.category.findMany({
       where: { salonId },
       orderBy: { sortOrder: 'asc' },
     });
