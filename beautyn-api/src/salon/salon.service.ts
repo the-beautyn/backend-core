@@ -47,7 +47,7 @@ export class SalonService {
     };
   }
 
-  async upsertFromCrm(input: SalonSyncDto & { crm_id?: string }): Promise<SalonDto> {
+  async upsertFromCrm(input: SalonSyncDto): Promise<SalonDto> {
     const data = this.mapSyncDto(input);
     let salon: SalonModel;
 
