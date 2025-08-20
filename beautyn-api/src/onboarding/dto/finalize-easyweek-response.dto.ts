@@ -6,5 +6,3 @@ export class FinalizeEasyWeekResponseDto {
   @Expose()
   job_id!: string;
 }
-
-
