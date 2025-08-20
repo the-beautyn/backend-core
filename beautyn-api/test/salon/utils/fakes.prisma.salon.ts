@@ -66,7 +66,7 @@ export function createFakePrismaForSalon() {
     },
     salonImage: {
       findMany: async ({ where, orderBy }: any) => {
-        let res = images.filter((i) => (!where?.salonId || i.salonId === where.salonId));
+        let res = images.filter((i) => (where?.salonId === undefined || i.salonId === where.salonId));
         if (orderBy?.sortOrder === 'asc') {
           res = res.sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
         }
