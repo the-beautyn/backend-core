@@ -88,3 +88,44 @@ model CrmLinkToken {
 
   @@map("crm_link_tokens")
 }
+
+model Salon {
+  id             String   @id @default(uuid())   @db.Uuid
+  crmId          String?  @map("crm_id")
+  name           String
+  addressLine    String?  @map("address_line")
+  city           String?
+  country        String?  @db.Char(2)
+  latitude       Decimal? @db.Decimal(9, 6)
+  longitude      Decimal? @db.Decimal(9, 6)
+  phone          String?
+  email          String?
+  ratingAvg      Decimal? @db.Decimal(2, 1)      @map("rating_avg")
+  ratingCount    Int?     @map("rating_count")
+  openHoursJson  Json?    @map("open_hours_json")
+  imagesCount    Int?     @map("images_count")
+  coverImageUrl  String?  @map("cover_image_url")
+  createdAt      DateTime @default(now())        @map("created_at")
+  updatedAt      DateTime @updatedAt             @map("updated_at")
+  deletedAt      DateTime?                       @map("deleted_at")
+
+  images         SalonImage[]
+
+  @@map("salons")
+  @@index([latitude, longitude])
+}
+
+model SalonImage {
+  id         String   @id @default(uuid()) @db.Uuid
+  salonId    String   @db.Uuid            @map("salon_id")
+  imageUrl   String                          @map("image_url")
+  caption    String?
+  sortOrder  Int?                             @map("sort_order")
+  createdAt  DateTime @default(now())         @map("created_at")
+  updatedAt  DateTime @updatedAt              @map("updated_at")
+
+  salon      Salon    @relation(fields: [salonId], references: [id], onDelete: Cascade)
+
+  @@map("salon_images")
+  @@index([salonId, sortOrder])
+}
