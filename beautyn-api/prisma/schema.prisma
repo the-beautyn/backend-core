@@ -88,3 +88,41 @@ model CrmLinkToken {
 
   @@map("crm_link_tokens")
 }
+
+model Category {
+  id            String   @id @default(uuid()) @db.Uuid
+  salonId       String   @db.Uuid             @map("salon_id")
+  crmExternalId String?                        @map("crm_external_id")
+  name          String
+  color         String?  @db.VarChar(7)
+  sortOrder     Int?                             @map("sort_order")
+  createdAt     DateTime @default(now())         @map("created_at")
+  updatedAt     DateTime @updatedAt              @map("updated_at")
+
+  services      Service[]
+
+  @@map("categories")
+  @@index([salonId, sortOrder], map: "idx_category_salon_sort")
+}
+
+model Service {
+  id             String   @id @default(uuid()) @db.Uuid
+  salonId        String   @db.Uuid             @map("salon_id")
+  crmExternalId  String?                        @map("crm_external_id")
+  categoryId     String?  @db.Uuid             @map("category_id")
+  name           String    @db.VarChar(160)
+  description    String?
+  durationMinutes Int                              @map("duration_minutes")
+  priceCents     Int                               @map("price_cents")
+  currency       String    @db.Char(3)
+  isActive       Boolean   @default(true)          @map("is_active")
+  createdAt      DateTime  @default(now())         @map("created_at")
+  updatedAt      DateTime  @updatedAt              @map("updated_at")
+
+  category       Category? @relation(fields: [categoryId], references: [id])
+
+  @@map("services")
+  @@index([salonId, isActive])
+  @@index([categoryId, isActive])
+}
+
