@@ -63,7 +63,7 @@ export class ServicesService {
     const keepCategoryIds = new Set<string>();
     let categoriesUpserted = 0;
     for (const cat of categoriesInput) {
-      let existing = undefined;
+      let existing: any;
       if (cat.crm_external_id && categoriesByCrm.has(cat.crm_external_id)) {
         existing = categoriesByCrm.get(cat.crm_external_id);
       } else if (categoriesByName.has(cat.name.toLowerCase())) {
