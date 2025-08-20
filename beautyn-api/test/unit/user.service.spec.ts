@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { UserService, computeProfileCreated } from '../user.service';
-import { UserRepository } from '../user.repository';
+import { UserService, computeProfileCreated } from '../../src/user/user.service';
+import { UserRepository } from '../../src/user/user.repository';
 import { UserRole, Users } from '@prisma/client';
 
 const baseUser: Users = {

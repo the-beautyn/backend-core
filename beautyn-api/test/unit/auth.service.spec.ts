@@ -1,12 +1,12 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException, UnauthorizedException } from '@nestjs/common';
-import { AuthService } from '../../auth/auth.service';
-import { UserService } from '../../user/user.service';
+import { AuthService } from '../../src/auth/auth.service';
+import { UserService } from '../../src/user/user.service';
 import { SupabaseClient } from '@supabase/supabase-js';
-import { RegisterDto } from '../../auth/dto/v1/register.dto';
-import { LoginDto } from '../../auth/dto/v1/login.dto';
-import { ForgotPasswordDto } from '../../auth/dto/v1/forgot-password.dto';
-import { ResetPasswordDto } from '../../auth/dto/v1/reset-password.dto';
+import { RegisterDto } from '../../src/auth/dto/v1/register.dto';
+import { LoginDto } from '../../src/auth/dto/v1/login.dto';
+import { ForgotPasswordDto } from '../../src/auth/dto/v1/forgot-password.dto';
+import { ResetPasswordDto } from '../../src/auth/dto/v1/reset-password.dto';
 import { UserRole } from '@prisma/client';
 
 describe('AuthService', () => {

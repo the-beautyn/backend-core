@@ -16,6 +16,7 @@ const config: JestConfigWithTsJest = {
   collectCoverageFrom: ['**/*.(t|j)s'],
   coverageDirectory: './coverage',
   setupFilesAfterEnv: ['<rootDir>/test-env.js'],
+  testPathIgnorePatterns: ['<rootDir>/test/e2e/'],
 };
 
 export default config;

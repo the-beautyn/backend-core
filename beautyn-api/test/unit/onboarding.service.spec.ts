@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { OnboardingService } from './onboarding.service';
-import { PrismaService } from '../shared/database/prisma.service';
+import { OnboardingService } from '../../src/onboarding/onboarding.service';
+import { PrismaService } from '../../src/shared/database/prisma.service';
 
 describe('OnboardingService', () => {
   let service: OnboardingService;

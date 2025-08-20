@@ -10,6 +10,8 @@ import { ResetPasswordResponseDto } from './auth/dto/v1/reset-password-response.
 import { MessageResponseDto } from './auth/dto/v1/message-response.dto';
 import { ErrorResponseDto } from './shared/dto/error-response.dto';
 import { UserResponseDto } from './user/dto/user-response.dto';
+import { DiscoverEasyWeekResponseDto } from './onboarding/dto/discover-easyweek-response.dto';
+import { FinalizeEasyWeekResponseDto } from './onboarding/dto/finalize-easyweek-response.dto';
 import { OnboardingProgressDto } from './onboarding/dto/onboarding-progress.dto';
 
 async function bootstrap() {
@@ -48,6 +50,8 @@ async function bootstrap() {
       MessageResponseDto,
       ErrorResponseDto,
       UserResponseDto,
+      DiscoverEasyWeekResponseDto,
+      FinalizeEasyWeekResponseDto,
       OnboardingProgressDto,
     ],
   });

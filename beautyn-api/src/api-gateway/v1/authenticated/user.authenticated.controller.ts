@@ -16,12 +16,12 @@ import {
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { Request } from 'express';
-import { UserService } from '../../../../user/user.service';
-import { JwtAuthGuard } from '../../../../shared/guards/jwt-auth.guard';
-import { UpdateUserDto } from '../../../../user/dto/update-user.dto';
-import { UserResponseDto } from '../../../../user/dto/user-response.dto';
-import { TransformUserResponseInterceptor } from '../../../../user/interceptors/transform-user-response.interceptor';
-import { envelopeRef, envelopeErrorSchema } from '../../../../shared/utils/swagger-envelope.util';
+import { UserService } from '../../../user/user.service';
+import { JwtAuthGuard } from '../../../shared/guards/jwt-auth.guard';
+import { UpdateUserDto } from '../../../user/dto/update-user.dto';
+import { UserResponseDto } from '../../../user/dto/user-response.dto';
+import { TransformUserResponseInterceptor } from '../../../user/interceptors/transform-user-response.interceptor';
+import { envelopeRef, envelopeErrorSchema } from '../../../shared/utils/swagger-envelope.util';
 
 @ApiTags('User')
 @ApiBearerAuth()
