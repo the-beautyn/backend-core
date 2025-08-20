@@ -17,7 +17,12 @@ export class InternalApiKeyGuard implements CanActivate {
   canActivate(ctx: ExecutionContext): boolean {
     const req = ctx.switchToHttp().getRequest();
     const key = req.headers['x-internal-key'];
-    return key === process.env.INTERNAL_API_KEY;
+    const internalApiKey = process.env.INTERNAL_API_KEY;
+    if (!internalApiKey || internalApiKey.trim() === '') {
+      // Deny access if the environment variable is missing or empty
+      return false;
+    }
+    return key === internalApiKey;
   }
 }
 
