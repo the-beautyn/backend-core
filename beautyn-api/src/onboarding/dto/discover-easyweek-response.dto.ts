@@ -17,5 +17,3 @@ export class DiscoverEasyWeekResponseDto {
   @Expose()
   salons!: EasyWeekSalonDto[];
 }
-
-

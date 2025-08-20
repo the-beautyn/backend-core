@@ -17,6 +17,7 @@ const config: JestConfigWithTsJest = {
   coverageDirectory: './coverage',
   setupFilesAfterEnv: ['<rootDir>/test-env.js'],
   testPathIgnorePatterns: ['<rootDir>/test/e2e/'],
+  testTimeout: 20000,
 };
 
 export default config;

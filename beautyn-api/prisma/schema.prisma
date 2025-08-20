@@ -129,3 +129,71 @@ model SalonImage {
   @@map("salon_images")
   @@index([salonId, sortOrder])
 }
+
+model Category {
+  id            String   @id @default(uuid()) @db.Uuid
+  salonId       String   @db.Uuid             @map("salon_id")
+  crmExternalId String?                        @map("crm_external_id")
+  name          String
+  color         String?  @db.VarChar(7)
+  sortOrder     Int?                             @map("sort_order")
+  createdAt     DateTime @default(now())         @map("created_at")
+  updatedAt     DateTime @updatedAt              @map("updated_at")
+
+  services      Service[]
+
+  @@map("categories")
+  @@index([salonId, sortOrder], map: "idx_category_salon_sort")
+}
+
+model Service {
+  id             String   @id @default(uuid()) @db.Uuid
+  salonId        String   @db.Uuid             @map("salon_id")
+  crmExternalId  String?                        @map("crm_external_id")
+  categoryId     String?  @db.Uuid             @map("category_id")
+  name           String    @db.VarChar(160)
+  description    String?
+  durationMinutes Int                              @map("duration_minutes")
+  priceCents     Int                               @map("price_cents")
+  currency       String    @db.Char(3)
+  isActive       Boolean   @default(true)          @map("is_active")
+  createdAt      DateTime  @default(now())         @map("created_at")
+  updatedAt      DateTime  @updatedAt              @map("updated_at")
+
+  category       Category? @relation(fields: [categoryId], references: [id])
+
+  @@map("services")
+  @@index([salonId, isActive])
+  @@index([categoryId, isActive])
+}
+
+model Worker {
+  id          String   @id @default(uuid()) @db.Uuid
+  salonId     String   @db.Uuid            @map("salon_id")
+  firstName   String   @db.VarChar(100)    @map("first_name")
+  lastName    String   @db.VarChar(100)    @map("last_name")
+  role        String?  @db.VarChar(100)
+  email       String?  @unique             @db.VarChar(255)
+  phone       String?  @unique             @db.VarChar(30)
+  photoUrl    String?                       @map("photo_url")
+  workSchedule Json?                        @map("work_schedule")
+  isActive    Boolean  @default(true)       @map("is_active")
+  createdAt   DateTime @default(now())      @map("created_at")
+  updatedAt   DateTime @updatedAt           @map("updated_at")
+
+  services    WorkerService[]
+
+  @@map("workers")
+  @@index([salonId, firstName])
+  @@index([salonId, lastName])
+}
+
+model WorkerService {
+  workerId  String @db.Uuid @map("worker_id")
+  serviceId String @db.Uuid @map("service_id")
+
+  worker    Worker  @relation(fields: [workerId], references: [id], onDelete: Cascade)
+  // Service model exists in another branch; FK can be added later.
+  @@id([workerId, serviceId])
+  @@map("worker_services")
+}

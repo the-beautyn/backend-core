@@ -7,18 +7,6 @@ const path = require('path');
 config({ path: path.join(__dirname, '.env') });
 config({ path: path.join(__dirname, '.env.test') });
 
-// Ensure reasonable Jest timeout for slower e2e flows
-// Allow override via env var JEST_TEST_TIMEOUT
-try {
-  const timeoutMs = parseInt(process.env.JEST_TEST_TIMEOUT || '30000', 10);
-  // jest is available in this runtime since this file is executed by Jest
-  if (!Number.isNaN(timeoutMs) && typeof jest !== 'undefined' && jest.setTimeout) {
-    jest.setTimeout(timeoutMs);
-  }
-} catch (_) {
-  // no-op if jest is not available in this context
-}
-
 // Ensure DATABASE_URL is set for tests (use Postgres by default to match Prisma provider)
 if (!process.env.DATABASE_URL) {
   process.env.DATABASE_URL = 'postgresql://postgres:postgres@localhost:54322/postgres?schema=public';
