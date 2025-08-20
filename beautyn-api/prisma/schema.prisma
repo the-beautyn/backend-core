@@ -88,3 +88,34 @@ model CrmLinkToken {
 
   @@map("crm_link_tokens")
 }
+
+model Worker {
+  id          String   @id @default(uuid()) @db.Uuid
+  salonId     String   @db.Uuid            @map("salon_id")
+  firstName   String   @db.VarChar(100)    @map("first_name")
+  lastName    String   @db.VarChar(100)    @map("last_name")
+  role        String?  @db.VarChar(100)
+  email       String?  @unique             @db.VarChar(255)
+  phone       String?  @unique             @db.VarChar(30)
+  photoUrl    String?                       @map("photo_url")
+  workSchedule Json?                        @map("work_schedule")
+  isActive    Boolean  @default(true)       @map("is_active")
+  createdAt   DateTime @default(now())      @map("created_at")
+  updatedAt   DateTime @updatedAt           @map("updated_at")
+
+  services    WorkerService[]
+
+  @@map("workers")
+  @@index([salonId, firstName])
+  @@index([salonId, lastName])
+}
+
+model WorkerService {
+  workerId  String @db.Uuid @map("worker_id")
+  serviceId String @db.Uuid @map("service_id")
+
+  worker    Worker  @relation(fields: [workerId], references: [id], onDelete: Cascade)
+  // Service model exists in another branch; FK can be added later.
+  @@id([workerId, serviceId])
+  @@map("worker_services")
+}
