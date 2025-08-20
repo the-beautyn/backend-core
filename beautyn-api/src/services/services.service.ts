@@ -121,7 +121,7 @@ export class ServicesService {
     let upserted = 0;
     const keepServiceIds = new Set<string>();
     for (const svc of payload.services) {
-      let existing: ServiceRecord | undefined = undefined;
+      let existing: ServiceRecord | undefined;
       if (svc.crm_external_id && servicesByCrm.has(svc.crm_external_id)) {
         existing = servicesByCrm.get(svc.crm_external_id);
       } else if (servicesByName.has(svc.name.toLowerCase())) {
