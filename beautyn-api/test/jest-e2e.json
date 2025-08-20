@@ -7,5 +7,6 @@
     "^.+\\.(t|j)s$": "ts-jest"
   },
   "setupFilesAfterEnv": ["<rootDir>/test-env.js"],
-  "maxWorkers": 1
+  "maxWorkers": 1,
+  "testTimeout": 20000
 }

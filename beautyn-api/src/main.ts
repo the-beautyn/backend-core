@@ -10,17 +10,13 @@ import { ResetPasswordResponseDto } from './auth/dto/v1/reset-password-response.
 import { MessageResponseDto } from './auth/dto/v1/message-response.dto';
 import { ErrorResponseDto } from './shared/dto/error-response.dto';
 import { UserResponseDto } from './user/dto/user-response.dto';
-import { DiscoverEasyWeekResponseDto } from './onboarding/dto/discover-easyweek-response.dto';
-import { FinalizeEasyWeekResponseDto } from './onboarding/dto/finalize-easyweek-response.dto';
 import { OnboardingProgressDto } from './onboarding/dto/onboarding-progress.dto';
+import { ServicesListResponseDto } from './services/dto/services-list.response.dto';
+import { CategoryDto } from './services/dto/category.dto';
+import { ServiceDto } from './services/dto/service.dto';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-  if (process.env.NODE_ENV !== 'production') {
-    console.log(`[BOOT] NODE_ENV=${process.env.NODE_ENV}`);
-    console.log(`[BOOT] PORT=${process.env.PORT ?? '3000'}`);
-    console.log(`[BOOT] SUPABASE_URL=${process.env.SUPABASE_URL ? '[set]' : '[missing]'}`);
-  }
   
   // Enable validation for all endpoints
   app.useGlobalPipes(new ValidationPipe({
@@ -50,9 +46,10 @@ async function bootstrap() {
       MessageResponseDto,
       ErrorResponseDto,
       UserResponseDto,
-      DiscoverEasyWeekResponseDto,
-      FinalizeEasyWeekResponseDto,
       OnboardingProgressDto,
+      ServicesListResponseDto,
+      CategoryDto,
+      ServiceDto,
     ],
   });
   SwaggerModule.setup('api/docs', app, doc);

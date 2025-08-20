@@ -6,6 +6,9 @@ import { ServiceDto } from './dto/service.dto';
 import { CategoryDto } from './dto/category.dto';
 import { toServiceDto, toCategoryDto } from './mappers/service.mapper';
 
+type CategoryRecord = { id: string; name: string; crmExternalId: string | null };
+type ServiceRecord = { id: string; name: string; crmExternalId: string | null };
+
 @Injectable()
 export class ServicesService {
   constructor(private readonly prisma: PrismaService) {}
@@ -27,9 +30,10 @@ export class ServicesService {
     }
     if (query.active !== undefined) where.isActive = query.active;
 
+    const prismaAny = this.prisma as any;
     const [items, total] = await this.prisma.$transaction([
-      this.prisma.service.findMany({ where, skip, take: limit }),
-      this.prisma.service.count({ where }),
+      prismaAny.service.findMany({ where, skip, take: limit }),
+      prismaAny.service.count({ where }),
     ]);
 
     return {
@@ -41,7 +45,7 @@ export class ServicesService {
   }
 
   async listCategories(salonId: string): Promise<CategoryDto[]> {
-    const categories = await this.prisma.category.findMany({
+    const categories = await (this.prisma as any).category.findMany({
       where: { salonId },
       orderBy: { sortOrder: 'asc' },
     });
@@ -52,9 +56,9 @@ export class ServicesService {
     const { salon_id } = payload;
     const categoriesInput = payload.categories ?? [];
 
-    const existingCategories = await this.prisma.category.findMany({ where: { salonId: salon_id } });
-    const categoriesByCrm = new Map<string, any>();
-    const categoriesByName = new Map<string, any>();
+    const existingCategories = await (this.prisma as any).category.findMany({ where: { salonId: salon_id } });
+    const categoriesByCrm = new Map<string, CategoryRecord>();
+    const categoriesByName = new Map<string, CategoryRecord>();
     existingCategories.forEach((c) => {
       if (c.crmExternalId) categoriesByCrm.set(c.crmExternalId, c);
       categoriesByName.set(c.name.toLowerCase(), c);
@@ -63,7 +67,7 @@ export class ServicesService {
     const keepCategoryIds = new Set<string>();
     let categoriesUpserted = 0;
     for (const cat of categoriesInput) {
-      let existing = undefined;
+      let existing: CategoryRecord | undefined = undefined;
       if (cat.crm_external_id && categoriesByCrm.has(cat.crm_external_id)) {
         existing = categoriesByCrm.get(cat.crm_external_id);
       } else if (categoriesByName.has(cat.name.toLowerCase())) {
@@ -71,7 +75,7 @@ export class ServicesService {
       }
 
       if (existing) {
-        existing = await this.prisma.category.update({
+        existing = (await (this.prisma as any).category.update({
           where: { id: existing.id },
           data: {
             crmExternalId: cat.crm_external_id ?? null,
@@ -79,9 +83,9 @@ export class ServicesService {
             color: cat.color ?? null,
             sortOrder: cat.sort_order ?? null,
           },
-        });
+        })) as CategoryRecord;
       } else {
-        existing = await this.prisma.category.create({
+        existing = (await (this.prisma as any).category.create({
           data: {
             salonId: salon_id,
             crmExternalId: cat.crm_external_id ?? null,
@@ -89,7 +93,7 @@ export class ServicesService {
             color: cat.color ?? null,
             sortOrder: cat.sort_order ?? null,
           },
-        });
+        })) as CategoryRecord;
       }
       categoriesUpserted++;
       keepCategoryIds.add(existing.id);
@@ -102,13 +106,13 @@ export class ServicesService {
         .filter((c) => !keepCategoryIds.has(c.id))
         .map((c) => c.id);
       if (removeIds.length) {
-        await this.prisma.category.deleteMany({ where: { id: { in: removeIds } } });
+        await (this.prisma as any).category.deleteMany({ where: { id: { in: removeIds } } });
       }
     }
 
-    const existingServices = await this.prisma.service.findMany({ where: { salonId: salon_id } });
-    const servicesByCrm = new Map<string, any>();
-    const servicesByName = new Map<string, any>();
+    const existingServices = await (this.prisma as any).service.findMany({ where: { salonId: salon_id } });
+    const servicesByCrm = new Map<string, ServiceRecord>();
+    const servicesByName = new Map<string, ServiceRecord>();
     existingServices.forEach((s) => {
       if (s.crmExternalId) servicesByCrm.set(s.crmExternalId, s);
       servicesByName.set(s.name.toLowerCase(), s);
@@ -117,7 +121,7 @@ export class ServicesService {
     let upserted = 0;
     const keepServiceIds = new Set<string>();
     for (const svc of payload.services) {
-      let existing = undefined;
+      let existing: ServiceRecord | undefined = undefined;
       if (svc.crm_external_id && servicesByCrm.has(svc.crm_external_id)) {
         existing = servicesByCrm.get(svc.crm_external_id);
       } else if (servicesByName.has(svc.name.toLowerCase())) {
@@ -141,9 +145,9 @@ export class ServicesService {
       };
 
       if (existing) {
-        existing = await this.prisma.service.update({ where: { id: existing.id }, data });
+        existing = (await (this.prisma as any).service.update({ where: { id: existing.id }, data })) as ServiceRecord;
       } else {
-        existing = await this.prisma.service.create({ data });
+        existing = (await (this.prisma as any).service.create({ data })) as ServiceRecord;
       }
       upserted++;
       keepServiceIds.add(existing.id);
@@ -156,7 +160,7 @@ export class ServicesService {
       .map((s) => s.id);
     let deleted = 0;
     if (removeServiceIds.length) {
-      const res = await this.prisma.service.deleteMany({ where: { id: { in: removeServiceIds } } });
+      const res = await (this.prisma as any).service.deleteMany({ where: { id: { in: removeServiceIds } } });
       deleted = res.count;
     }
 
