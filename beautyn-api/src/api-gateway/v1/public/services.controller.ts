@@ -13,6 +13,7 @@ export class ServicesController {
 
   @Get('categories')
   async categories(@Query('salon_id') salonId: string) {
-    return this.servicesService.listCategories(salonId);
+  async categories(@Query() query: CategoriesQuery) {
+    return this.servicesService.listCategories(query.salon_id);
   }
 }
