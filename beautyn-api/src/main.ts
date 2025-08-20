@@ -13,6 +13,8 @@ import { UserResponseDto } from './user/dto/user-response.dto';
 import { DiscoverEasyWeekResponseDto } from './onboarding/dto/discover-easyweek-response.dto';
 import { FinalizeEasyWeekResponseDto } from './onboarding/dto/finalize-easyweek-response.dto';
 import { OnboardingProgressDto } from './onboarding/dto/onboarding-progress.dto';
+import { WorkerAvailabilityResponseDto } from './workers/dto/worker-availability-response.dto';
+import { WorkerDto } from './workers/dto/worker.dto';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -53,6 +55,8 @@ async function bootstrap() {
       DiscoverEasyWeekResponseDto,
       FinalizeEasyWeekResponseDto,
       OnboardingProgressDto,
+      WorkerAvailabilityResponseDto,
+      WorkerDto,
     ],
   });
   SwaggerModule.setup('api/docs', app, doc);

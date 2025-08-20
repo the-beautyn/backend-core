@@ -10,7 +10,7 @@ import {
   Post,
 } from '@nestjs/common';
 import { WorkersService } from '../../../workers/workers.service';
-import { WorkersSyncDto } from '../../../workers/dto/workers-sync.dto';
+import type { WorkersSyncDto } from '../../../workers/dto/workers-sync.dto';
 
 @Injectable()
 export class InternalApiKeyGuard implements CanActivate {

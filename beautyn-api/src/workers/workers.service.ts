@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma, Worker as WorkerModel, WorkerService as WorkerServiceModel } from '@prisma/client';
 import { PrismaService } from '../shared/database/prisma.service';
 import { WorkerDto } from './dto/worker.dto';
@@ -57,6 +57,9 @@ export class WorkersService {
       where: { id: workerId },
       select: { workSchedule: true },
     });
+    if (!worker) {
+      throw new NotFoundException('Worker not found');
+    }
     let slots: Array<{ from: string; to: string }> = [];
     const date = new Date(query.date);
     const weekdays = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
@@ -116,7 +119,7 @@ export class WorkersService {
             phone: w.phone ?? null,
             photoUrl: w.photo_url ?? null,
             isActive: w.is_active ?? true,
-            workSchedule: w.work_schedule ? (w.work_schedule as unknown as Prisma.JsonObject) : undefined,
+            workSchedule: this.normalizeWorkSchedule(w.work_schedule),
           },
         });
       } else {
@@ -130,7 +133,7 @@ export class WorkersService {
             phone: w.phone ?? null,
             photoUrl: w.photo_url ?? null,
             isActive: w.is_active ?? true,
-            workSchedule: w.work_schedule ? (w.work_schedule as unknown as Prisma.JsonObject) : undefined,
+            workSchedule: this.normalizeWorkSchedule(w.work_schedule),
           },
         });
       }
@@ -154,3 +157,41 @@ export class WorkersService {
     return { upserted, unlinked };
   }
 }
+
+// Runtime validation/normalization helpers
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function isTimeString(value: unknown): value is string {
+  if (typeof value !== 'string') return false;
+  const m = value.match(/^([0-1]\d|2[0-3]):([0-5]\d)$/);
+  return !!m;
+}
+
+function isSlotArray(value: unknown): value is Array<{ from: string; to: string }> {
+  if (!Array.isArray(value)) return false;
+  for (const item of value) {
+    if (!isRecord(item) || !isTimeString(item.from) || !isTimeString(item.to)) return false;
+  }
+  return true;
+}
+
+declare module './workers.service' {
+  interface WorkersService {
+    normalizeWorkSchedule(input: unknown): Prisma.InputJsonValue | undefined;
+  }
+}
+
+WorkersService.prototype.normalizeWorkSchedule = function (
+  input: unknown,
+): Prisma.InputJsonValue | undefined {
+  if (!input) return undefined;
+  if (!isRecord(input)) return undefined;
+  const out: Record<string, Array<{ from: string; to: string }>> = {};
+  for (const [key, value] of Object.entries(input)) {
+    if (!isSlotArray(value)) continue;
+    out[key] = value.map((v) => ({ from: v.from, to: v.to }));
+  }
+  return Object.keys(out).length > 0 ? (out as unknown as Prisma.InputJsonValue) : undefined;
+};
