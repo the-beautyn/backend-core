@@ -16,6 +16,9 @@ import { CategoryDto } from './services/dto/category.dto';
 import { ServiceDto } from './services/dto/service.dto';
 import { WorkerAvailabilityResponseDto } from './workers/dto/worker-availability-response.dto';
 import { WorkerDto } from './workers/dto/worker.dto';
+import { SalonDto } from './salon/dto/salon.dto';
+import { SalonListResponseDto } from './salon/dto/salon-list.response.dto';
+import { SalonImageDto } from './salon/dto/salon-image.dto';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -54,6 +57,9 @@ async function bootstrap() {
       ServiceDto,
       WorkerAvailabilityResponseDto,
       WorkerDto,
+      SalonDto,
+      SalonListResponseDto,
+      SalonImageDto,
     ],
   });
   SwaggerModule.setup('api/docs', app, doc);
