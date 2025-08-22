@@ -86,7 +86,6 @@ export class AltegioWebhookService {
       });
       return 'invalid';
     }
-
     const salonId = row.salonId || 'REPLACE_ME_WITH_LOOKUP';
     await this.tokenStorage.saveExternalSalonId(salonId, 'ALTEGIO', externalSalonId);
     await this.syncTrigger.triggerInitialSync({ salonId, provider: 'ALTEGIO' });
