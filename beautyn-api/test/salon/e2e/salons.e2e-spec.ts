@@ -32,24 +32,24 @@ describe('Salon controllers', () => {
       jest.clearAllMocks();
     });
 
-    it('GET /api/v1/public/salons returns list', async () => {
+    it('GET /api/v1/salons returns list', async () => {
       const payload = { items: [], page: 1, limit: 20, total: 0 };
       (service.list as any).mockResolvedValue(payload);
-      const res = await request(app.getHttpServer()).get('/api/v1/public/salons').expect(200);
+      const res = await request(app.getHttpServer()).get('/api/v1/salons').expect(200);
       expect(res.body).toEqual(payload);
     });
 
-    it('GET /api/v1/public/salons/:id returns salon when found', async () => {
+    it('GET /api/v1/salons/:id returns salon when found', async () => {
       const salon = { id: '1', name: 'Salon 1' };
       (service.findById as any).mockResolvedValue(salon);
-      const res = await request(app.getHttpServer()).get('/api/v1/public/salons/1').expect(200);
+      const res = await request(app.getHttpServer()).get('/api/v1/salons/1').expect(200);
       expect(res.body).toEqual(salon);
     });
 
-    it('GET /api/v1/public/salons/:id returns 404 when not found', async () => {
+    it('GET /api/v1/salons/:id returns 404 when not found', async () => {
       (service.findById as any).mockResolvedValue(null);
       await request(app.getHttpServer())
-        .get('/api/v1/public/salons/123')
+        .get('/api/v1/salons/123')
         .expect(404);
     });
   });

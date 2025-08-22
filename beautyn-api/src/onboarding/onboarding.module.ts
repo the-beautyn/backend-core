@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { SharedModule } from '../shared/shared.module';
 import { OnboardingService } from './onboarding.service';
+import { CrmProvidersRegistry } from './providers/crm-providers.registry';
 import { EasyWeekDiscoveryClient, HttpEasyWeekDiscoveryClient } from './clients/easyweek-discovery.client';
 import { CrmIntegrationClient } from './clients/crm-integration.client';
 import { HttpCrmIntegrationClient } from './clients/http-crm-integration.client';
@@ -10,6 +11,7 @@ import { NoopCrmIntegrationClient } from './clients/noop-crm-integration.client'
   imports: [SharedModule],
   providers: [
     OnboardingService,
+    CrmProvidersRegistry,
     { provide: EasyWeekDiscoveryClient, useClass: HttpEasyWeekDiscoveryClient },
     {
       provide: CrmIntegrationClient,
@@ -19,6 +21,6 @@ import { NoopCrmIntegrationClient } from './clients/noop-crm-integration.client'
       },
     },
   ],
-  exports: [OnboardingService],
+  exports: [OnboardingService, CrmProvidersRegistry],
 })
 export class OnboardingModule {}

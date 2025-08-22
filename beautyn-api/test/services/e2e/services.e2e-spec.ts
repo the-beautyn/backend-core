@@ -18,7 +18,7 @@ describe('Services e2e', () => {
       await app.close();
     });
 
-    it('GET /api/v1/public/services', async () => {
+    it('GET /api/v1/services', async () => {
       service.list.mockResolvedValue({
         items: [
           {
@@ -39,7 +39,7 @@ describe('Services e2e', () => {
         total: 1,
       });
 
-      const res = await request(app.getHttpServer()).get('/api/v1/public/services?salon_id=s1');
+      const res = await request(app.getHttpServer()).get('/api/v1/services?salon_id=s1');
       expect(res.status).toBe(200);
       expect(res.body).toEqual({
         items: [
@@ -62,7 +62,7 @@ describe('Services e2e', () => {
       });
     });
 
-    it('GET /api/v1/public/categories', async () => {
+    it('GET /api/v1/categories', async () => {
       service.listCategories.mockResolvedValue([
         {
           id: '1',
@@ -76,7 +76,7 @@ describe('Services e2e', () => {
         },
       ]);
 
-      const res = await request(app.getHttpServer()).get('/api/v1/public/categories?salon_id=s1');
+      const res = await request(app.getHttpServer()).get('/api/v1/categories?salon_id=s1');
       expect(res.status).toBe(200);
       expect(res.body).toEqual([
         {
