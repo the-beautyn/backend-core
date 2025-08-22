@@ -7,6 +7,8 @@ import {
   UseGuards,
   HttpCode,
   HttpStatus,
+  Param,
+  NotFoundException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -15,6 +17,7 @@ import {
   ApiOkResponse,
   ApiUnauthorizedResponse,
   ApiAcceptedResponse,
+  ApiBadRequestResponse,
 } from '@nestjs/swagger';
 import { Request } from 'express';
 import { JwtAuthGuard } from '../../../shared/guards/jwt-auth.guard';
@@ -25,13 +28,20 @@ import { DiscoverEasyWeekDto } from '../../../onboarding/dto/discover-easyweek.d
 import { FinalizeEasyWeekDto } from '../../../onboarding/dto/finalize-easyweek.dto';
 import { FinalizeEasyWeekResponseDto } from '../../../onboarding/dto/finalize-easyweek-response.dto';
 import { DiscoverEasyWeekResponseDto } from '../../../onboarding/dto/discover-easyweek-response.dto';
+import { CrmProvidersRegistry } from '../../../onboarding/providers/crm-providers.registry';
+import { CrmProviderListResponseDto } from '../../../onboarding/dto/crm-provider-list.dto';
+import { CrmProviderDto } from '../../../onboarding/dto/crm-provider.dto';
+import { AltegioPairCodeResponseDto } from '../../../onboarding/dto/altegio-pair-code.dto';
 
 @ApiTags('Onboarding')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
 @Controller('api/v1/onboarding')
 export class OnboardingController {
-  constructor(private readonly onboardingService: OnboardingService) {}
+  constructor(
+    private readonly onboardingService: OnboardingService,
+    private readonly crmRegistry: CrmProvidersRegistry,
+  ) {}
 
   @Get('progress')
   @ApiOperation({ summary: 'Get onboarding progress' })
@@ -69,5 +79,45 @@ export class OnboardingController {
       dto.salon_uuid,
     );
     return { job_id: jobId };
+  }
+
+  // CRM registry endpoints
+
+  @Get('crms')
+  @UseGuards(JwtAuthGuard)
+  @ApiTags('Onboarding / CRMs')
+  @ApiOperation({
+    summary: 'List available CRMs',
+    description: 'Returns providers, connect flows, fields, and coarse capabilities.',
+  })
+  @ApiOkResponse(envelopeRef(CrmProviderListResponseDto))
+  @ApiBadRequestResponse(envelopeErrorSchema())
+  async listCrms() {
+    const providers = this.crmRegistry.list();
+    return { success: true, data: { providers } };
+  }
+
+  @Get('crms/:code')
+  @UseGuards(JwtAuthGuard)
+  @ApiTags('Onboarding / CRMs')
+  @ApiOperation({ summary: 'Get provider descriptor' })
+  @ApiOkResponse(envelopeRef(CrmProviderDto))
+  @ApiBadRequestResponse(envelopeErrorSchema())
+  async getCrm(@Param('code') code: 'EASYWEEK' | 'ALTEGIO') {
+    const d = this.crmRegistry.get(code);
+    if (!d) throw new NotFoundException('Unknown provider');
+    return { success: true, data: d };
+  }
+
+  @Post('altegio/pair-code')
+  @UseGuards(JwtAuthGuard)
+  @ApiTags('Onboarding / CRMs')
+  @ApiOperation({ summary: 'Generate 6-digit pairing code for Altegio' })
+  @ApiOkResponse(envelopeRef(AltegioPairCodeResponseDto))
+  @ApiBadRequestResponse(envelopeErrorSchema())
+  async pairCode(@Req() req: Request & { user: { id: string } }) {
+    const userId = req.user.id as string;
+    const { code, expiresAt } = await this.onboardingService.generateAltegioPairCode(userId);
+    return { success: true, data: { code, expires_at: expiresAt.toISOString() } };
   }
 }

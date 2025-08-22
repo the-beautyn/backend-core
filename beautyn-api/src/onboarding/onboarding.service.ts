@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, Optional } from '@nestjs/common';
+import { randomInt, createHmac } from 'crypto';
 import { PrismaService } from '../shared/database/prisma.service';
 import { OnboardingProgressDto } from './dto/onboarding-progress.dto';
 import { OnboardingMapper } from './mappers/onboarding.mapper';
@@ -43,6 +44,22 @@ export class OnboardingService {
       create: { userId, crmConnected: true, currentStep: 'SUBSCRIPTION' },
       update: { crmConnected: true, currentStep: 'SUBSCRIPTION' },
     });
+  }
+
+  async generateAltegioPairCode(userId: string) {
+    const code = String(randomInt(0, 1_000_000)).padStart(6, '0');
+    const pepper = process.env.PAIRING_CODE_PEPPER || '';
+    const codeHash = createHmac('sha256', pepper).update(code).digest('hex');
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+    await this.prisma.crmPairingCode.create({
+      data: {
+        provider: 'ALTEGIO',
+        userId,
+        codeHash,
+        expiresAt,
+      },
+    });
+    return { code, expiresAt };
   }
 
   private async resolveCurrentSalonId(userId: string): Promise<string> {

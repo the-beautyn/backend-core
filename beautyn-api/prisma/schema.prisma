@@ -197,3 +197,19 @@ model WorkerService {
   @@id([workerId, serviceId])
   @@map("worker_services")
 }
+
+model CrmPairingCode {
+  id        String   @id @default(uuid()) @db.Uuid
+  provider  String
+  userId    String   @db.Uuid @map("user_id")
+  salonId   String?  @db.Uuid @map("salon_id")
+  codeHash  String   @map("code_hash")
+  attempts  Int      @default(0)
+  expiresAt DateTime @map("expires_at")
+  usedAt    DateTime?@map("used_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([provider, expiresAt], map: "crm_pairing_codes_provider_exp_idx")
+  @@map("crm_pairing_codes")
+}
