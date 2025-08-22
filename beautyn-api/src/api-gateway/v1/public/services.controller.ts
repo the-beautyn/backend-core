@@ -7,7 +7,7 @@ import { CategoryDto } from '../../../services/dto/category.dto';
 import { envelopeArrayRef, envelopeErrorSchema, envelopeRef } from '../../../shared/utils/swagger-envelope.util';
 
 @ApiTags('Services')
-@Controller('api/v1/public')
+@Controller('api/v1')
 export class ServicesController {
   constructor(private readonly servicesService: ServicesService) {}
 

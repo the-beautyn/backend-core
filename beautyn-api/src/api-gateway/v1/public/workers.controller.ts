@@ -8,7 +8,7 @@ import { envelopeArrayRef, envelopeErrorSchema, envelopeRef } from '../../../sha
 import { WorkerAvailabilityResponseDto } from '../../../workers/dto/worker-availability-response.dto';
 
 @ApiTags('Workers')
-@Controller('api/v1/public/workers')
+@Controller('api/v1/workers')
 export class WorkersController {
   constructor(private readonly workersService: WorkersService) {}
 

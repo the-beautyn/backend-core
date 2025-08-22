@@ -50,9 +50,9 @@ describe('Workers e2e', () => {
       await app.close();
     });
 
-    it('GET /api/v1/public/workers', async () => {
+    it('GET /api/v1/workers', async () => {
       const res = await request(app.getHttpServer())
-        .get('/api/v1/public/workers')
+        .get('/api/v1/workers')
         .query({ salon_id: 'salon1' })
         .expect(200);
       expect(res.body).toEqual({
@@ -71,20 +71,20 @@ describe('Workers e2e', () => {
       });
     });
 
-    it('GET /api/v1/public/workers/:id', async () => {
+    it('GET /api/v1/workers/:id', async () => {
       const res = await request(app.getHttpServer())
-        .get('/api/v1/public/workers/w1')
+        .get('/api/v1/workers/w1')
         .expect(200);
       expect(res.body.id).toBe('w1');
 
       await request(app.getHttpServer())
-        .get('/api/v1/public/workers/unknown')
+        .get('/api/v1/workers/unknown')
         .expect(404);
     });
 
-    it('GET /api/v1/public/workers/:id/availability', async () => {
+    it('GET /api/v1/workers/:id/availability', async () => {
       const res = await request(app.getHttpServer())
-        .get('/api/v1/public/workers/w1/availability')
+        .get('/api/v1/workers/w1/availability')
         .query({ date: '2024-01-01' })
         .expect(200);
       expect(res.body).toEqual({ slots: [{ from: '09:00', to: '09:30' }] });

@@ -1,18 +1,12 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { createHmac, timingSafeEqual } from 'crypto';
 import { PrismaService } from '../../shared/database/prisma.service';
-import { verifyHmacHex } from '../crypto/signature';
 import { CrmIntegrationService } from '../core/crm-integration.service';
 import { OnboardingService } from '../../onboarding/onboarding.service';
 import { TokenStorageService } from '../core/token-storage.service';
 import { SyncTriggerService } from '../core/sync-trigger.service';
 
-export type ConnectInput = {
-  linkToken: string;
-  externalSalonId: string;
-  userDataRaw: string;
-  signatureHex: string;
-};
+// Connect flow via link token has been removed
 
 @Injectable()
 export class AltegioWebhookService {
@@ -24,31 +18,7 @@ export class AltegioWebhookService {
     private readonly syncTrigger: SyncTriggerService,
   ) {}
 
-  async handleConnect(input: ConnectInput): Promise<'ok' | 'bad-signature'> {
-    const secret = process.env.ALTEGIO_WEBHOOK_SECRET || '';
-    const valid = verifyHmacHex({ secret, raw: input.userDataRaw, signatureHex: input.signatureHex });
-    if (!valid) return 'bad-signature';
-
-    const token = await this.prisma.crmLinkToken.findFirst({
-      where: {
-        token: input.linkToken,
-        provider: 'ALTEGIO',
-        used: false,
-        expiresAt: { gt: new Date() },
-      },
-    });
-    if (!token) {
-      throw new BadRequestException('invalid or expired link token');
-    }
-
-    await this.prisma.crmLinkToken.update({ where: { id: token.id }, data: { used: true } });
-
-    await this.crm.linkAltegio({ salonId: token.salonId, externalSalonId: input.externalSalonId });
-    await this.crm.enqueueInitialSync(token.salonId);
-    await this.onboarding.markCrmLinked(token.salonId, 'ALTEGIO');
-
-    return 'ok';
-  }
+  // handleConnect removed
 
   async confirm({
     code,

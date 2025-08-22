@@ -8,7 +8,7 @@ import { SalonImageDto } from '../../../salon/dto/salon-image.dto';
 import { envelopeErrorSchema, envelopeArrayRef, envelopeRef } from '../../../shared/utils/swagger-envelope.util';
 
 @ApiTags('Salons')
-@Controller('api/v1/public/salons')
+@Controller('api/v1/salons')
 export class SalonsController {
   constructor(private readonly salonService: SalonService) {}
 
