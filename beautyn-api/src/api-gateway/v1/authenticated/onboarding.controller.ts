@@ -72,13 +72,13 @@ export class OnboardingController {
   @ApiAcceptedResponse(envelopeRef(FinalizeEasyWeekResponseDto))
   async finalize(@Req() req: Request & { user: { id: string } }, @Body() dto: FinalizeEasyWeekDto) {
     const userId = req.user.id as string;
-    const { jobId } = await this.onboardingService.finalizeEasyWeekLink(
+    await this.onboardingService.finalizeEasyWeekLink(
       userId,
       dto.auth_token,
       dto.workspace_slug,
       dto.salon_uuid,
     );
-    return { job_id: jobId };
+    return { success: true, data: { job_id: 'job_dev_noop' } };
   }
 
   // CRM registry endpoints

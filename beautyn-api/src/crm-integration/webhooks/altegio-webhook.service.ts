@@ -1,10 +1,9 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { createHmac, timingSafeEqual } from 'crypto';
 import { PrismaService } from '../../shared/database/prisma.service';
-import { CrmIntegrationService } from '../core/crm-integration.service';
+import { AltegioPartnerClient } from '../clients/altegio-partner.client';
 import { OnboardingService } from '../../onboarding/onboarding.service';
-import { TokenStorageService } from '../core/token-storage.service';
-import { SyncTriggerService } from '../core/sync-trigger.service';
+import { CrmIntegrationService } from '../core/crm-integration.service';
 
 // Connect flow via link token has been removed
 
@@ -12,13 +11,10 @@ import { SyncTriggerService } from '../core/sync-trigger.service';
 export class AltegioWebhookService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly crm: CrmIntegrationService,
-    private readonly onboarding: OnboardingService,
-    private readonly tokenStorage: TokenStorageService,
-    private readonly syncTrigger: SyncTriggerService,
+    private readonly altegioPartner: AltegioPartnerClient,
+    private readonly onboardingService: OnboardingService,
+    private readonly crmIntegration: CrmIntegrationService,
   ) {}
-
-  // handleConnect removed
 
   async confirm({
     code,
@@ -56,28 +52,11 @@ export class AltegioWebhookService {
       });
       return 'invalid';
     }
-    const salonId = row.salonId || 'REPLACE_ME_WITH_LOOKUP';
-    await this.tokenStorage.saveExternalSalonId(salonId, 'ALTEGIO', externalSalonId);
-    await this.syncTrigger.triggerInitialSync({ salonId, provider: 'ALTEGIO' });
 
-    const base = process.env.INTERNAL_API_BASE_URL;
-    const key = process.env.INTERNAL_API_KEY;
-    if (base && key) {
-      try {
-        await fetch(`${base}/internal/onboarding/crm-linked`, {
-          method: 'POST',
-          headers: { 'content-type': 'application/json', 'x-internal-key': key },
-          body: JSON.stringify({ salon_id: salonId, provider: 'ALTEGIO' }),
-        });
-      } catch (_) {
-        // ignore
-      }
-    }
-
-    await this.prisma.crmPairingCode.update({
-      where: { id: row.id },
-      data: { usedAt: now },
-    });
+    await this.prisma.crmPairingCode.update({ where: { id: row.id }, data: { usedAt: now } });
+    await this.altegioPartner.confirmRegistration(externalSalonId);
+    await this.crmIntegration.linkAltegio({ userId: row.userId, externalSalonId });
+    await this.onboardingService.markCrmLinkedByUser(row.userId);
 
     return 'ok';
   }

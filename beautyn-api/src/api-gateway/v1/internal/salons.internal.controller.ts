@@ -13,19 +13,7 @@ import {
 import { SalonService } from '../../../salon/salon.service';
 import { SalonSyncDto } from '../../../salon/dto/salon-sync.dto';
 import { SalonImagesSyncDto } from '../../../salon/dto/salon-images-sync.dto';
-
-@Injectable()
-export class InternalApiKeyGuard implements CanActivate {
-  canActivate(ctx: ExecutionContext): boolean {
-    const req = ctx.switchToHttp().getRequest();
-    const key = req.headers['x-internal-key'];
-    const internalApiKey = process.env.INTERNAL_API_KEY;
-    if (!internalApiKey || internalApiKey.trim() === '') {
-      return false;
-    }
-    return key === internalApiKey;
-  }
-}
+import { InternalApiKeyGuard } from '../../../shared/guards/internal-api-key.guard';
 
 @Controller('api/v1/internal/salons')
 export class SalonsInternalController {

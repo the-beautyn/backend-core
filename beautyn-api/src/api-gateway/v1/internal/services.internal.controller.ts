@@ -1,7 +1,7 @@
 import { Controller, Post, Body, UseGuards, HttpCode, HttpStatus } from '@nestjs/common';
 import { ServicesService } from '../../../services/services.service';
 import { ServicesSyncDto } from '../../../services/dto/services-sync.dto';
-import { InternalApiKeyGuard } from './onboarding.internal.controller';
+import { InternalApiKeyGuard } from '../../../shared/guards/internal-api-key.guard';
 
 @Controller('api/v1/internal/services')
 export class ServicesInternalController {

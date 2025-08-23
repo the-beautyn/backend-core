@@ -9,19 +9,17 @@ import {
   Req,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
-import { ApiBadRequestResponse, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiExcludeController } from '@nestjs/swagger';
 import { envelopeErrorSchema, envelopeSuccessOnly } from '../../../shared/utils/swagger-envelope.util';
 import { AltegioConfirmDto } from '../../../crm-integration/webhooks/dto/altegio-confirm.dto';
 import { AltegioWebhookService } from '../../../crm-integration/webhooks/altegio-webhook.service';
 
-@ApiTags('Webhooks / Altegio')
+@ApiExcludeController()
 @Controller('api/v1/webhooks/altegio')
 export class AltegioWebhookController {
   constructor(private readonly service: AltegioWebhookService) {}
 
   @Get('redirect')
-  @ApiOperation({ summary: 'Altegio redirect page', description: 'Shows a small form to enter the 6-digit code' })
-  @ApiOkResponse({ content: { 'text/html': { schema: { type: 'string', example: '<!doctype html>...' } } } })
   async redirect(@Query('salon_id') salonId: string, @Res() res: Response, @Req() req: Request) {
     const esc = (s: string) =>
       String(s)
@@ -45,9 +43,6 @@ export class AltegioWebhookController {
   }
 
   @Post('confirm')
-  @ApiOperation({ summary: 'Confirm Altegio linking with a 6-digit code' })
-  @ApiOkResponse(envelopeSuccessOnly())
-  @ApiBadRequestResponse(envelopeErrorSchema())
   async confirm(@Body() dto: AltegioConfirmDto) {
     const result = await this.service.confirm({ code: dto.code, externalSalonId: dto.salon_id });
     if (result !== 'ok') {

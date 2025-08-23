@@ -51,7 +51,6 @@ export class EnvelopeExceptionFilter implements ExceptionFilter {
         stack: (exception as any)?.stack,
       };
     }
-
     response.status(status).json(body);
   }
 }

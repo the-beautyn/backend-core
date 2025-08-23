@@ -5,7 +5,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
-import { InternalApiKeyGuard } from '../../../src/api-gateway/v1/internal/salons.internal.controller';
+import { InternalApiKeyGuard } from '../../../src/shared/guards/internal-api-key.guard';
 
 export async function buildPublicApp(controllers: any[], providers: any[]): Promise<INestApplication> {
   const moduleRef: TestingModule = await Test.createTestingModule({

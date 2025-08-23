@@ -5,7 +5,7 @@ import request from 'supertest';
 import { ServicesController } from '../../../src/api-gateway/v1/public/services.controller';
 import { ServicesInternalController } from '../../../src/api-gateway/v1/internal/services.internal.controller';
 import { ServicesService } from '../../../src/services/services.service';
-import { InternalApiKeyGuard } from '../../../src/api-gateway/v1/internal/onboarding.internal.controller';
+import { InternalApiKeyGuard } from '../../../src/shared/guards/internal-api-key.guard';
 
 @Injectable()
 class TestInternalApiKeyGuard implements CanActivate {

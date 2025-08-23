@@ -9,15 +9,15 @@ import { WorkersModule } from '../workers/workers.module';
 import { WorkersController } from './v1/public/workers.controller';
 import { SalonsController } from './v1/public/salons.controller';
 import { AltegioWebhookController } from './v1/public/altegio-webhook.controller';
-import { OnboardingModule } from '../onboarding/onboarding.module';
 import { AltegioWebhookService } from '../crm-integration/webhooks/altegio-webhook.service';
+import { AltegioPartnerClient } from '../crm-integration/clients/altegio-partner.client';
+import { OnboardingModule } from '../onboarding/onboarding.module';
 import { CrmIntegrationService } from '../crm-integration/core/crm-integration.service';
-import { TokenStorageService } from '../crm-integration/core/token-storage.service';
 import { SyncTriggerService } from '../crm-integration/core/sync-trigger.service';
 
 @Module({
   imports: [AuthModule, ServicesModule, WorkersModule, SalonModule, OnboardingModule],
   controllers: [AuthPublicController, HealthController, ServicesController, WorkersController, SalonsController, AltegioWebhookController],
-  providers: [AltegioWebhookService, CrmIntegrationService, TokenStorageService, SyncTriggerService],
+  providers: [AltegioWebhookService, CrmIntegrationService, SyncTriggerService, AltegioPartnerClient],
 })
 export class PublicApiModule {}

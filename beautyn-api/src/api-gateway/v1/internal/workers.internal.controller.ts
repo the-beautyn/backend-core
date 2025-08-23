@@ -11,19 +11,7 @@ import {
 } from '@nestjs/common';
 import { WorkersService } from '../../../workers/workers.service';
 import type { WorkersSyncDto } from '../../../workers/dto/workers-sync.dto';
-
-@Injectable()
-export class InternalApiKeyGuard implements CanActivate {
-  canActivate(ctx: ExecutionContext): boolean {
-    const req = ctx.switchToHttp().getRequest();
-    const key = req.headers['x-internal-key'];
-    const internalApiKey = process.env.INTERNAL_API_KEY;
-    if (!internalApiKey || internalApiKey.trim() === '') {
-      return false;
-    }
-    return key === internalApiKey;
-  }
-}
+import { InternalApiKeyGuard } from '../../../shared/guards/internal-api-key.guard';
 
 @Controller('api/v1/internal/workers')
 export class WorkersInternalController {

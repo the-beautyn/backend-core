@@ -1,9 +1,6 @@
-import { IsUUID, IsIn } from 'class-validator';
+import { IsUUID } from 'class-validator';
 
 export class CrmLinkedDto {
   @IsUUID()
-  salon_id!: string;
-
-  @IsIn(['ALTEGIO', 'EASYWEEK'])
-  provider!: 'ALTEGIO' | 'EASYWEEK';
+  user_id!: string;
 }

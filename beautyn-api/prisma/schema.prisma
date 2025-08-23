@@ -76,19 +76,6 @@ model OnboardingStep {
   @@map("onboarding_step")
 }
 
-model CrmLinkToken {
-  id        String   @id @default(uuid())
-  token     String   @unique @db.Uuid
-  salonId   String   @db.Uuid        @map("salon_id")
-  provider  String
-  used      Boolean  @default(false)
-  expiresAt DateTime @map("expires_at")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  @@map("crm_link_tokens")
-}
-
 model Salon {
   id             String   @id @default(uuid())   @db.Uuid
   crmId          String?  @map("crm_id")

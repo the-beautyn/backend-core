@@ -8,11 +8,11 @@ import { SalonImageDto } from '../../../salon/dto/salon-image.dto';
 import { envelopeErrorSchema, envelopeArrayRef, envelopeRef } from '../../../shared/utils/swagger-envelope.util';
 
 @ApiTags('Salons')
-@Controller('api/v1/salons')
+@Controller('api/v1')
 export class SalonsController {
   constructor(private readonly salonService: SalonService) {}
 
-  @Get()
+  @Get('salons')
   @ApiOperation({ summary: 'List salons with filters and pagination' })
   @ApiOkResponse(envelopeRef(SalonListResponseDto))
   @ApiBadRequestResponse(
@@ -22,7 +22,7 @@ export class SalonsController {
     return this.salonService.list(query);
   }
 
-  @Get(':id')
+  @Get('salons/:id')
   @ApiOperation({ summary: 'Get salon by id' })
   @ApiParam({ name: 'id', type: String })
   @ApiOkResponse(envelopeRef(SalonDto))
@@ -35,7 +35,7 @@ export class SalonsController {
     return salon;
   }
 
-  @Get(':id/images')
+  @Get('salons/:id/images')
   @ApiOperation({ summary: 'List images for a salon' })
   @ApiParam({ name: 'id', type: String })
   @ApiOkResponse(envelopeArrayRef(SalonImageDto))

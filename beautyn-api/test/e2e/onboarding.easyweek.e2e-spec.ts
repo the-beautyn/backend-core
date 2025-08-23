@@ -37,7 +37,11 @@ describe('Onboarding EasyWeek (e2e)', () => {
       .overrideProvider(EasyWeekDiscoveryClient)
       .useValue(mockEw)
       .overrideProvider(PrismaService)
-      .useValue({ $connect: jest.fn(), $disconnect: jest.fn() })
+      .useValue({
+        $connect: jest.fn(),
+        $disconnect: jest.fn(),
+        onboardingStep: { upsert: jest.fn().mockResolvedValue(undefined) },
+      })
       .compile();
 
     app = moduleFixture.createNestApplication();
