@@ -4,6 +4,8 @@
     "paths": {
       "@crm/shared": ["libs/crm/shared/src"],
       "@crm/shared/*": ["libs/crm/shared/src/*"],
+      "@crm/capability-registry": ["libs/crm/capability-registry/src"],
+      "@crm/capability-registry/*": ["libs/crm/capability-registry/src/*"],
       "@shared/logger": ["libs/shared/logger/src"],
       "@shared/logger/*": ["libs/shared/logger/src/*"]
     }

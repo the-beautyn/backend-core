@@ -1,0 +1,25 @@
+{
+  "ALTEGIO": {
+    "webhooks": false,
+    "batchSize": 100,
+    "supportsBooking": true,
+    "supportsReschedule": true,
+    "supportsCancelBooking": true,
+    "supportsSalonSync": true,
+    "supportsCategoriesSync": true,
+    "supportsServicesSync": true,
+    "supportsWorkersSync": true
+  },
+  "EASYWEEK": {
+    "webhooks": true,
+    "batchSize": 100,
+    "supportsBooking": true,
+    "supportsCancelBooking": true,
+    "supportsReschedule": false,
+    "supportsSalonSync": true,
+    "supportsCategoriesSync": true,
+    "supportsServicesSync": true,
+    "supportsWorkersSync": true
+  }
+}
+
