@@ -11,7 +11,8 @@ export class RequestCorrelationMiddleware implements NestMiddleware {
   use(req: any, res: any, next: () => void) {
     const header = 'x-request-id';
     const incoming = req.headers[header] as string | undefined;
-    const requestId = incoming && String(incoming).trim() ? String(incoming) : randomUUID();
+    const trimmed = incoming ? String(incoming).trim() : '';
+    const requestId = trimmed ? trimmed : randomUUID();
     req.requestId = requestId;
     res.setHeader(header, requestId);
     runWithRequestContext({ requestId }, next);
