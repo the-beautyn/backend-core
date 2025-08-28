@@ -4,7 +4,7 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 export class AltegioPartnerClient {
   private readonly endpoint = 'https://app.alteg.io/marketplace/partner/callback';
   private readonly applicationId = process.env.ALTEGIO_APPLICATION_ID;
-  private readonly bearer = process.env.ALTEGIO_BEARER_SECRET;
+  private readonly bearer = process.env.ALTEGIO_BEARER;
 
   async confirmRegistration(externalSalonId: string): Promise<void> {
     const appId = this.applicationId;

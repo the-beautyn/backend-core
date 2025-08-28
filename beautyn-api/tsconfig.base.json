@@ -6,6 +6,12 @@
       "@crm/shared/*": ["libs/crm/shared/src/*"],
       "@crm/capability-registry": ["libs/crm/capability-registry/src"],
       "@crm/capability-registry/*": ["libs/crm/capability-registry/src/*"],
+      "@crm/retry-handler": ["libs/crm/retry-handler/src"],
+      "@crm/retry-handler/*": ["libs/crm/retry-handler/src/*"],
+      "@crm/token-storage": ["libs/crm/token-storage/src"],
+      "@crm/token-storage/*": ["libs/crm/token-storage/src/*"],
+      "@crm/account-registry": ["libs/crm/account-registry/src"],
+      "@crm/account-registry/*": ["libs/crm/account-registry/src/*"],
       "@shared/logger": ["libs/shared/logger/src"],
       "@shared/logger/*": ["libs/shared/logger/src/*"]
     }

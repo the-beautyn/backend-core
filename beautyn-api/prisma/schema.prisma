@@ -200,3 +200,30 @@ model CrmPairingCode {
   @@index([provider, expiresAt], map: "crm_pairing_codes_provider_exp_idx")
   @@map("crm_pairing_codes")
 }
+
+// --- CRM credential storage (encrypted secrets) ---
+model CrmCredential {
+  id         String   @id @default(cuid())
+  salonId    String   @db.Uuid
+  provider   String
+  cipherText Bytes
+  iv         Bytes
+  authTag    Bytes
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([salonId, provider])
+}
+
+// --- CRM account registry (non-secrets) ---
+model CrmAccount {
+  id        String   @id @default(cuid())
+  salonId   String   @db.Uuid
+  provider  String
+  data      Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([salonId, provider])
+  @@index([provider])
+}

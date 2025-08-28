@@ -7,10 +7,9 @@ const path = require('path');
 config({ path: path.join(__dirname, '.env') });
 config({ path: path.join(__dirname, '.env.test') });
 
-// Ensure DATABASE_URL is set for tests (use Postgres by default to match Prisma provider)
-if (!process.env.DATABASE_URL) {
-  process.env.DATABASE_URL = 'postgresql://postgres:postgres@localhost:54322/postgres?schema=public';
-}
+// Force local DB for tests regardless of host env to avoid accidental prod connections
+process.env.DATABASE_URL = 'postgresql://postgres:postgres@127.0.0.1:54322/postgres?schema=public';
+process.env.DIRECT_URL = process.env.DIRECT_URL || 'postgresql://postgres:postgres@127.0.0.1:54322/postgres?schema=public';
 
 // Set other test environment variables if not already set
 
