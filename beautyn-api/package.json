@@ -19,15 +19,15 @@
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "db:dev:migrate": "dotenv -e .env.dev -- npx prisma migrate dev",
-    "db:dev:deploy":  "dotenv -e .env.dev -- npx prisma migrate deploy",
-    "db:dev:reset":  "dotenv -e .env.dev -- npx prisma migrate reset --force",
+    "db:dev:deploy": "dotenv -e .env.dev -- npx prisma migrate deploy",
+    "db:dev:reset": "dotenv -e .env.dev -- npx prisma migrate reset --force",
     "db:local:migrate": "dotenv -e .env.local -- npx prisma migrate dev",
-    "db:local:deploy":  "dotenv -e .env.local -- npx prisma migrate deploy",
-    "db:local:reset":  "dotenv -e .env.local -- npx prisma migrate reset --force",
+    "db:local:deploy": "dotenv -e .env.local -- npx prisma migrate deploy",
+    "db:local:reset": "dotenv -e .env.local -- npx prisma migrate reset --force",
     "db:stage:migrate": "dotenv -e .env.stage -- npx prisma migrate dev",
-    "db:stage:deploy":  "dotenv -e .env.stage -- npx prisma migrate deploy",
+    "db:stage:deploy": "dotenv -e .env.stage -- npx prisma migrate deploy",
     "db:prod:deploy": "dotenv -e .env.prod -- npx prisma migrate deploy",
-    "db:status:dev":  "dotenv -e .env.dev -- npx prisma migrate status"
+    "db:status:dev": "dotenv -e .env.dev -- npx prisma migrate status"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
@@ -49,7 +49,8 @@
     "pg": "^8.16.3",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
-    "swagger-ui-express": "^5.0.1"
+    "swagger-ui-express": "^5.0.1",
+    "winston": "^3.13.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",
