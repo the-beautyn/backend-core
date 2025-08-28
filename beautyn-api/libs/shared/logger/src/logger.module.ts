@@ -4,7 +4,7 @@ import { RequestCorrelationMiddleware } from './middleware/correlation.middlewar
 
 @Global()
 @Module({
-  providers: [],
+  providers: [LoggerInterceptor, RequestCorrelationMiddleware],
   exports: [LoggerInterceptor, RequestCorrelationMiddleware],
 })
 export class LoggerModule {}

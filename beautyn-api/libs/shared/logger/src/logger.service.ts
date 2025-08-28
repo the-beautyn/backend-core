@@ -4,7 +4,7 @@ import { getRequestId } from './context';
 type LogLevel = 'error' | 'warn' | 'info' | 'http' | 'verbose' | 'debug' | 'silly';
 
 const level: LogLevel = (process.env.LOG_LEVEL as LogLevel) || 'info';
-const env = process.env.NODE_ENV || 'development';
+const env = process.env.NODE_ENV || 'dev';
 const service = process.env.SERVICE_NAME || 'api';
 
 const baseLogger = winston.createLogger({
