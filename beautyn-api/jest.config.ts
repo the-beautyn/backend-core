@@ -12,6 +12,8 @@ const config: JestConfigWithTsJest = {
   moduleNameMapper: {
     '^@crm/shared$': '<rootDir>/libs/crm/shared/src',
     '^@crm/shared/(.*)$': '<rootDir>/libs/crm/shared/src/$1',
+    '^@shared/logger$': '<rootDir>/libs/shared/logger/src',
+    '^@shared/logger/(.*)$': '<rootDir>/libs/shared/logger/src/$1',
   },
   testRegex: '.*\\.spec\\.ts$',
   transform: {

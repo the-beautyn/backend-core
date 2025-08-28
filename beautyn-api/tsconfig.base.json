@@ -1,0 +1,11 @@
+{
+  "compilerOptions": {
+    "baseUrl": "./",
+    "paths": {
+      "@crm/shared": ["libs/crm/shared/src"],
+      "@crm/shared/*": ["libs/crm/shared/src/*"],
+      "@shared/logger": ["libs/shared/logger/src"],
+      "@shared/logger/*": ["libs/shared/logger/src/*"]
+    }
+  }
+}
