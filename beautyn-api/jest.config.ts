@@ -9,6 +9,10 @@ const config: JestConfigWithTsJest = {
   testEnvironment: 'node',
   moduleFileExtensions: ['js', 'json', 'ts'],
   rootDir: '.',
+  moduleNameMapper: {
+    '^@crm/shared$': '<rootDir>/libs/crm/shared/src',
+    '^@crm/shared/(.*)$': '<rootDir>/libs/crm/shared/src/$1',
+  },
   testRegex: '.*\\.spec\\.ts$',
   transform: {
     '^.+\\.(t|j)s$': ['ts-jest', { tsconfig: 'tsconfig.json' }],
