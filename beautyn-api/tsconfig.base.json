@@ -12,6 +12,12 @@
       "@crm/token-storage/*": ["libs/crm/token-storage/src/*"],
       "@crm/account-registry": ["libs/crm/account-registry/src"],
       "@crm/account-registry/*": ["libs/crm/account-registry/src/*"],
+      "@crm/provider-core": ["libs/crm/provider-core/src"],
+      "@crm/provider-core/*": ["libs/crm/provider-core/src/*"],
+      "@crm/adapter": ["libs/crm/adapter/src"],
+      "@crm/adapter/*": ["libs/crm/adapter/src/*"],
+      "@crm/sync-scheduler": ["libs/crm/sync-scheduler/src"],
+      "@crm/sync-scheduler/*": ["libs/crm/sync-scheduler/src/*"],
       "@shared/logger": ["libs/shared/logger/src"],
       "@shared/logger/*": ["libs/shared/logger/src/*"]
     }

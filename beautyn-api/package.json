@@ -8,11 +8,14 @@
   "scripts": {
     "build": "nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
-    "start": "NODE_ENV=${NODE_ENV:-production} dotenv -e .env.${NODE_ENV:-production} -- prisma generate --schema=./prisma/schema.prisma && npm run build && NODE_ENV=${NODE_ENV:-production} node -r tsconfig-paths/register dist/src/main.js",
+    "start": "NODE_ENV=${NODE_ENV:-production} dotenv -e .env.${NODE_ENV:-production} -- prisma generate --schema=./prisma/schema.prisma && npm run build && NODE_ENV=${NODE_ENV:-production} node dist/src/main.js",
     "start:dev": "NODE_ENV=dev dotenv -e .env.dev -- prisma generate --schema=./prisma/schema.prisma && NODE_ENV=dev dotenv -e .env.dev -- nest start --watch",
     "start:local": "NODE_ENV=local dotenv -e .env.local -- prisma generate --schema=./prisma/schema.prisma && NODE_ENV=local dotenv -e .env.local -- nest start --watch",
-    "start:stage": "NODE_ENV=staging dotenv -e .env.staging -- prisma generate --schema=./prisma/schema.prisma && npm run build && NODE_ENV=staging node -r tsconfig-paths/register dist/src/main.js",
-    "start:prod": "NODE_ENV=production dotenv -e .env.production -- prisma generate --schema=./prisma/schema.prisma && npm run build && NODE_ENV=production node -r tsconfig-paths/register dist/src/main.js",
+    "start:local:redis": "docker compose up -d redis && NODE_ENV=local dotenv -e .env.local -- prisma generate --schema=./prisma/schema.prisma && NODE_ENV=local dotenv -e .env.local -- nest start --watch",
+    "local:redis:down": "docker compose stop redis || true",
+    "local:redis": "docker compose up -d redis",
+    "start:stage": "NODE_ENV=staging dotenv -e .env.staging -- prisma generate --schema=./prisma/schema.prisma && npm run build && NODE_ENV=staging node dist/src/main.js",
+    "start:prod": "NODE_ENV=production dotenv -e .env.production -- prisma generate --schema=./prisma/schema.prisma && npm run build && NODE_ENV=production node dist/src/main.js",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
@@ -50,8 +53,7 @@
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
     "swagger-ui-express": "^5.0.1",
-    "winston": "^3.13.0",
-    "tsconfig-paths": "^4.2.0"
+    "winston": "^3.13.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",
@@ -66,6 +68,8 @@
     "@types/passport": "^1.0.17",
     "@types/passport-jwt": "^4.0.1",
     "@types/supertest": "^6.0.2",
+    "concurrently": "^9.2.1",
+    "cross-env": "^10.0.0",
     "dotenv-cli": "^10.0.0",
     "eslint": "^9.18.0",
     "eslint-config-prettier": "^10.0.1",
@@ -80,7 +84,9 @@
     "ts-jest": "^29.2.5",
     "ts-loader": "^9.5.2",
     "ts-node": "^10.9.2",
+    "tsconfig-paths": "^4.2.0",
     "typescript": "^5.7.3",
-    "typescript-eslint": "^8.20.0"
+    "typescript-eslint": "^8.20.0",
+    "wait-on": "^8.0.4"
   }
 }
