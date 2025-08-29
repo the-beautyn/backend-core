@@ -1,8 +1,9 @@
 import { Module, DynamicModule } from '@nestjs/common';
+import { PrismaClient } from '@prisma/client';
 import { AccountRegistryService } from './account-registry.service';
 import { AccountRegistryRepository } from './repository';
+import { ACCOUNT_REGISTRY_REPOSITORY } from './tokens';
 
-export const ACCOUNT_REGISTRY_REPOSITORY = Symbol('ACCOUNT_REGISTRY_REPOSITORY');
 
 @Module({
   providers: [AccountRegistryService],
@@ -14,7 +15,10 @@ export class AccountRegistryModule {
   ): DynamicModule {
     return {
       module: AccountRegistryModule,
-      providers: [repoProvider],
+      providers: [
+        { provide: PrismaClient, useFactory: () => new PrismaClient() },
+        repoProvider,
+      ],
       exports: [repoProvider, AccountRegistryService],
     };
   }

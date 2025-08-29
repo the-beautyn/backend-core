@@ -16,17 +16,22 @@ function makeQueue(): BullQueueLike {
 
 @Injectable()
 export class SyncSchedulerService {
-  private readonly queue: BullQueueLike = makeQueue();
+  private queue?: BullQueueLike;
+
+  private getQueue(): BullQueueLike {
+    if (!this.queue) this.queue = makeQueue();
+    return this.queue;
+  }
 
   async scheduleSync(job: SyncJob): Promise<string> {
     const id = `${JOB_SYNC}:${job.provider}:${job.salonId}`;
-    const res = await this.queue.add(JOB_SYNC, job, { jobId: id, attempts: 5 });
+    const res = await this.getQueue().add(JOB_SYNC, job, { jobId: id, attempts: 5 });
     return res.id as string;
   }
 
   async scheduleCronDiff(job: CronDiffJob & { cron?: string; tz?: string }): Promise<void> {
     const id = `${JOB_CRON_DIFF}:${job.provider}:${job.salonId}`;
-    await this.queue.add(
+    await this.getQueue().add(
       JOB_CRON_DIFF,
       job,
       {

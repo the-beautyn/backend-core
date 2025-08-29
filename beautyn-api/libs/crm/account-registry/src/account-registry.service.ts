@@ -1,11 +1,12 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { CrmType } from '@crm/shared';
 import type { AccountRegistryRepository } from './repository';
 import { AltegioAccount, EasyWeekAccount, CrmAccountDto } from './types';
+import { ACCOUNT_REGISTRY_REPOSITORY } from './tokens';
 
 @Injectable()
 export class AccountRegistryService {
-  constructor(private readonly repo: AccountRegistryRepository) {}
+  constructor(@Inject(ACCOUNT_REGISTRY_REPOSITORY) private readonly repo: AccountRegistryRepository) {}
 
   async get(salonId: string, provider: CrmType) {
     return this.repo.find(salonId, provider);
