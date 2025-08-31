@@ -12,6 +12,7 @@ export interface Capability {
 
   /** Sync surfaces */
   supportsSalonSync: boolean;
+  supportsCategoriesSync: boolean;
   supportsServicesSync: boolean;
   supportsWorkersSync: boolean;
 }

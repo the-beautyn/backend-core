@@ -2,9 +2,9 @@ import { randomBytes, createCipheriv, createDecipheriv } from 'node:crypto';
 import { TokenBundle } from '@crm/shared';
 
 export function loadMasterKey(): Buffer {
-  const hex = process.env.NODE_MASTER_KEY?.trim();
+  const hex = process.env.NODE_CRM_MASTER_KEY?.trim();
   if (!hex || !/^[0-9a-fA-F]{64}$/.test(hex)) {
-    throw new Error('NODE_MASTER_KEY must be 64 hex chars (32 bytes)');
+    throw new Error('NODE_CRM_MASTER_KEY must be 64 hex chars (32 bytes)');
   }
   return Buffer.from(hex, 'hex');
 }

@@ -18,7 +18,7 @@ describe('TokenStorageService', () => {
   const salonId = '11111111-1111-1111-1111-111111111111';
 
   beforeAll(() => {
-    process.env.NODE_MASTER_KEY = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'; // 64 hex
+    process.env.NODE_CRM_MASTER_KEY = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'; // 64 hex
   });
 
   it('round-trips EasyWeek secret (apiKey)', async () => {

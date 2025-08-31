@@ -10,7 +10,7 @@ Encrypted persistence for **secrets only** per (salonId, provider).
 - **EASYWEEK**: Store `{ apiKey: string }` here. Store `workspaceSlug`, `locationId` in Account Registry.
 
 ## Env
-- `NODE_MASTER_KEY` — 64 hex chars (32 bytes). Example:
+- `NODE_CRM_MASTER_KEY` — 64 hex chars (32 bytes). Example:
   `openssl rand -hex 32`
 
 ## API
