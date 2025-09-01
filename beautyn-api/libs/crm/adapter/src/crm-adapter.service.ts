@@ -2,12 +2,16 @@ import { Injectable } from '@nestjs/common';
 import { CrmType, CrmError, ErrorKind } from '@crm/shared';
 import { CapabilityRegistryService } from '@crm/capability-registry';
 import { SyncSchedulerService } from '@crm/sync-scheduler';
-import { ProviderFactory, CreateBookingInput, RescheduleBookingInput, CancelBookingInput } from '@crm/provider-core';
+import { ProviderFactory, CreateBookingInput, RescheduleBookingInput, CancelBookingInput, CategoryData, ServiceData, WorkerData, WorkerSchedule, SalonData } from '@crm/provider-core';
 import { executeWithRetry, CircuitBreaker } from '@crm/retry-handler';
 import { createChildLogger } from '@shared/logger';
 import { ICrmAdapter } from './types';
 
-type Op = 'create' | 'reschedule' | 'cancel';
+type Op = 'create' | 'reschedule' | 'cancel' |
+  'salon.update' |
+  'category.create' | 'category.update' | 'category.delete' |
+  'service.create' | 'service.update' | 'service.delete' |
+  'worker.create' | 'worker.update' | 'worker.delete' | 'worker.updateSchedule';
 
 @Injectable()
 export class CrmAdapterService implements ICrmAdapter {
@@ -56,6 +60,99 @@ export class CrmAdapterService implements ICrmAdapter {
       const p = this.providers.make(provider);
       await p.init({ salonId, provider });
       await p.cancelBooking({ salonId, provider }, payload);
+    });
+  }
+
+  // ---- Master-data operations ----
+  async updateSalon(salonId: string, provider: CrmType, patch: Partial<Omit<SalonData,'externalId'>>) {
+    this.caps.assert(provider, 'supportsSalonUpdate');
+    return this.runOp('salon.update', salonId, provider, async () => {
+      const p = this.providers.make(provider);
+      await p.init({ salonId, provider });
+      return p.updateSalon({ salonId, provider }, patch);
+    });
+  }
+
+  async createCategory(salonId: string, provider: CrmType, data: Omit<CategoryData,'externalId'|'updatedAtIso'> & { clientId?: string }) {
+    this.caps.assert(provider, 'supportsCategoriesCreate');
+    return this.runOp('category.create', salonId, provider, async () => {
+      const p = this.providers.make(provider);
+      await p.init({ salonId, provider });
+      return p.createCategory({ salonId, provider }, data);
+    });
+  }
+  async updateCategory(salonId: string, provider: CrmType, externalId: string, patch: Partial<Omit<CategoryData,'externalId'>>) {
+    this.caps.assert(provider, 'supportsCategoriesUpdate');
+    return this.runOp('category.update', salonId, provider, async () => {
+      const p = this.providers.make(provider);
+      await p.init({ salonId, provider });
+      return p.updateCategory({ salonId, provider }, externalId, patch);
+    });
+  }
+  async deleteCategory(salonId: string, provider: CrmType, externalId: string) {
+    this.caps.assert(provider, 'supportsCategoriesDelete');
+    return this.runOp('category.delete', salonId, provider, async () => {
+      const p = this.providers.make(provider);
+      await p.init({ salonId, provider });
+      return p.deleteCategory({ salonId, provider }, externalId);
+    });
+  }
+
+  async createService(salonId: string, provider: CrmType, data: Omit<ServiceData,'externalId'|'updatedAtIso'> & { clientId?: string }) {
+    this.caps.assert(provider, 'supportsServicesCreate');
+    return this.runOp('service.create', salonId, provider, async () => {
+      const p = this.providers.make(provider);
+      await p.init({ salonId, provider });
+      return p.createService({ salonId, provider }, data);
+    });
+  }
+  async updateService(salonId: string, provider: CrmType, externalId: string, patch: Partial<Omit<ServiceData,'externalId'>>) {
+    this.caps.assert(provider, 'supportsServicesUpdate');
+    return this.runOp('service.update', salonId, provider, async () => {
+      const p = this.providers.make(provider);
+      await p.init({ salonId, provider });
+      return p.updateService({ salonId, provider }, externalId, patch);
+    });
+  }
+  async deleteService(salonId: string, provider: CrmType, externalId: string) {
+    this.caps.assert(provider, 'supportsServicesDelete');
+    return this.runOp('service.delete', salonId, provider, async () => {
+      const p = this.providers.make(provider);
+      await p.init({ salonId, provider });
+      return p.deleteService({ salonId, provider }, externalId);
+    });
+  }
+
+  async createWorker(salonId: string, provider: CrmType, data: Omit<WorkerData,'externalId'|'updatedAtIso'> & { clientId?: string }) {
+    this.caps.assert(provider, 'supportsWorkersCreate');
+    return this.runOp('worker.create', salonId, provider, async () => {
+      const p = this.providers.make(provider);
+      await p.init({ salonId, provider });
+      return p.createWorker({ salonId, provider }, data);
+    });
+  }
+  async updateWorker(salonId: string, provider: CrmType, externalId: string, patch: Partial<Omit<WorkerData,'externalId'>>) {
+    this.caps.assert(provider, 'supportsWorkersUpdate');
+    return this.runOp('worker.update', salonId, provider, async () => {
+      const p = this.providers.make(provider);
+      await p.init({ salonId, provider });
+      return p.updateWorker({ salonId, provider }, externalId, patch);
+    });
+  }
+  async deleteWorker(salonId: string, provider: CrmType, externalId: string) {
+    this.caps.assert(provider, 'supportsWorkersDelete');
+    return this.runOp('worker.delete', salonId, provider, async () => {
+      const p = this.providers.make(provider);
+      await p.init({ salonId, provider });
+      return p.deleteWorker({ salonId, provider }, externalId);
+    });
+  }
+  async updateWorkerSchedule(salonId: string, provider: CrmType, externalId: string, schedule: WorkerSchedule) {
+    this.caps.assert(provider, 'supportsWorkerScheduleUpdate');
+    return this.runOp('worker.updateSchedule', salonId, provider, async () => {
+      const p = this.providers.make(provider);
+      await p.init({ salonId, provider });
+      return p.updateWorkerSchedule({ salonId, provider }, externalId, schedule);
     });
   }
 

@@ -8,7 +8,23 @@
     "supportsSalonSync": true,
     "supportsCategoriesSync": true,
     "supportsServicesSync": true,
-    "supportsWorkersSync": true
+    "supportsWorkersSync": true,
+
+    "supportsSalonUpdate": false,
+
+    "supportsCategoriesCreate": false,
+    "supportsCategoriesUpdate": false,
+    "supportsCategoriesDelete": false,
+
+    "supportsServicesCreate": false,
+    "supportsServicesUpdate": false,
+    "supportsServicesDelete": false,
+    "supportsBulkUpsertServices": false,
+
+    "supportsWorkersCreate": false,
+    "supportsWorkersUpdate": false,
+    "supportsWorkersDelete": false,
+    "supportsWorkerScheduleUpdate": false
   },
   "EASYWEEK": {
     "webhooks": true,
@@ -19,7 +35,22 @@
     "supportsSalonSync": true,
     "supportsCategoriesSync": true,
     "supportsServicesSync": true,
-    "supportsWorkersSync": true
+    "supportsWorkersSync": true,
+
+    "supportsSalonUpdate": false,
+
+    "supportsCategoriesCreate": false,
+    "supportsCategoriesUpdate": false,
+    "supportsCategoriesDelete": false,
+
+    "supportsServicesCreate": false,
+    "supportsServicesUpdate": false,
+    "supportsServicesDelete": false,
+    "supportsBulkUpsertServices": false,
+
+    "supportsWorkersCreate": false,
+    "supportsWorkersUpdate": false,
+    "supportsWorkersDelete": false,
+    "supportsWorkerScheduleUpdate": false
   }
 }
-

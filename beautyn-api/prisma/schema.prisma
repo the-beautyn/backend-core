@@ -227,3 +227,64 @@ model CrmAccount {
   @@unique([salonId, provider])
   @@index([provider])
 }
+
+// --- Sync & Reconciliation (MVP) ---
+model SyncShadow {
+  id              String   @id @default(cuid())
+  entityType      String
+  entityId        String   @db.Uuid
+  provider        String
+  externalId      String
+  remote          Json
+  remoteUpdatedAt String?
+  remoteVersion   String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([entityType, entityId, provider])
+}
+
+model SyncOutbox {
+  id             String   @id @default(cuid())
+  salonId        String   @db.Uuid
+  entityType     String
+  entityId       String   @db.Uuid
+  provider       String
+  op             String
+  payload        Json
+  idempotencyKey String?
+  status         String   @default("pending")
+  attempts       Int      @default(0)
+  nextRunAt      DateTime?
+  lastError      String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([status, nextRunAt])
+}
+
+// Simple mapping tables (composite unique)
+model CategoryMapping {
+  id         String   @id @default(cuid())
+  provider   String
+  externalId String
+  categoryId String   @db.Uuid
+  @@unique([provider, externalId])
+  @@index([categoryId])
+}
+model ServiceMapping {
+  id         String   @id @default(cuid())
+  provider   String
+  externalId String
+  serviceId  String   @db.Uuid
+  @@unique([provider, externalId])
+  @@index([serviceId])
+}
+model WorkerMapping {
+  id         String   @id @default(cuid())
+  provider   String
+  externalId String
+  workerId   String   @db.Uuid
+  @@unique([provider, externalId])
+  @@index([workerId])
+}

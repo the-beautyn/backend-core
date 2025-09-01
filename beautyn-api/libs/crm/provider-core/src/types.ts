@@ -1,4 +1,5 @@
 import { CrmType } from '@crm/shared';
+import { CategoryData, ServiceData, WorkerData, WorkerSchedule, SalonData, Page } from './dtos';
 
 /** Minimal context for a provider operation */
 export interface ProviderContext {
@@ -46,9 +47,55 @@ export interface ICrmProvider {
   syncServices(ctx: ProviderContext): Promise<void>;
   syncWorkers(ctx: ProviderContext): Promise<void>;
 
+  // Normalized pull (MVP) for SoT reconciliation
+  pullSalon(ctx: ProviderContext): Promise<SalonData>;
+  pullCategories(ctx: ProviderContext, cursor?: string): Promise<Page<CategoryData>>;
+  pullServices(ctx: ProviderContext, cursor?: string): Promise<Page<ServiceData>>;
+  pullWorkers(ctx: ProviderContext, cursor?: string): Promise<Page<WorkerData>>;
+
   // Booking lifecycle
   createBooking(ctx: ProviderContext, payload: CreateBookingInput): Promise<{ externalBookingId: string }>;
   rescheduleBooking(ctx: ProviderContext, payload: RescheduleBookingInput): Promise<void>;
   cancelBooking(ctx: ProviderContext, payload: CancelBookingInput): Promise<void>;
-}
 
+  // Master-data CRUD (commands)
+  // Salon
+  updateSalon(ctx: ProviderContext, patch: Partial<Omit<SalonData, 'externalId'>>): Promise<void>;
+
+  // Categories
+  createCategory(
+    ctx: ProviderContext,
+    data: Omit<CategoryData, 'externalId' | 'updatedAtIso'> & { clientId?: string }
+  ): Promise<{ externalId: string }>;
+  updateCategory(
+    ctx: ProviderContext,
+    externalId: string,
+    patch: Partial<Omit<CategoryData, 'externalId'>>
+  ): Promise<void>;
+  deleteCategory(ctx: ProviderContext, externalId: string): Promise<void>;
+
+  // Services
+  createService(
+    ctx: ProviderContext,
+    data: Omit<ServiceData, 'externalId' | 'updatedAtIso'> & { clientId?: string }
+  ): Promise<{ externalId: string }>;
+  updateService(
+    ctx: ProviderContext,
+    externalId: string,
+    patch: Partial<Omit<ServiceData, 'externalId'>>
+  ): Promise<void>;
+  deleteService(ctx: ProviderContext, externalId: string): Promise<void>;
+
+  // Workers
+  createWorker(
+    ctx: ProviderContext,
+    data: Omit<WorkerData, 'externalId' | 'updatedAtIso'> & { clientId?: string }
+  ): Promise<{ externalId: string }>;
+  updateWorker(
+    ctx: ProviderContext,
+    externalId: string,
+    patch: Partial<Omit<WorkerData, 'externalId'>>
+  ): Promise<void>;
+  deleteWorker(ctx: ProviderContext, externalId: string): Promise<void>;
+  updateWorkerSchedule(ctx: ProviderContext, externalId: string, schedule: WorkerSchedule): Promise<void>;
+}

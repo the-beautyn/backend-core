@@ -15,7 +15,27 @@ export interface Capability {
   supportsCategoriesSync: boolean;
   supportsServicesSync: boolean;
   supportsWorkersSync: boolean;
+
+  /** WRITE (CRUD) */
+  // Salon
+  supportsSalonUpdate: boolean;
+
+  // Categories
+  supportsCategoriesCreate: boolean;
+  supportsCategoriesUpdate: boolean;
+  supportsCategoriesDelete: boolean;
+
+  // Services
+  supportsServicesCreate: boolean;
+  supportsServicesUpdate: boolean;
+  supportsServicesDelete: boolean;
+  supportsBulkUpsertServices: boolean;
+
+  // Workers
+  supportsWorkersCreate: boolean;
+  supportsWorkersUpdate: boolean;
+  supportsWorkersDelete: boolean;
+  supportsWorkerScheduleUpdate: boolean;
 }
 
 export type CapabilityMap = Record<CrmType, Capability>;
-
