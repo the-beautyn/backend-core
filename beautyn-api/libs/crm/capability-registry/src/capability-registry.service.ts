@@ -28,12 +28,20 @@ function loadJson(filePath: string): any | null {
   }
 }
 
-function loadDefaultMap(): CapabilityMap {
-  // Load defaults.json relative to this source directory to work in tests and builds
-  const defaultsPath = path.resolve(__dirname, 'capabilities.defaults.json');
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const json = loadJson(defaultsPath) ?? {};
-  return json as CapabilityMap;
+function loadDefaultMapWithCandidates(): CapabilityMap {
+  const candidates = [
+    // Dist path (built runtime)
+    path.resolve(__dirname, 'capabilities.defaults.json'),
+    // Source path (ts-node / dev runtime)
+    path.resolve(process.cwd(), 'libs/crm/capability-registry/src/capabilities.defaults.json'),
+  ];
+  for (const p of candidates) {
+    const json = loadJson(p);
+    if (json && typeof json === 'object') {
+      return json as CapabilityMap;
+    }
+  }
+  return {} as CapabilityMap;
 }
 
 function loadOverride(filePath?: string): Partial<CapabilityMap> | null {
@@ -53,7 +61,7 @@ export class CapabilityRegistryService {
   private readonly caps: CapabilityMap;
 
   constructor() {
-    const defaults = loadDefaultMap();
+    const defaults = loadDefaultMapWithCandidates();
     const overridePath = process.env.CRM_CAPS_PATH;
     const overrides = loadOverride(overridePath) ?? {};
     // merge top-level providers

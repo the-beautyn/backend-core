@@ -1,7 +1,7 @@
 {
   "ALTEGIO": {
-    "webhooks": false,
-    "batchSize": 100,
+    "webhooks": true,
+    "batchSize": 200,
     "supportsBooking": true,
     "supportsReschedule": true,
     "supportsCancelBooking": true,
@@ -24,7 +24,9 @@
     "supportsWorkersCreate": false,
     "supportsWorkersUpdate": false,
     "supportsWorkersDelete": false,
-    "supportsWorkerScheduleUpdate": false
+    "supportsWorkerScheduleUpdate": false,
+    "timeGranularityMin": 5,
+    "authFlow": "dual"
   },
   "EASYWEEK": {
     "webhooks": true,
@@ -51,6 +53,8 @@
     "supportsWorkersCreate": false,
     "supportsWorkersUpdate": false,
     "supportsWorkersDelete": false,
-    "supportsWorkerScheduleUpdate": false
+    "supportsWorkerScheduleUpdate": false,
+    "timeGranularityMin": 10,
+    "authFlow": "oauth"
   }
 }

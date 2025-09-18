@@ -73,6 +73,8 @@ describe('Salon controllers', () => {
 
     beforeEach(() => {
       jest.clearAllMocks();
+      (service.upsertFromCrm as any).mockReset();
+      (service.replaceImages as any).mockReset();
     });
 
     it('POST /api/v1/internal/salons/sync requires internal key', async () => {
@@ -83,14 +85,14 @@ describe('Salon controllers', () => {
     });
 
     it('POST /api/v1/internal/salons/sync succeeds with key', async () => {
-      const salon = { id: '1', name: 'Salon' };
-      (service.upsertFromCrm as any).mockResolvedValue(salon);
+      (service.upsertFromCrm as any).mockResolvedValue({ id: 'salon-1', name: 'Salon' });
       const res = await withInternalKey(
         request(app.getHttpServer()).post('/api/v1/internal/salons/sync'),
       )
-        .send({ name: 'Salon' })
+        .send({ id: 'salon-1', name: 'Salon' })
         .expect(201);
-      expect(res.body).toEqual(salon);
+      expect(res.body).toEqual({ id: 'salon-1', name: 'Salon' });
+      expect(service.upsertFromCrm).toHaveBeenCalledTimes(1);
     });
   });
 });

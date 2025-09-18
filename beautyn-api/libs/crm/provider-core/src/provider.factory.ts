@@ -19,7 +19,7 @@ export class ProviderFactory {
   make(type: CrmType): ICrmProvider {
     switch (type) {
       case CrmType.ALTEGIO:
-        return new AltegioProvider(this.accounts);
+        return new AltegioProvider(this.accounts, this.tokens);
       case CrmType.EASYWEEK:
         return new EasyWeekProvider(this.tokens, this.accounts);
       default:
@@ -27,4 +27,3 @@ export class ProviderFactory {
     }
   }
 }
-

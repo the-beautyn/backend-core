@@ -3,10 +3,9 @@
 Encrypted persistence for **secrets only** per (salonId, provider).
 
 ## Provider matrix
-- **ALTEGIO**: _No secret stored here._ Provider Core uses env:
-  - `ALTEGIO_BEARER`
-  - `ALTEGIO_USER`
-  Store `externalSalonId` in Account Registry.
+- **ALTEGIO**: Store dual‑token bundle here: `{ accessToken: string, userToken: string, expiresAt? }`.
+  - Provider Core reads both and sends headers: `Authorization: Bearer <accessToken>`, `User: <userToken>`, plus `Accept: application/vnd.api.v2+json`.
+  - Store `externalSalonId` (non‑secret) in Account Registry.
 - **EASYWEEK**: Store `{ apiKey: string }` here. Store `workspaceSlug`, `locationId` in Account Registry.
 
 ## Env
@@ -17,4 +16,3 @@ Encrypted persistence for **secrets only** per (salonId, provider).
 `TokenStorageService.get/store/delete(salonId, provider, bundle)`
 
 > Never log tokens. Keep secrets in this service; non-secrets go to Account Registry.
-

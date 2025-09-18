@@ -7,6 +7,9 @@ export class AltegioPartnerClient {
   private readonly bearer = process.env.ALTEGIO_BEARER;
 
   async confirmRegistration(externalSalonId: string): Promise<void> {
+    if (!/^[1-9]\d*$/.test(String(externalSalonId))) {
+      throw new BadRequestException('Invalid salon_id: must be positive integer');
+    }
     const appId = this.applicationId;
     if (!appId) {
       throw new BadRequestException('ALTEGIO_APPLICATION_ID is not configured');
@@ -19,7 +22,7 @@ export class AltegioPartnerClient {
         Accept: 'application/vnd.api.v2+json',
         Authorization: `Bearer ${this.bearer}`,
       },
-      body: JSON.stringify({ salon_id: externalSalonId, application_id: appId }),
+      body: JSON.stringify({ salon_id: Number(externalSalonId), application_id: appId }),
     });
 
     if (resp.status !== 201) {

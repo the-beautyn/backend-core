@@ -1,4 +1,4 @@
-import { IsString, Length } from 'class-validator';
+import { IsString, Length, Matches } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class AltegioConfirmDto {
@@ -9,5 +9,6 @@ export class AltegioConfirmDto {
 
   @ApiProperty({ example: '1315014' })
   @IsString()
+  @Matches(/^[1-9]\d*$/, { message: 'salon_id must be a positive numeric string' })
   salon_id!: string;
 }

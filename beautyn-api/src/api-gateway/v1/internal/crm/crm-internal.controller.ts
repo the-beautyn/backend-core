@@ -11,23 +11,23 @@ function envelope<T>(data: T) { return { success: true, data }; }
 export class CrmInternalController {
   constructor(private readonly adapter: CrmAdapterService) {}
 
-  @Post(':provider/:salonId/sync')
-  async requestSync(
-    @Param('provider') provider: CrmType,
-    @Param('salonId') salonId: string,
-  ) {
-    const jobId = await this.adapter.requestSync(salonId, provider);
-    return envelope({ jobId });
-  }
+  // @Post(':provider/:salonId/sync')
+  // async requestSync(
+  //   @Param('provider') provider: CrmType,
+  //   @Param('salonId') salonId: string,
+  // ) {
+  //   const jobId = await this.adapter.requestSync(salonId, provider);
+  //   return envelope({ jobId });
+  // }
 
-  @Put(':provider/:salonId/cron')
-  async ensureCron(
-    @Param('provider') provider: CrmType,
-    @Param('salonId') salonId: string,
-    @Body() dto: EnsureCronSyncDto,
-  ) {
-    await this.adapter.ensureCronSync(salonId, provider, dto.cron, dto.tz);
-    return envelope({ scheduled: true, cron: dto.cron, tz: dto.tz });
-  }
+  // @Put(':provider/:salonId/cron')
+  // async ensureCron(
+  //   @Param('provider') provider: CrmType,
+  //   @Param('salonId') salonId: string,
+  //   @Body() dto: EnsureCronSyncDto,
+  // ) {
+  //   await this.adapter.ensureCronSync(salonId, provider, dto.cron, dto.tz);
+  //   return envelope({ scheduled: true, cron: dto.cron, tz: dto.tz });
+  // }
 }
 

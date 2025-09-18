@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { SharedModule } from '../shared/shared.module';
 import { AuthModule } from '../auth/auth.module';
 import { ServicesModule } from '../services/services.module';
 import { SalonModule } from '../salon/salon.module';
@@ -12,12 +13,11 @@ import { AltegioWebhookController } from './v1/public/altegio-webhook.controller
 import { AltegioWebhookService } from '../crm-integration/webhooks/altegio-webhook.service';
 import { AltegioPartnerClient } from '../crm-integration/clients/altegio-partner.client';
 import { OnboardingModule } from '../onboarding/onboarding.module';
-import { CrmIntegrationService } from '../crm-integration/core/crm-integration.service';
 import { SyncTriggerService } from '../crm-integration/core/sync-trigger.service';
 
 @Module({
-  imports: [AuthModule, ServicesModule, WorkersModule, SalonModule, OnboardingModule],
+  imports: [SharedModule, AuthModule, ServicesModule, WorkersModule, SalonModule, OnboardingModule],
   controllers: [AuthPublicController, HealthController, ServicesController, WorkersController, SalonsController, AltegioWebhookController],
-  providers: [AltegioWebhookService, CrmIntegrationService, SyncTriggerService, AltegioPartnerClient],
+  providers: [AltegioWebhookService, SyncTriggerService, AltegioPartnerClient],
 })
 export class PublicApiModule {}
