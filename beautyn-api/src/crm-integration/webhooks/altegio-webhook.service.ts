@@ -63,8 +63,11 @@ export class AltegioWebhookService {
     // Link salon; in e2e tests Prisma is sometimes overridden without full schema, so guard findFirst
     try {
       await this.crmIntegration.linkAltegio({ userId: row.userId, externalSalonId });
-    } catch (_) {
-      // ignore linking failures in test mocks
+    } catch (error) {
+      // ignore linking failures in test mocks, but log in non-test environments
+      if (process.env.NODE_ENV !== 'test') {
+        this.logger.debug(`Failed to link Altegio: ${error?.message}`, error instanceof Error ? error.stack : undefined);
+      }
     }
     // Mark onboarding step as linked (uses upsert only)
     await this.onboardingService.markCrmLinkedByUser(row.userId);
