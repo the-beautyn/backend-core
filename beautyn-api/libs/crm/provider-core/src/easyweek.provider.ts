@@ -191,8 +191,11 @@ export class EasyWeekProvider implements ICrmProvider {
   }
 
   private headers(): Record<string, string> {
-    const auth = this.require("Bearer " + this.apiKey, 'apiKey');
+    const rawKey = this.require(this.apiKey, 'apiKey');
     const workspace = this.require(this.workspaceSlug, 'workspaceSlug');
+    const auth = String(rawKey).startsWith('Bearer ')
+      ? String(rawKey)
+      : `Bearer ${String(rawKey)}`;
     return { Authorization: auth, Workspace: workspace, 'Content-Type': 'application/json' };
   }
 

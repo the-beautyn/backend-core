@@ -73,7 +73,8 @@ export class OnboardingService {
       throw new BadRequestException('Salon or provider not linked');
     }
     const provider = salon.provider as CrmType;
-    if (provider !== 'ALTEGIO' && provider !== 'EASYWEEK') {
+    const allowed = new Set(Object.values(CrmType));
+    if (!allowed.has(provider)) {
       throw new BadRequestException('Unsupported provider');
     }
     const data = await this.crmIntegration.pullSalonAndDetectChanges(salon.id);
