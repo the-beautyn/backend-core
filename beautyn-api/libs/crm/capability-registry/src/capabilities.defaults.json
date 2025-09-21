@@ -1,0 +1,60 @@
+{
+  "ALTEGIO": {
+    "webhooks": true,
+    "batchSize": 200,
+    "supportsBooking": true,
+    "supportsReschedule": true,
+    "supportsCancelBooking": true,
+    "supportsSalonSync": true,
+    "supportsCategoriesSync": true,
+    "supportsServicesSync": true,
+    "supportsWorkersSync": true,
+
+    "supportsSalonUpdate": false,
+
+    "supportsCategoriesCreate": false,
+    "supportsCategoriesUpdate": false,
+    "supportsCategoriesDelete": false,
+
+    "supportsServicesCreate": false,
+    "supportsServicesUpdate": false,
+    "supportsServicesDelete": false,
+    "supportsBulkUpsertServices": false,
+
+    "supportsWorkersCreate": false,
+    "supportsWorkersUpdate": false,
+    "supportsWorkersDelete": false,
+    "supportsWorkerScheduleUpdate": false,
+    "timeGranularityMin": 5,
+    "authFlow": "dual"
+  },
+  "EASYWEEK": {
+    "webhooks": true,
+    "batchSize": 100,
+    "supportsBooking": true,
+    "supportsCancelBooking": true,
+    "supportsReschedule": false,
+    "supportsSalonSync": true,
+    "supportsCategoriesSync": true,
+    "supportsServicesSync": true,
+    "supportsWorkersSync": true,
+
+    "supportsSalonUpdate": false,
+
+    "supportsCategoriesCreate": false,
+    "supportsCategoriesUpdate": false,
+    "supportsCategoriesDelete": false,
+
+    "supportsServicesCreate": false,
+    "supportsServicesUpdate": false,
+    "supportsServicesDelete": false,
+    "supportsBulkUpsertServices": false,
+
+    "supportsWorkersCreate": false,
+    "supportsWorkersUpdate": false,
+    "supportsWorkersDelete": false,
+    "supportsWorkerScheduleUpdate": false,
+    "timeGranularityMin": 10,
+    "authFlow": "oauth"
+  }
+}

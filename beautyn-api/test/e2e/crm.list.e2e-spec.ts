@@ -47,6 +47,3 @@ describe('CRM List (e2e)', () => {
     expect(res.body.data.providers.find((p: any) => p.code === 'ALTEGIO')).toBeTruthy();
   });
 });
-
-
-

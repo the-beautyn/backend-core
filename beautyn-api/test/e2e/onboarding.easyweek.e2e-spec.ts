@@ -6,6 +6,8 @@ import { JwtAuthGuard } from '../../src/shared/guards/jwt-auth.guard';
 import { EasyWeekDiscoveryClient } from '../../src/onboarding/clients/easyweek-discovery.client';
 import { TransformInterceptor } from '../../src/shared/interceptors/transform.interceptor';
 import { PrismaService } from '../../src/shared/database/prisma.service';
+import { ACCOUNT_REGISTRY_REPOSITORY } from '@crm/account-registry';
+import { TOKEN_STORAGE_REPOSITORY } from '@crm/token-storage';
 
 describe('Onboarding EasyWeek (e2e)', () => {
   let app: INestApplication;
@@ -29,6 +31,33 @@ describe('Onboarding EasyWeek (e2e)', () => {
       ]),
     };
 
+    // Minimal Prisma mock to satisfy linkEasyWeek path
+    const prismaMock: Partial<PrismaService> = {
+      $connect: jest.fn(),
+      $disconnect: jest.fn(),
+      onboardingStep: { upsert: jest.fn().mockResolvedValue(undefined) } as any,
+      salon: {
+        findFirst: jest.fn().mockResolvedValue(null),
+        delete: jest.fn().mockResolvedValue(undefined),
+        create: jest.fn().mockResolvedValue({ id: 'salon-1' }),
+      } as any,
+    };
+
+    // In-memory repos for CRM modules to avoid hitting real Prisma tables
+    const memAccounts = new (class {
+      private store = new Map<string, any>();
+      private key(s: string, p: string) { return `${s}|${p}`; }
+      async find(salonId: string, provider: string) { return this.store.get(this.key(salonId, provider)) ?? null; }
+      async upsert(payload: any) { this.store.set(this.key(payload.salonId, payload.provider), { ...payload }); }
+    })();
+    const memTokens = new (class {
+      private store = new Map<string, any>();
+      private key(s: string, p: string) { return `${s}|${p}`; }
+      async findUnique(salonId: string, provider: string) { return this.store.get(this.key(salonId, provider)) ?? null; }
+      async upsert(data: any) { this.store.set(this.key(data.salonId, data.provider), { ...data, id: 'id' }); }
+      async delete(salonId: string, provider: string) { this.store.delete(this.key(salonId, provider)); }
+    })();
+
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     })
@@ -37,11 +66,11 @@ describe('Onboarding EasyWeek (e2e)', () => {
       .overrideProvider(EasyWeekDiscoveryClient)
       .useValue(mockEw)
       .overrideProvider(PrismaService)
-      .useValue({
-        $connect: jest.fn(),
-        $disconnect: jest.fn(),
-        onboardingStep: { upsert: jest.fn().mockResolvedValue(undefined) },
-      })
+      .useValue(prismaMock)
+      .overrideProvider(ACCOUNT_REGISTRY_REPOSITORY)
+      .useValue(memAccounts as any)
+      .overrideProvider(TOKEN_STORAGE_REPOSITORY)
+      .useValue(memTokens as any)
       .compile();
 
     app = moduleFixture.createNestApplication();
@@ -80,12 +109,12 @@ describe('Onboarding EasyWeek (e2e)', () => {
       .expect(401);
   });
 
-  it('POST /api/v1/onboarding/easyweek/connect with JWT returns job id', async () => {
+  it('POST /api/v1/onboarding/easyweek/connect with JWT returns success', async () => {
     const res = await request(app.getHttpServer())
       .post('/api/v1/onboarding/easyweek/connect')
       .set('Authorization', 'Bearer valid')
       .send({ auth_token: 't', workspace_slug: 'ws', salon_uuid: 'ext-1' })
       .expect(202);
-    expect(res.body).toEqual({ success: true, data: { job_id: 'job_dev_noop' } });
+    expect(res.body).toEqual({ success: true });
   });
 });

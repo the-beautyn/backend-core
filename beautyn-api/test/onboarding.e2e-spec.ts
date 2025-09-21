@@ -24,11 +24,36 @@ describe('Onboarding (e2e)', () => {
       }),
     };
 
+    // In-memory prisma mock for this suite (avoid real DB/migrations)
+    const users: any[] = [];
+    const steps: any[] = [];
+    const prismaMock: Partial<PrismaService> = {
+      $connect: jest.fn(),
+      $disconnect: jest.fn(),
+      users: {
+        create: jest.fn().mockImplementation(({ data }: any) => { users.push({ ...data }); return { ...data }; }),
+        deleteMany: jest.fn().mockImplementation(() => { users.length = 0; return { count: 0 }; }),
+      } as any,
+      onboardingStep: {
+        findUnique: jest.fn().mockImplementation(({ where }: any) => steps.find((s) => s.userId === where.userId) || null),
+        create: jest.fn().mockImplementation(({ data }: any) => { const row = { crmConnected: false, subscriptionSet: false, completed: false, currentStep: 'CRM', ...data }; steps.push(row); return row; }),
+        deleteMany: jest.fn().mockImplementation(() => { steps.length = 0; return { count: 0 }; }),
+        upsert: jest.fn().mockImplementation(({ where, create, update }: any) => {
+          const idx = steps.findIndex((s) => s.userId === where.userId);
+          if (idx >= 0) { steps[idx] = { ...steps[idx], ...(update || {}) }; return steps[idx]; }
+          const row = { crmConnected: false, subscriptionSet: false, completed: false, currentStep: 'CRM', ...(create || {}), userId: where.userId };
+          steps.push(row); return row;
+        }),
+      } as any,
+    };
+
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     })
       .overrideGuard(JwtAuthGuard)
       .useValue(mockJwtGuard)
+      .overrideProvider(PrismaService)
+      .useValue(prismaMock)
       .compile();
 
     app = moduleFixture.createNestApplication();
@@ -58,8 +83,7 @@ describe('Onboarding (e2e)', () => {
     await prisma.users.create({
       data: { id: userId, email: 'test@example.com', role: 'owner' },
     });
-    // Seed onboarding step to avoid FK race in create path
-    await prisma.onboardingStep.create({ data: { userId } });
+    // No pre-seed; service will create the step on first call
 
     const res = await request(app.getHttpServer())
       .get('/api/v1/onboarding/progress')

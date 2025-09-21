@@ -7,6 +7,8 @@ import {
 } from '../utils/test-app.salon';
 import { SalonsController } from '../../../src/api-gateway/v1/public/salons.controller';
 import { SalonsInternalController } from '../../../src/api-gateway/v1/internal/salons.internal.controller';
+import { PrismaService } from '../../../src/shared/database/prisma.service';
+import { CrmSalonDiffService } from '../../../src/crm-salon-changes/crm-salon-diff.service';
 import { SalonService } from '../../../src/salon/salon.service';
 
 describe('Salon controllers', () => {
@@ -56,14 +58,14 @@ describe('Salon controllers', () => {
 
   describe('Internal', () => {
     let app: INestApplication;
-    const service = {
-      upsertFromCrm: jest.fn(),
-      replaceImages: jest.fn(),
-    } as unknown as SalonService;
+    const salonService = {
+      upsertFromCrm: jest.fn().mockResolvedValue({ processed: true }),
+      replaceImages: jest.fn().mockResolvedValue({ count: 0 }),
+    } as unknown as any;
 
     beforeAll(async () => {
       app = await buildInternalApp([SalonsInternalController], [
-        { provide: SalonService, useValue: service },
+        { provide: SalonService, useValue: salonService },
       ]);
     });
 
@@ -83,14 +85,13 @@ describe('Salon controllers', () => {
     });
 
     it('POST /api/v1/internal/salons/sync succeeds with key', async () => {
-      const salon = { id: '1', name: 'Salon' };
-      (service.upsertFromCrm as any).mockResolvedValue(salon);
       const res = await withInternalKey(
         request(app.getHttpServer()).post('/api/v1/internal/salons/sync'),
       )
-        .send({ name: 'Salon' })
+        .send({ id: 'salon-1', name: 'Salon' })
         .expect(201);
-      expect(res.body).toEqual(salon);
+      expect(res.body).toEqual({ processed: true });
+      expect(salonService.upsertFromCrm).toHaveBeenCalled();
     });
   });
 });

@@ -6,7 +6,7 @@ export class SalonMapper {
     return {
       id: entity.id,
       crm_id: entity.crmId ?? undefined,
-      name: entity.name,
+      name: entity.name ?? '',
       address_line: entity.addressLine ?? undefined,
       city: entity.city ?? undefined,
       country: entity.country ?? undefined,

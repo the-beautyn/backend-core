@@ -1,0 +1,37 @@
+import { Inject, Injectable } from '@nestjs/common';
+import { CrmType } from '@crm/shared';
+import type { AccountRegistryRepository } from './repository';
+import { AltegioAccount, EasyWeekAccount, CrmAccountDto } from './types';
+import { ACCOUNT_REGISTRY_REPOSITORY } from './tokens';
+
+@Injectable()
+export class AccountRegistryService {
+  constructor(@Inject(ACCOUNT_REGISTRY_REPOSITORY) private readonly repo: AccountRegistryRepository) {}
+
+  async get(salonId: string, provider: CrmType) {
+    return this.repo.find(salonId, provider);
+  }
+
+  async setAltegio(salonId: string, data: AltegioAccount): Promise<void> {
+    const payload: CrmAccountDto = {
+      salonId,
+      provider: CrmType.ALTEGIO,
+      data,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    await this.repo.upsert(payload);
+  }
+
+  async setEasyWeek(salonId: string, data: EasyWeekAccount): Promise<void> {
+    const payload: CrmAccountDto = {
+      salonId,
+      provider: CrmType.EASYWEEK,
+      data,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    await this.repo.upsert(payload);
+  }
+}
+

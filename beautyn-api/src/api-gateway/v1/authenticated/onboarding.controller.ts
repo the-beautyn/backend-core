@@ -31,6 +31,7 @@ import { DiscoverEasyWeekResponseDto } from '../../../onboarding/dto/discover-ea
 import { CrmProvidersRegistry } from '../../../onboarding/providers/crm-providers.registry';
 import { CrmProviderListResponseDto } from '../../../onboarding/dto/crm-provider-list.dto';
 import { CrmProviderDto } from '../../../onboarding/dto/crm-provider.dto';
+import { CrmSalonPreviewDto } from '../../../onboarding/dto/crm-salon-preview.dto';
 import { AltegioPairCodeResponseDto } from '../../../onboarding/dto/altegio-pair-code.dto';
 
 @ApiTags('Onboarding')
@@ -78,7 +79,7 @@ export class OnboardingController {
       dto.workspace_slug,
       dto.salon_uuid,
     );
-    return { success: true, data: { job_id: 'job_dev_noop' } };
+    return { success: true } as any;
   }
 
   // CRM registry endpoints
@@ -119,5 +120,21 @@ export class OnboardingController {
     const userId = req.user.id as string;
     const { code, expiresAt } = await this.onboardingService.generateAltegioPairCode(userId);
     return { success: true, data: { code, expires_at: expiresAt.toISOString() } };
+  }
+
+  @Get('crm/salon-preview')
+  @HttpCode(HttpStatus.OK)
+  @ApiTags('Onboarding / CRMs')
+  @ApiOperation({ summary: 'Preview salon data from connected CRM' })
+  @ApiOkResponse(envelopeRef(CrmSalonPreviewDto))
+  @ApiBadRequestResponse(
+    envelopeErrorSchema({ statusCode: 400, message: 'CRM is not connected', error: 'Bad Request' })
+  )
+  async salonPreview(
+    @Req() req: Request & { user: { id: string } },
+  ) {
+    const userId = req.user.id as string;
+    const data = await this.onboardingService.getCrmSalonPreviewForUser(userId);
+    return { success: true, data };
   }
 }

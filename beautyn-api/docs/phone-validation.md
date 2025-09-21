@@ -21,16 +21,6 @@ We use Google's `libphonenumber-js` library for comprehensive international phon
 | 🇧🇷 Brazil | `+5511123456789` | 14 chars | São Paulo mobile |
 | 🇮🇳 India | `+919876543210` | 13 chars | Mobile |
 
-### ❌ **Previous Regex Issues**
-
-**Old Pattern**: `/^\+[1-9]\d{7,14}$/`
-
-**Problems**:
-- Vatican City `+3796698` (6 digits) ❌ 
-- Some Pacific islands ❌
-- Didn't validate country codes ❌
-- No format verification ❌
-
 ## Implementation
 
 ### Custom Validator
