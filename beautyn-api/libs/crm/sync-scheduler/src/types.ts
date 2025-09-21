@@ -2,6 +2,7 @@ import { CrmType } from '@crm/shared';
 
 export type SyncJob = { salonId: string; provider: CrmType; requestId?: string };
 export type CronDiffJob = { salonId: string; provider: CrmType; requestId?: string };
+export interface CronDiffJobWithSchedule extends CronDiffJob { cron?: string; tz?: string }
 
 export const SYNC_QUEUE = 'crm-sync';
 export const JOB_SYNC = 'sync';

@@ -32,8 +32,7 @@ export class OnboardingService {
   async finalizeEasyWeekLink(userId: string, authToken: string, workspaceSlug: string, externalSalonUuid: string) {
     await this.crmIntegration.linkEasyWeek({ userId, authToken, workspaceSlug, externalSalonId: externalSalonUuid });
     await this.markCrmLinkedByUser(userId);
-    // Return a deterministic job id in dev/test to satisfy e2e expectations
-    return { jobId: process.env.NODE_ENV === 'test' ? 'job_dev_noop' : undefined };
+    return { success: true };
   }
 
   async markCrmLinkedByUser(userId: string): Promise<void> {

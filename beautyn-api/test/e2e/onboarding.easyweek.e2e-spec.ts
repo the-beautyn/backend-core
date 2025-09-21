@@ -109,12 +109,12 @@ describe('Onboarding EasyWeek (e2e)', () => {
       .expect(401);
   });
 
-  it('POST /api/v1/onboarding/easyweek/connect with JWT returns job id', async () => {
+  it('POST /api/v1/onboarding/easyweek/connect with JWT returns success', async () => {
     const res = await request(app.getHttpServer())
       .post('/api/v1/onboarding/easyweek/connect')
       .set('Authorization', 'Bearer valid')
       .send({ auth_token: 't', workspace_slug: 'ws', salon_uuid: 'ext-1' })
       .expect(202);
-    expect(res.body).toEqual({ success: true, data: { job_id: 'job_dev_noop' } });
+    expect(res.body).toEqual({ success: true });
   });
 });
