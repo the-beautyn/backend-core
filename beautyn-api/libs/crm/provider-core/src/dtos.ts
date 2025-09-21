@@ -103,3 +103,15 @@ export function formatWorkingSchedule(days: WorkingDay[]): string {
   return sorted.map(formatWorkingDay).join('\n');
 }
 
+// --- Bookings ---
+export type BookingData = {
+  externalId: string;
+  startAtIso: string;
+  durationMin?: number;
+  note?: string;
+  isDeleted?: boolean;
+  workerExternalId?: string;
+  serviceExternalIds?: string[];
+  updatedAtIso?: string;
+};
+

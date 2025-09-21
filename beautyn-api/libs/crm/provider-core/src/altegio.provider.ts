@@ -1,5 +1,5 @@
 import { ICrmProvider, ProviderContext, CreateBookingInput, RescheduleBookingInput, CancelBookingInput, CompleteBookingInput, GetAvailabilityInput } from './types';
-import { CategoryData, ServiceData, WorkerData, WorkerSchedule, SalonData, Page } from './dtos';
+import { CategoryData, ServiceData, WorkerData, WorkerSchedule, SalonData, Page, BookingData } from './dtos';
 import { AccountRegistryService } from '@crm/account-registry';
 import { TokenStorageService } from '@crm/token-storage';
 import { CrmType } from '@crm/shared';
@@ -108,10 +108,15 @@ export class AltegioProvider implements ICrmProvider {
     return String(html).replace(/<[^>]+>/g, '').trim() || undefined;
   }
 
-  // async syncSalon(ctx: ProviderContext): Promise<void> { /* no-op; pull used by reconciliation */ }
-  // async syncCategories(ctx: ProviderContext): Promise<void> { /* no-op */ }
-  // async syncServices(ctx: ProviderContext): Promise<void> { /* no-op */ }
-  // async syncWorkers(ctx: ProviderContext): Promise<void> { /* no-op */ }
+  // Sync
+  async syncSalon(ctx: ProviderContext): Promise<SalonData> { 
+    return this.pullSalon(ctx);
+  }
+
+  async syncCategories(ctx: ProviderContext): Promise<void> { /* no-op */ }
+  async syncServices(ctx: ProviderContext): Promise<void> { /* no-op */ }
+  async syncWorkers(ctx: ProviderContext): Promise<void> { /* no-op */ }
+  async syncBookings(ctx: ProviderContext): Promise<void> { /* no-op */ }
 
   // Normalized pull
   async pullSalon(ctx: ProviderContext): Promise<SalonData> {
@@ -138,47 +143,75 @@ export class AltegioProvider implements ICrmProvider {
     return out;
   }
 
-  // async pullCategories(ctx: ProviderContext, cursor?: string): Promise<Page<CategoryData>> {
-  //   if (!this.externalSalonId) throw new CrmError('Provider not initialized (missing externalSalonId)', { kind: ErrorKind.INTERNAL, retryable: false });
-  //   const items = await this.http<any[]>('GET', `/api/v1/company/${this.externalSalonId}/service_categories`);
-  //   const mapped: CategoryData[] = (items || []).map((x: any) => ({
-  //     externalId: String(x.id),
-  //     name: x.title,
-  //     isActive: true,
-  //   }));
-  //   return { items: mapped, fetched: mapped.length };
-  // }
+  async pullBookings(
+    ctx: ProviderContext,
+    args?: { clientExternalId?: string; withDeleted?: boolean; startDate?: string; endDate?: string; page?: number; count?: number }
+  ): Promise<BookingData[]> {
+    if (!this.externalSalonId) throw new CrmError('Provider not initialized (missing externalSalonId)', { kind: ErrorKind.INTERNAL, retryable: false });
+    const query: Record<string, any> = {};
+    if (args?.clientExternalId) query.client_id = args.clientExternalId;
+    if (args?.withDeleted !== undefined) query.with_deleted = args.withDeleted ? 1 : 0;
+    if (args?.startDate) query.start_date = args.startDate;
+    if (args?.endDate) query.end_date = args.endDate;
+    if (args?.page && args?.page > 0) query.page = args.page;
+    if (args?.count && args?.count > 0) query.count = args.count;
+    const items = await this.http<any[]>('GET', `/api/v1/records/${this.externalSalonId}`, { query });
+    const mapped: BookingData[] = (items || []).map((b: any) => ({
+      externalId: String(b.id),
+      startAtIso: b.datetime,
+      durationMin: b.seance_length ?? undefined,
+      note: b.comment ?? undefined,
+      isDeleted: !!b.is_deleted,
+      workerExternalId: b.staff?.id ? String(b.staff.id) : undefined,
+      serviceExternalIds: Array.isArray(b.services) ? b.services.map((s: any) => String(s?.id)).filter(Boolean) : undefined,
+    }));
+    return mapped;
+  }
 
-  // async pullServices(ctx: ProviderContext, cursor?: string): Promise<Page<ServiceData>> {
-  //   if (!this.externalSalonId) throw new CrmError('Provider not initialized (missing externalSalonId)', { kind: ErrorKind.INTERNAL, retryable: false });
-  //   const items = await this.http<any[]>('GET', `/api/v1/company/${this.externalSalonId}/services`);
-  //   const mapped: ServiceData[] = (items || []).map((s: any) => ({
-  //     externalId: String(s.id),
-  //     name: s.title,
-  //     durationMin: s.seance_length ?? 0,
-  //     priceMinor: typeof s.price_min === 'number' ? s.price_min : 0,
-  //     currency: 'RUB',
-  //     categoryExternalId: String(s.category_id ?? ''),
-  //     description: s.description ? this.stripHtml(s.description) : undefined,
-  //     isActive: true,
-  //   }));
-  //   return { items: mapped, fetched: mapped.length };
-  // }
+  private async pullCategories(ctx: ProviderContext, cursor?: string): Promise<Page<CategoryData>> {
+    if (!this.externalSalonId) throw new CrmError('Provider not initialized (missing externalSalonId)', { kind: ErrorKind.INTERNAL, retryable: false });
+    const items = await this.http<any[]>('GET', `/api/v1/company/${this.externalSalonId}/service_categories`);
+    const mapped: CategoryData[] = (items || []).map((x: any) => ({
+      externalId: String(x.id),
+      name: x.title,
+      isActive: true,
+    }));
+    return { items: mapped, fetched: mapped.length };
+  }
 
-  // async pullWorkers(ctx: ProviderContext, cursor?: string): Promise<Page<WorkerData>> {
-  //   if (!this.externalSalonId) throw new CrmError('Provider not initialized (missing externalSalonId)', { kind: ErrorKind.INTERNAL, retryable: false });
-  //   const items = await this.http<any[]>('GET', `/api/v1/company/${this.externalSalonId}/staff`);
-  //   const mapped: WorkerData[] = (items || []).map((w: any) => ({
-  //     externalId: String(w.id),
-  //     name: w.name,
-  //     position: w.specialization,
-  //     photoUrl: w.avatar_big || w.avatar || undefined,
-  //     email: w.email || undefined,
-  //     phone: w.phone || undefined,
-  //     isActive: w.is_bookable ?? true,
-  //   }));
-  //   return { items: mapped, fetched: mapped.length };
-  // }
+  private async pullServices(ctx: ProviderContext, cursor?: string): Promise<Page<ServiceData>> {
+    if (!this.externalSalonId) throw new CrmError('Provider not initialized (missing externalSalonId)', { kind: ErrorKind.INTERNAL, retryable: false });
+    const items = await this.http<any[]>('GET', `/api/v1/company/${this.externalSalonId}/services`);
+    const mapped: ServiceData[] = (items || []).map((s: any) => ({
+      externalId: String(s.id),
+      name: s.title,
+      durationMin: s.seance_length ?? 0,
+      priceMinor: typeof s.price_min === 'number' ? s.price_min : 0,
+      currency: 'RUB',
+      categoryExternalId: String(s.category_id ?? ''),
+      description: s.description ? this.stripHtml(s.description) : undefined,
+      isActive: true,
+    }));
+    return { items: mapped, fetched: mapped.length };
+  }
+
+  private async pullWorkers(ctx: ProviderContext, cursor?: string): Promise<Page<WorkerData>> {
+    if (!this.externalSalonId) throw new CrmError('Provider not initialized (missing externalSalonId)', { kind: ErrorKind.INTERNAL, retryable: false });
+    const items = await this.http<any[]>('GET', `/api/v1/company/${this.externalSalonId}/staff`);
+    const mapped: WorkerData[] = (items || []).map((w: any) => ({
+      externalId: String(w.id),
+      name: w.name,
+      position: w.specialization,
+      photoUrl: w.avatar_big || w.avatar || undefined,
+      email: w.email || undefined,
+      phone: w.phone || undefined,
+      isActive: w.is_bookable ?? true,
+    }));
+    return { items: mapped, fetched: mapped.length };
+  }
+
+  
+
 
   // async createBooking(ctx: ProviderContext, payload: CreateBookingInput): Promise<{ externalBookingId: string }> {
   //   if (!this.externalSalonId) throw new CrmError('Provider not initialized (missing externalSalonId)', { kind: ErrorKind.INTERNAL, retryable: false });

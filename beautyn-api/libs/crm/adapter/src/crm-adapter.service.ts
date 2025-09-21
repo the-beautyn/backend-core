@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { CrmType, CrmError, ErrorKind } from '@crm/shared';
 import { CapabilityRegistryService } from '@crm/capability-registry';
 import { SyncSchedulerService } from '@crm/sync-scheduler';
-import { ProviderFactory, CreateBookingInput, RescheduleBookingInput, CancelBookingInput, CategoryData, ServiceData, WorkerData, WorkerSchedule, SalonData, GetAvailabilityInput, CompleteBookingInput, Page } from '@crm/provider-core';
+import { ProviderFactory, CreateBookingInput, RescheduleBookingInput, CancelBookingInput, CategoryData, ServiceData, WorkerData, WorkerSchedule, SalonData, GetAvailabilityInput, CompleteBookingInput, Page, BookingData } from '@crm/provider-core';
 import { executeWithRetry, CircuitBreaker } from '@crm/retry-handler';
 import { createChildLogger } from '@shared/logger';
 import { ICrmAdapter } from './types';
@@ -11,7 +11,7 @@ type Op = 'booking.create' | 'booking.reschedule' | 'booking.cancel' | 'booking.
   'salon.update' |
   'category.create' | 'category.update' | 'category.delete' |
   'service.create' | 'service.update' | 'service.delete' |
-  'worker.create' | 'worker.update' | 'worker.delete' | 'worker.updateSchedule' |
+  'worker.create' | 'worker.update' | 'worker.delete' | 'worker.updateSchedule' | 'booking.list' |
   'pull.salon' | 'pull.categories' | 'pull.services' | 'pull.workers';
 
 @Injectable()
@@ -88,6 +88,19 @@ export class CrmAdapterService implements ICrmAdapter {
       const p = this.providers.make(provider);
       await p.init({ salonId, provider });
       return p.pullSalon({ salonId, provider });
+    });
+  }
+
+  async pullBookings(
+    salonId: string,
+    provider: CrmType,
+    args?: { clientExternalId?: string; withDeleted?: boolean; startDate?: string; endDate?: string; page?: number; count?: number }
+  ): Promise<BookingData[]> {
+    this.caps.assert(provider, 'supportsBooking');
+    return this.runOp('booking.list', salonId, provider, async () => {
+      const p = this.providers.make(provider);
+      await p.init({ salonId, provider });
+      return p.pullBookings({ salonId, provider }, args);
     });
   }
 

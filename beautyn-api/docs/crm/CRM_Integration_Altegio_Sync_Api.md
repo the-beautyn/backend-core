@@ -477,7 +477,7 @@ Expected responses
 
 ### 15) Records (Bookings) — List (by client, with_deleted)
 
-- Method/Path: GET `/api/v1/records/{company_id}?client_id={id}&with_deleted={0|1}`
+- Method/Path: GET `/api/v1/records/{company_id}?page={page_number}&count={bookings_per_page},client_id={id}&with_deleted={0|1}&start_date={"yyyy.MM.dd"}&end_date={"yyyy.MM.dd"}`
 - Headers: `Accept`, `Authorization`, `User`
 - Use: Reconciliation and history import.
 

@@ -6,7 +6,8 @@ import { CrmSalonDiffService } from '../../../crm-salon-changes/crm-salon-diff.s
 import { CrmSalonChangeDto } from '../../../crm-salon-changes/dto/crm-salon-change.dto';
 import { CrmSalonChangeMapper } from '../../../crm-salon-changes/mappers/crm-salon-change.mapper';
 import { GetCrmSalonChangesQuery } from '../../../crm-salon-changes/dto/get-crm-salon-changes.query';
-import { envelopeArrayRef, envelopeErrorSchema } from '../../../shared/utils/swagger-envelope.util';
+import { envelopeArrayRef, envelopeErrorSchema, envelopeRef } from '../../../shared/utils/swagger-envelope.util';
+import { ChangeActionResponseDto } from '../../../crm-salon-changes/dto/change-action-response.dto';
 
 @ApiTags('CRM / Salon Changes')
 @ApiBearerAuth()
@@ -17,7 +18,7 @@ export class CrmSalonChangesController {
 
   @Get()
   @ApiOperation({ summary: 'List detected CRM changes for a salon' })
-  @ApiOkResponse(envelopeArrayRef([CrmSalonChangeDto]))
+  @ApiOkResponse(envelopeArrayRef(CrmSalonChangeDto))
   @ApiBadRequestResponse(envelopeErrorSchema())
   async list(
     @Req() req: Request & { user: { id: string } },
@@ -29,7 +30,7 @@ export class CrmSalonChangesController {
 
   @Post(':id/accept')
   @ApiOperation({ summary: 'Accept a pending CRM change' })
-  @ApiOkResponse({ type: Object })
+  @ApiOkResponse(envelopeRef(ChangeActionResponseDto))
   @ApiBadRequestResponse(envelopeErrorSchema())
   async accept(
     @Req() req: Request & { user: { id: string } },
@@ -41,7 +42,7 @@ export class CrmSalonChangesController {
 
   @Post(':id/dismiss')
   @ApiOperation({ summary: 'Dismiss a pending CRM change' })
-  @ApiOkResponse({ type: Object })
+  @ApiOkResponse(envelopeRef(ChangeActionResponseDto))
   @ApiBadRequestResponse(envelopeErrorSchema())
   async dismiss(
     @Req() req: Request & { user: { id: string } },

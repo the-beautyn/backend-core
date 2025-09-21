@@ -1,7 +1,8 @@
 import { CrmType } from '@crm/shared';
-import { CreateBookingInput, RescheduleBookingInput, CancelBookingInput, GetAvailabilityInput, CompleteBookingInput, SalonData, CategoryData, ServiceData, WorkerData, Page } from '@crm/provider-core';
+import { CreateBookingInput, RescheduleBookingInput, CancelBookingInput, GetAvailabilityInput, CompleteBookingInput, SalonData, CategoryData, ServiceData, WorkerData, Page, BookingData } from '@crm/provider-core';
 
 export interface ICrmAdapter {
+  
   // /** Enqueue a full sync immediately (idempotent jobId per salon+provider). */
   // requestSync(salonId: string, provider: CrmType, requestId?: string): Promise<string>;
 
@@ -26,4 +27,11 @@ export interface ICrmAdapter {
   // pullCategories(salonId: string, provider: CrmType, cursor?: string): Promise<Page<CategoryData>>;
   // pullServices(salonId: string, provider: CrmType, cursor?: string): Promise<Page<ServiceData>>;
   // pullWorkers(salonId: string, provider: CrmType, cursor?: string): Promise<Page<WorkerData>>;
+
+  // Bookings pull
+  pullBookings(
+    salonId: string,
+    provider: CrmType,
+    args?: { clientExternalId?: string; withDeleted?: boolean; startDate?: string; endDate?: string }
+  ): Promise<BookingData[]>;
 }

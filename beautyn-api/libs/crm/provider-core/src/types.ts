@@ -1,5 +1,5 @@
 import { CrmType } from '@crm/shared';
-import { CategoryData, ServiceData, WorkerData, WorkerSchedule, SalonData, Page } from './dtos';
+import { CategoryData, ServiceData, WorkerData, WorkerSchedule, SalonData, Page, BookingData } from './dtos';
 
 /** Minimal context for a provider operation */
 export interface ProviderContext {
@@ -76,6 +76,17 @@ export interface ICrmProvider {
   // pullCategories(ctx: ProviderContext, cursor?: string): Promise<Page<CategoryData>>;
   // pullServices(ctx: ProviderContext, cursor?: string): Promise<Page<ServiceData>>;
   // pullWorkers(ctx: ProviderContext, cursor?: string): Promise<Page<WorkerData>>;
+  pullBookings(
+    ctx: ProviderContext,
+    args?: { clientExternalId?: string; withDeleted?: boolean; startDate?: string; endDate?: string; page?: number; count?: number }
+  ): Promise<BookingData[]>;
+
+  // Sync
+  syncSalon(ctx: ProviderContext): Promise<SalonData>;
+  syncCategories(ctx: ProviderContext): Promise<void>;
+  syncServices(ctx: ProviderContext): Promise<void>;
+  syncWorkers(ctx: ProviderContext): Promise<void>;
+  syncBookings(ctx: ProviderContext, args: { clientExternalId?: string; withDeleted?: boolean; startDate?: string; endDate?: string }): Promise<void>;
 
   // // Booking lifecycle
   // createBooking(ctx: ProviderContext, payload: CreateBookingInput): Promise<{ externalBookingId: string }>;

@@ -7,10 +7,12 @@ import { OnboardingController } from './v1/authenticated/onboarding.controller';
 import { CrmSalonChangesController } from './v1/authenticated/crm-salon-changes.controller';
 import { SalonsAuthenticatedController } from './v1/authenticated/salons.authenticated.controller';
 import { SalonModule } from '../salon/salon.module';
+import { BookingsModule } from '../bookings/bookings.module';
+import { BookingsController } from './v1/public/bookings.controller';
 
 
 @Module({
-  imports: [UserModule, OnboardingModule, CrmSalonChangesModule, SalonModule],
-  controllers: [UserAuthenticatedController, OnboardingController, CrmSalonChangesController, SalonsAuthenticatedController],
+  imports: [UserModule, OnboardingModule, CrmSalonChangesModule, SalonModule, BookingsModule],
+  controllers: [UserAuthenticatedController, OnboardingController, CrmSalonChangesController, SalonsAuthenticatedController, BookingsController],
 })
 export class AuthenticatedApiModule {}

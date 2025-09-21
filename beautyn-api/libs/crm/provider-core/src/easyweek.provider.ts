@@ -1,5 +1,5 @@
 import { ICrmProvider, ProviderContext, CreateBookingInput, RescheduleBookingInput, CancelBookingInput, CompleteBookingInput, GetAvailabilityInput, AvailabilitySlot } from './types';
-import { CategoryData, ServiceData, WorkerData, WorkerSchedule, SalonData, Page, WorkingDay, formatWorkingSchedule } from './dtos';
+import { CategoryData, ServiceData, WorkerData, WorkerSchedule, SalonData, Page, WorkingDay, formatWorkingSchedule, BookingData } from './dtos';
 import { TokenStorageService } from '@crm/token-storage';
 import { AccountRegistryService } from '@crm/account-registry';
 import { createChildLogger } from '@shared/logger';
@@ -49,6 +49,18 @@ export class EasyWeekProvider implements ICrmProvider {
     const loc = await this.findLocationById();
     if (!loc) throw new CrmError('EasyWeek location not found', { kind: ErrorKind.VALIDATION, retryable: false });
     return this.mapSalon(loc);
+  }
+
+  async pullBookings(ctx: ProviderContext, args?: { clientExternalId?: string; withDeleted?: boolean; startDate?: string; endDate?: string; }): Promise<BookingData[]> {
+    this.notYet('pullBookings');
+  }
+
+  async syncSalon(ctx: ProviderContext): Promise<SalonData> { return this.pullSalon(ctx); };
+  async syncCategories(ctx: ProviderContext): Promise<void> { this.notYet('syncCategories'); }
+  async syncServices(ctx: ProviderContext): Promise<void> { this.notYet('syncServices'); }
+  async syncWorkers(ctx: ProviderContext): Promise<void> { this.notYet('syncWorkers'); }
+  async syncBookings(ctx: ProviderContext, args: { clientExternalId?: string; withDeleted?: boolean; startDate?: string; endDate?: string }): Promise<void> { 
+    this.notYet('syncBookings');
   }
   // async pullCategories(ctx: ProviderContext, cursor?: string): Promise<Page<CategoryData>> {
   //   const locationId = this.require(this.locationId, 'locationId');
