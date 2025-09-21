@@ -8,8 +8,7 @@ Typed façade for CRM providers (Altegio, EasyWeek). No HTTP here yet—these ar
 - Expose a Nest `ProviderFactory` to get a provider instance for a given `CrmType`.
 
 ## Providers
-- **Altegio**: uses `AccountRegistry` for `externalSalonId`. Service tokens come from env (`ALTEGIO_BEARER`, `ALTEGIO_USER`).
+- **Altegio**: uses `AccountRegistry` for `externalSalonId`. Service tokens come from `TokenStorage` as a dual bundle `{ accessToken, userToken }`.
 - **EasyWeek**: uses `TokenStorage` for `{ apiKey }` and `AccountRegistry` for `{ workspaceSlug, locationId }`.
 
 > Actual HTTP calls will be added later. For now, methods log + throw `CrmError('Not implemented', INTERNAL)`.
-

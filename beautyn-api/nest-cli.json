@@ -11,6 +11,12 @@
           "classValidatorShim": true
         }
       }
+    ],
+    "assets": [
+      {
+        "include": "libs/crm/capability-registry/src/capabilities.defaults.json",
+        "outDir": "dist/libs/crm/capability-registry/src"
+      }
     ]
   }
 }

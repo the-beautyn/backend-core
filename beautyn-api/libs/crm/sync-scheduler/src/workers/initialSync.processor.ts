@@ -24,11 +24,11 @@ export function startInitialSyncWorker(container: { providerFactory: ProviderFac
         const pf = container.providerFactory;
         const p = pf.make(provider);
         await p.init({ salonId, provider });
-
-        await executeWithRetry(() => p.syncSalon({ salonId, provider }));
+        
         await executeWithRetry(() => p.syncCategories({ salonId, provider }));
         await executeWithRetry(() => p.syncServices({ salonId, provider }));
         await executeWithRetry(() => p.syncWorkers({ salonId, provider }));
+        await executeWithRetry(() => p.syncBookings({ salonId, provider }, { clientExternalId: undefined, withDeleted: true, startDate: undefined, endDate: undefined }));
 
         log.info('Initial sync completed', { salonId, provider, jobId: job.id });
       });

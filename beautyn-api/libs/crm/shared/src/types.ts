@@ -21,6 +21,8 @@ export type TokenBundle = {
   accessToken?: string;
   refreshToken?: string;
   apiKey?: string;
+  /** Secondary token for dual‑header flows (e.g., Altegio `User` header). */
+  userToken?: string;
   expiresAt?: string; // ISO 8601
 };
 

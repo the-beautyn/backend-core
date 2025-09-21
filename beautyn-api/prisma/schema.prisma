@@ -40,6 +40,7 @@ model Users {
   updatedAt             DateTime          @default(now()) @map("updated_at") @db.Timestamptz(6)
   subscriptionPlan      SubscriptionPlan? @relation(fields: [subscriptionId], references: [id])
   onboardingStep        OnboardingStep?
+  salon                 Salon?            @relation("UserSalons")
 
   @@map("users")
 }
@@ -55,16 +56,26 @@ enum UserRole {
 
 enum OnboardingStepState {
   CRM
+  SALON_PROFILE
   SUBSCRIPTION
   COMPLETED
 
   @@map("onboarding_step_state")
 }
 
+enum CrmSalonChangeStatus {
+  pending   @map("pending")
+  accepted  @map("accepted")
+  dismissed @map("dismissed")
+
+  @@map("crm_salon_change_status")
+}
+
 model OnboardingStep {
   id              String              @id @default(uuid()) @db.Uuid
   userId          String              @map("user_id") @unique @db.Uuid
   crmConnected    Boolean             @map("crm_connected") @default(false)
+  salonCreated    Boolean             @map("salon_created") @default(false)
   subscriptionSet Boolean             @map("subscription_set") @default(false)
   currentStep     OnboardingStepState @map("current_step") @default(CRM)
   completed       Boolean             @default(false)
@@ -79,17 +90,28 @@ model OnboardingStep {
 model Salon {
   id             String   @id @default(uuid())   @db.Uuid
   crmId          String?  @map("crm_id")
-  name           String
-  addressLine    String?  @map("address_line")
-  city           String?
-  country        String?  @db.Char(2)
-  latitude       Decimal? @db.Decimal(9, 6)
-  longitude      Decimal? @db.Decimal(9, 6)
+  // CRM link (draft onboarding support)
+  // externalSalonId stores provider-specific external id (stringified)
+  externalSalonId String? @map("external_salon_id")
+  // provider stores which CRM this salon is linked to (e.g., 'ALTEGIO' | 'EASYWEEK')
+  provider        String?  @map("provider")
+  // owner user link (used for onboarding flows)
+  ownerUserId     String?  @db.Uuid @map("owner_user_id")
+  owner           Users?   @relation("UserSalons", fields: [ownerUserId], references: [id], onDelete: SetNull)
+  name            String?
+  description     String?  @map("description")
+  addressLine     String?  @map("address_line")
+  city            String?
+  country         String?  @db.Char(2)
+  latitude        Decimal? @db.Decimal(9, 6)
+  longitude       Decimal? @db.Decimal(9, 6)
+  timezone        String?  @map("timezone")
   phone          String?
   email          String?
   ratingAvg      Decimal? @db.Decimal(2, 1)      @map("rating_avg")
   ratingCount    Int?     @map("rating_count")
   openHoursJson  Json?    @map("open_hours_json")
+  workingSchedule String?  @map("working_schedule")
   imagesCount    Int?     @map("images_count")
   coverImageUrl  String?  @map("cover_image_url")
   createdAt      DateTime @default(now())        @map("created_at")
@@ -97,9 +119,14 @@ model Salon {
   deletedAt      DateTime?                       @map("deleted_at")
 
   images         SalonImage[]
+  crmHashes      CrmSalonLastHash[]
+  crmChangeProposals CrmSalonChangeProposal[]
+  crmSnapshots   CrmSalonSnapshot[]
 
   @@map("salons")
   @@index([latitude, longitude])
+  @@index([ownerUserId], map: "idx_salon_owner")
+  @@unique([ownerUserId], map: "uniq_salon_owner")
 }
 
 model SalonImage {
@@ -226,6 +253,53 @@ model CrmAccount {
 
   @@unique([salonId, provider])
   @@index([provider])
+}
+
+model CrmSalonLastHash {
+  salonId     String   @db.Uuid        @map("salon_id")
+  provider    String                   @map("provider")
+  fieldPath   String                   @map("field_path")
+  lastCrmHash String                   @map("last_crm_hash")
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  salon       Salon    @relation(fields: [salonId], references: [id], onDelete: Cascade)
+
+  @@id([salonId, provider, fieldPath])
+  @@map("crm_salon_last_hash")
+}
+
+model CrmSalonChangeProposal {
+  id         String               @id @default(uuid()) @db.Uuid
+  salonId    String               @db.Uuid             @map("salon_id")
+  provider   String               @map("provider")
+  fieldPath  String               @map("field_path")
+  oldValue   Json?                @map("old_value")
+  newValue   Json?                @map("new_value")
+  newHash    String               @map("new_hash")
+  status     CrmSalonChangeStatus @default(pending)    @map("status")
+  detectedAt DateTime             @map("detected_at") @db.Timestamptz(6)
+  decidedAt  DateTime?            @map("decided_at")  @db.Timestamptz(6)
+  decidedBy  String?              @map("decided_by")  @db.Uuid
+
+  salon      Salon                @relation(fields: [salonId], references: [id], onDelete: Cascade)
+
+  @@index([salonId, status], map: "crm_salon_change_proposal_salon_status_idx")
+  @@unique([salonId, fieldPath, newHash], map: "crm_salon_change_proposal_unique_hash")
+  @@map("crm_salon_change_proposal")
+}
+
+model CrmSalonSnapshot {
+  id          String   @id @default(uuid()) @db.Uuid
+  salonId     String   @db.Uuid             @map("salon_id")
+  provider    String                         @map("provider")
+  payloadJson Json                           @map("payload_json")
+  payloadHash String                         @map("payload_hash")
+  fetchedAt   DateTime                       @map("fetched_at") @db.Timestamptz(6)
+
+  salon       Salon                          @relation(fields: [salonId], references: [id], onDelete: Cascade)
+
+  @@index([salonId, fetchedAt], map: "crm_salon_snapshot_salon_fetched_idx")
+  @@map("crm_salon_snapshot")
 }
 
 // --- Sync & Reconciliation (MVP) ---

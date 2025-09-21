@@ -16,6 +16,11 @@ export class SalonService {
     return salon ? SalonMapper.toDto(salon) : null;
   }
 
+  async findByOwnerUserId(ownerUserId: string): Promise<SalonDto | null> {
+    const salon = await this.prisma.salon.findFirst({ where: { ownerUserId, deletedAt: null } });
+    return salon ? SalonMapper.toDto(salon) : null;
+  }
+
   async list(query: SalonListQuery): Promise<{ items: SalonDto[]; page: number; limit: number; total: number }> {
     const { q, city, country, page = 1, limit = 20 } = query;
     const where: Prisma.SalonWhereInput = { deletedAt: null };

@@ -25,10 +25,10 @@ export function startNightlyDiffWorker(container: { providerFactory: ProviderFac
         const p = pf.make(provider);
         await p.init({ salonId, provider });
 
-        await executeWithRetry(() => p.syncSalon({ salonId, provider }));
-        await executeWithRetry(() => p.syncCategories({ salonId, provider }));
-        await executeWithRetry(() => p.syncServices({ salonId, provider }));
-        await executeWithRetry(() => p.syncWorkers({ salonId, provider }));
+        // await executeWithRetry(() => p.syncSalon({ salonId, provider }));
+        // await executeWithRetry(() => p.syncCategories({ salonId, provider }));
+        // await executeWithRetry(() => p.syncServices({ salonId, provider }));
+        // await executeWithRetry(() => p.syncWorkers({ salonId, provider }));
 
         log.info('Nightly diff completed', { salonId, provider, jobId: job.id });
       });

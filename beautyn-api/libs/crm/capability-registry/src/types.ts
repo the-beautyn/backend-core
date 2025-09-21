@@ -36,6 +36,10 @@ export interface Capability {
   supportsWorkersUpdate: boolean;
   supportsWorkersDelete: boolean;
   supportsWorkerScheduleUpdate: boolean;
+
+  /** Optional metadata */
+  timeGranularityMin?: number;
+  authFlow?: 'oauth' | 'apiKey' | 'dual' | 'custom';
 }
 
 export type CapabilityMap = Record<CrmType, Capability>;

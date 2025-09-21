@@ -9,7 +9,7 @@ import {
 
 export class SalonSyncDto {
   @IsOptional()
-  @IsUUID()
+  @IsString()
   id?: string;
 
   @IsOptional()
