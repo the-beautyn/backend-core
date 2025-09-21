@@ -10,14 +10,18 @@ type EnqueueArgs = {
 
 @Injectable()
 export class OutboxService {
-  private queue: any;
+  private queue?: any;
   constructor(private readonly repo: OutboxRepository) {
     const { REDIS_URL } = process.env;
     if (!REDIS_URL) throw new Error('REDIS_URL required');
-    // Lazy require so tests can mock 'bullmq' without type deps
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const { Queue } = require('bullmq');
-    this.queue = new Queue('crm-outbox', { connection: { url: REDIS_URL } });
+  }
+
+  private async getQueue(): Promise<any> {
+    if (!this.queue) {
+      const { Queue } = await import('bullmq');
+      this.queue = new Queue('crm-outbox', { connection: { url: process.env.REDIS_URL } });
+    }
+    return this.queue;
   }
 
   async enqueue(args: EnqueueArgs): Promise<{ intentId: string }> {
@@ -31,7 +35,8 @@ export class OutboxService {
       payload: args.payload,
       idempotencyKey: args.idempotencyKey,
     });
-    await this.queue.add('intent', { intentId: row.id, requestId: args.requestId }, { jobId: row.id, attempts: 1 });
+    const queue = await this.getQueue();
+    await queue.add('intent', { intentId: row.id, requestId: args.requestId }, { jobId: row.id, attempts: 1 });
     return { intentId: row.id };
   }
 }
