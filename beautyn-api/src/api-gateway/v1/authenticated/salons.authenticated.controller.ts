@@ -22,7 +22,3 @@ export class SalonsAuthenticatedController {
     return salon;
   }
 }
-
-
-
-

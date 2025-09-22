@@ -26,7 +26,12 @@ export class SyncSchedulerService {
 
   async scheduleSync(job: SyncJob): Promise<string> {
     const id = `${JOB_SYNC}:${job.provider}:${job.salonId}`;
-    const res = await (await this.getQueue()).add(JOB_SYNC, job, { jobId: id, attempts: 5 });
+    const res = await (await this.getQueue()).add(JOB_SYNC, job, {
+      jobId: id,
+      attempts: 5,
+      removeOnComplete: true,
+      removeOnFail: false,
+    });
     return res.id as string;
   }
 

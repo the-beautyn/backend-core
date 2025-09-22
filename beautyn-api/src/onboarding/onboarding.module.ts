@@ -8,11 +8,13 @@ import { CrmIntegrationService } from '../crm-integration/core/crm-integration.s
 import { TokenStorageModule, PrismaTokenStorageRepository, TOKEN_STORAGE_REPOSITORY } from '@crm/token-storage';
 import { AccountRegistryModule, PrismaAccountRegistryRepository, ACCOUNT_REGISTRY_REPOSITORY } from '@crm/account-registry';
 import { CrmSalonChangesModule } from '../crm-salon-changes/crm-salon-changes.module';
+import { SyncSchedulerModule } from '@crm/sync-scheduler';
 
 @Module({
   imports: [
     SharedModule,
     CrmAdapterModule,
+    SyncSchedulerModule,
     TokenStorageModule.register({ provide: TOKEN_STORAGE_REPOSITORY, useClass: PrismaTokenStorageRepository }),
     AccountRegistryModule.register({ provide: ACCOUNT_REGISTRY_REPOSITORY, useClass: PrismaAccountRegistryRepository }),
     CrmSalonChangesModule,

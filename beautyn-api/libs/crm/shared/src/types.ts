@@ -10,6 +10,7 @@ export enum ErrorKind {
   AUTH = 'AUTH',
   NETWORK = 'NETWORK',
   VALIDATION = 'VALIDATION',
+  NOT_SUPPORTED = 'NOT_SUPPORTED',
   INTERNAL = 'INTERNAL',
 }
 

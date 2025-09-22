@@ -60,6 +60,18 @@ export type AvailabilitySlot = {
   quantity?: number;
 };
 
+export type CategoryCreateInput = {
+  name: string;
+  color?: string | null;
+  sortOrder?: number | null;
+};
+
+export type CategoryUpdateInput = {
+  name?: string;
+  color?: string | null;
+  sortOrder?: number | null;
+};
+
 /** Standardized provider API surface */
 export interface ICrmProvider {
   /** Optional one-time setup per (salonId, provider). */
@@ -100,9 +112,10 @@ export interface ICrmProvider {
   // updateSalon(ctx: ProviderContext, patch: Partial<Omit<SalonData, 'externalId'>>): Promise<void>;
 
   // // Categories
-  // createCategory(ctx: ProviderContext, data: Omit<CategoryData, 'externalId' | 'updatedAtIso'> & { clientId?: string }): Promise<{ externalId: string }>;
-  // updateCategory(ctx: ProviderContext, externalId: string, patch: Partial<Omit<CategoryData, 'externalId'>>): Promise<void>;
-  // deleteCategory(ctx: ProviderContext, externalId: string): Promise<void>;
+  pullCategories(ctx: ProviderContext, cursor?: string): Promise<Page<CategoryData>>;
+  createCategory(ctx: ProviderContext, data: CategoryCreateInput): Promise<CategoryData>;
+  updateCategory(ctx: ProviderContext, externalId: string, patch: CategoryUpdateInput): Promise<CategoryData>;
+  deleteCategory(ctx: ProviderContext, externalId: string): Promise<void>;
 
   // // Services
   // createService(ctx: ProviderContext, data: Omit<ServiceData, 'externalId' | 'updatedAtIso'> & { clientId?: string }): Promise<{ externalId: string }>;

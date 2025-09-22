@@ -8,10 +8,10 @@ describe('Capability defaults include CRUD flags', () => {
       expect(c).toHaveProperty('supportsServicesCreate');
       expect(c).toHaveProperty('supportsServicesUpdate');
       expect(c).toHaveProperty('supportsServicesDelete');
+      expect(c).toHaveProperty('supportsCategoryCrud');
       expect(c).toHaveProperty('supportsCategoriesCreate');
       expect(c).toHaveProperty('supportsWorkersUpdate');
       expect(c).toHaveProperty('supportsSalonUpdate');
     }
   });
 });
-

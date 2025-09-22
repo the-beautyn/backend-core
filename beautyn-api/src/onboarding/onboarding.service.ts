@@ -5,6 +5,7 @@ import { OnboardingProgressDto } from './dto/onboarding-progress.dto';
 import { OnboardingMapper } from './mappers/onboarding.mapper';
 import { EasyWeekDiscoveryClient } from './clients/easyweek-discovery.client';
 import { CrmIntegrationService } from '../crm-integration/core/crm-integration.service';
+import { SyncSchedulerService } from '@crm/sync-scheduler';
 import { CrmType } from '@crm/shared';
 
 @Injectable()
@@ -12,6 +13,7 @@ export class OnboardingService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly crmIntegration: CrmIntegrationService,
+    private readonly scheduler: SyncSchedulerService,
     @Optional() private readonly ew?: EasyWeekDiscoveryClient
   ) {}
 
@@ -78,5 +80,15 @@ export class OnboardingService {
     }
     const data = await this.crmIntegration.pullSalonAndDetectChanges(salon.id);
     return { salon: data };
+  }
+
+  async startInitialSync(userId: string): Promise<{ jobId: string }> {
+    if (!userId) throw new BadRequestException('user required');
+    const salon = await this.prisma.salon.findFirst({ where: { ownerUserId: userId } });
+    if (!salon?.id || !salon?.provider) {
+      throw new BadRequestException('Salon or provider not linked');
+    }
+    const jobId = await this.scheduler.scheduleSync({ salonId: salon.id, provider: salon.provider as CrmType });
+    return { jobId };
   }
 }

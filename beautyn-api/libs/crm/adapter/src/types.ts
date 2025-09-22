@@ -1,6 +1,18 @@
 import { CrmType } from '@crm/shared';
 import { CreateBookingInput, RescheduleBookingInput, CancelBookingInput, GetAvailabilityInput, CompleteBookingInput, SalonData, CategoryData, ServiceData, WorkerData, Page, BookingData } from '@crm/provider-core';
 
+export interface CategoryCreatePayload {
+  name: string;
+  color?: string | null;
+  sortOrder?: number | null;
+}
+
+export interface CategoryUpdatePayload {
+  name?: string;
+  color?: string | null;
+  sortOrder?: number | null;
+}
+
 export interface ICrmAdapter {
   
   // /** Enqueue a full sync immediately (idempotent jobId per salon+provider). */
@@ -13,6 +25,7 @@ export interface ICrmAdapter {
   //  */
   // ensureCronSync(salonId: string, provider: CrmType, cron: string, tz?: string, requestId?: string): Promise<void>;
 
+  syncCategories(salonId: string, provider: CrmType): Promise<void>;
   // // Booking lifecycle
   // createBooking(salonId: string, provider: CrmType, payload: CreateBookingInput): Promise<{ externalBookingId: string }>;
   // rescheduleBooking(salonId: string, provider: CrmType, payload: RescheduleBookingInput): Promise<void>;
@@ -23,8 +36,6 @@ export interface ICrmAdapter {
   // Onboarding pulls
   /** Stage 1: Pull normalized salon profile for initial configuration. */
   pullSalon(salonId: string, provider: CrmType): Promise<SalonData>;
-  // /** Stage 2: Pull internal entities; cursor is vendor-opaque. */
-  // pullCategories(salonId: string, provider: CrmType, cursor?: string): Promise<Page<CategoryData>>;
   // pullServices(salonId: string, provider: CrmType, cursor?: string): Promise<Page<ServiceData>>;
   // pullWorkers(salonId: string, provider: CrmType, cursor?: string): Promise<Page<WorkerData>>;
 
@@ -32,6 +43,11 @@ export interface ICrmAdapter {
   pullBookings(
     salonId: string,
     provider: CrmType,
-    args?: { clientExternalId?: string; withDeleted?: boolean; startDate?: string; endDate?: string }
+    args?: { clientExternalId?: string; withDeleted?: boolean; startDate?: string; endDate?: string; }
   ): Promise<BookingData[]>;
+
+  pullCategories(salonId: string, provider: CrmType, cursor?: string): Promise<Page<CategoryData>>;
+  createCategory(salonId: string, provider: CrmType, payload: CategoryCreatePayload): Promise<CategoryData>;
+  updateCategory(salonId: string, provider: CrmType, externalId: string, payload: CategoryUpdatePayload): Promise<CategoryData>;
+  deleteCategory(salonId: string, provider: CrmType, externalId: string): Promise<void>;
 }

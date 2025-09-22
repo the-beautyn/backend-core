@@ -2,9 +2,11 @@
   "ALTEGIO": {
     "webhooks": true,
     "batchSize": 200,
+
     "supportsBooking": true,
     "supportsReschedule": true,
     "supportsCancelBooking": true,
+
     "supportsSalonSync": true,
     "supportsCategoriesSync": true,
     "supportsServicesSync": true,
@@ -12,9 +14,10 @@
 
     "supportsSalonUpdate": false,
 
-    "supportsCategoriesCreate": false,
-    "supportsCategoriesUpdate": false,
-    "supportsCategoriesDelete": false,
+    "supportsCategoryPull": true,
+    "supportsCategoriesCreate": true,
+    "supportsCategoriesUpdate": true,
+    "supportsCategoriesDelete": true,
 
     "supportsServicesCreate": false,
     "supportsServicesUpdate": false,
@@ -31,9 +34,11 @@
   "EASYWEEK": {
     "webhooks": true,
     "batchSize": 100,
+    
     "supportsBooking": true,
     "supportsCancelBooking": true,
     "supportsReschedule": false,
+
     "supportsSalonSync": true,
     "supportsCategoriesSync": true,
     "supportsServicesSync": true,
@@ -41,6 +46,7 @@
 
     "supportsSalonUpdate": false,
 
+    "supportsCategoryPull": true,
     "supportsCategoriesCreate": false,
     "supportsCategoriesUpdate": false,
     "supportsCategoriesDelete": false,

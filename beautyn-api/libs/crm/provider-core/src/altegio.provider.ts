@@ -1,4 +1,4 @@
-import { ICrmProvider, ProviderContext, CreateBookingInput, RescheduleBookingInput, CancelBookingInput, CompleteBookingInput, GetAvailabilityInput } from './types';
+import { ICrmProvider, ProviderContext, CreateBookingInput, RescheduleBookingInput, CancelBookingInput, CompleteBookingInput, GetAvailabilityInput, CategoryCreateInput, CategoryUpdateInput } from './types';
 import { CategoryData, ServiceData, WorkerData, WorkerSchedule, SalonData, Page, BookingData } from './dtos';
 import { AccountRegistryService } from '@crm/account-registry';
 import { TokenStorageService } from '@crm/token-storage';
@@ -36,7 +36,6 @@ export class AltegioProvider implements ICrmProvider {
     }
     this.accessToken = bearer;
     this.userToken = user;
-    this.log.info('Altegio provider initialized', { salonId: ctx.salonId, externalSalonId });
   }
 
   // ---- HTTP helpers ----
@@ -46,8 +45,7 @@ export class AltegioProvider implements ICrmProvider {
     }
     return {
       'Accept': 'application/vnd.api.v2+json',
-      'Authorization': `Bearer ${this.accessToken}`,
-      'User': this.userToken,
+      'Authorization': `Bearer ${this.accessToken}, User ${this.userToken}`,
       'Content-Type': 'application/json',
     };
   }
@@ -61,17 +59,18 @@ export class AltegioProvider implements ICrmProvider {
       }
     }
     const startedAt = Date.now();
+    const headers = this.headers();
     this.log.http?.('CRM Altegio → request', {
       method,
       url: url.toString(),
       path: url.pathname,
       query: Object.fromEntries(url.searchParams.entries()),
-      headers: { Authorization: 'redacted', User: 'redacted' },
+      headers: { headers },
       bodySize: opts?.body ? JSON.stringify(opts.body).length : 0,
     });
     const res = await fetch(url, {
       method,
-      headers: this.headers(),
+      headers: headers,
       body: opts?.body ? JSON.stringify(opts.body) : undefined,
     } as any);
 
@@ -168,12 +167,13 @@ export class AltegioProvider implements ICrmProvider {
     return mapped;
   }
 
-  private async pullCategories(ctx: ProviderContext, cursor?: string): Promise<Page<CategoryData>> {
+  async pullCategories(ctx: ProviderContext, cursor?: string): Promise<Page<CategoryData>> {
     if (!this.externalSalonId) throw new CrmError('Provider not initialized (missing externalSalonId)', { kind: ErrorKind.INTERNAL, retryable: false });
     const items = await this.http<any[]>('GET', `/api/v1/company/${this.externalSalonId}/service_categories`);
     const mapped: CategoryData[] = (items || []).map((x: any) => ({
       externalId: String(x.id),
       name: x.title,
+      sortOrder: typeof x.weight === 'number' ? Number(x.weight) : null,
       isActive: true,
     }));
     return { items: mapped, fetched: mapped.length };
@@ -269,9 +269,42 @@ export class AltegioProvider implements ICrmProvider {
   //   await this.http('PUT', `/api/v1/company/${this.externalSalonId}`, { body });
   // }
 
-  // async createCategory(ctx: ProviderContext, data: Omit<CategoryData, 'externalId' | 'updatedAtIso'> & { clientId?: string }): Promise<{ externalId: string }> { this.notYet('createCategory'); }
-  // async updateCategory(ctx: ProviderContext, externalId: string, patch: Partial<Omit<CategoryData, 'externalId'>>): Promise<void> { this.notYet('updateCategory'); }
-  // async deleteCategory(ctx: ProviderContext, externalId: string): Promise<void> { this.notYet('deleteCategory'); }
+  async createCategory(ctx: ProviderContext, data: CategoryCreateInput): Promise<CategoryData> {
+    if (!this.externalSalonId) throw new CrmError('Provider not initialized (missing externalSalonId)', { kind: ErrorKind.INTERNAL, retryable: false });
+    const body: any = { title: data.name };
+    if (data.sortOrder !== undefined && data.sortOrder !== null) {
+      body.weight = data.sortOrder;
+    }
+    const res = await this.http<any>('POST', `/api/v1/service_category/${this.externalSalonId}`, { body });
+    const externalId = String(res?.id ?? res?.data?.id ?? res);
+    return {
+      externalId,
+      name: data.name,
+      sortOrder: data.sortOrder ?? null,
+      color: data.color ?? null,
+      isActive: true,
+    };
+  }
+
+  async updateCategory(ctx: ProviderContext, externalId: string, patch: CategoryUpdateInput): Promise<CategoryData> {
+    if (!this.externalSalonId) throw new CrmError('Provider not initialized (missing externalSalonId)', { kind: ErrorKind.INTERNAL, retryable: false });
+    const body: any = {};
+    if (patch.name !== undefined) body.title = patch.name;
+    if (patch.sortOrder !== undefined) body.weight = patch.sortOrder;
+    await this.http('PUT', `/api/v1/service_category/${this.externalSalonId}/${externalId}`, { body });
+    return {
+      externalId: String(externalId),
+      name: patch.name ?? '',
+      sortOrder: patch.sortOrder ?? null,
+      color: patch.color ?? null,
+      isActive: true,
+    };
+    }
+
+  async deleteCategory(ctx: ProviderContext, externalId: string): Promise<void> {
+    if (!this.externalSalonId) throw new CrmError('Provider not initialized (missing externalSalonId)', { kind: ErrorKind.INTERNAL, retryable: false });
+    await this.http('DELETE', `/api/v1/service_category/${this.externalSalonId}/${externalId}`);
+  }
 
   // async createService(ctx: ProviderContext, data: Omit<ServiceData, 'externalId' | 'updatedAtIso'> & { clientId?: string }): Promise<{ externalId: string }> { this.notYet('createService'); }
   // async updateService(ctx: ProviderContext, externalId: string, patch: Partial<Omit<ServiceData, 'externalId'>>): Promise<void> { this.notYet('updateService'); }
