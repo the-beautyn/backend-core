@@ -2,6 +2,9 @@ import { Body, Controller, HttpCode, HttpStatus, Post, UseGuards } from '@nestjs
 import { CategoriesService } from '../../../categories/categories.service';
 import { InternalApiKeyGuard } from '../../../shared/guards/internal-api-key.guard';
 import { CategoriesSyncDto } from '../../../categories/dto/categories-sync.dto';
+import { runWithRequestContext, createChildLogger } from '@shared/logger';
+
+const log = createChildLogger('categories.internal');
 
 @Controller('api/v1/internal/categories')
 export class CategoriesInternalController {

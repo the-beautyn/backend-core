@@ -167,8 +167,10 @@ export class EasyWeekProvider implements ICrmProvider {
 
   async pullCategories(ctx: ProviderContext, cursor?: string): Promise<Page<CategoryData>> {
     const locationId = this.require(this.locationId, 'locationId');
-    const data = await this.doFetch(`${this.base}/locations/${encodeURIComponent(locationId)}/service-categories`);
-    const items: CategoryData[] = (data || [])
+    const raw = await this.doFetch(`${this.base}/locations/${encodeURIComponent(locationId)}/service-categories`);
+    const data = Array.isArray(raw) ? raw : (Array.isArray(raw?.data) ? raw.data : []);
+    this.log.info('Pulled categories from EasyWeek', { count: Array.isArray(data) ? data.length : 0 });
+    const items: CategoryData[] = (data as any[])
       .map((c: any) => {
         const externalId = c?.uuid ?? c?.id;
         if (!externalId) return null;
