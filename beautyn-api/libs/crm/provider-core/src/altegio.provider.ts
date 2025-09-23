@@ -65,7 +65,7 @@ export class AltegioProvider implements ICrmProvider {
       url: url.toString(),
       path: url.pathname,
       query: Object.fromEntries(url.searchParams.entries()),
-      headers: { headers },
+      headers: "Bearer: 'bearer', User: 'user'" ,
       bodySize: opts?.body ? JSON.stringify(opts.body).length : 0,
     });
     const res = await fetch(url, {
