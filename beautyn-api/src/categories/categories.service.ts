@@ -1,15 +1,14 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { CrmType } from '@crm/shared';
 import { CapabilityRegistryService } from '@crm/capability-registry';
-import { SyncSchedulerService } from '@crm/sync-scheduler';
-import { CrmAdapterService } from '@crm/adapter';
+import { CrmIntegrationService } from '../crm-integration/core/crm-integration.service';
 import { PrismaService } from '../shared/database/prisma.service';
 import { CategoriesRepository } from './repositories/categories.repo';
 import { ListQueryDto, CATEGORY_LIST_MAX_LIMIT } from './dto/list-query.dto';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
 import { CategoryListResponseDto, CategoryResponseDto } from './dto/category-response.dto';
-import { CategoryData, Page } from '@crm/provider-core';
+import { CategoryData, CategoryUpdateInput, Page } from '@crm/provider-core';
 import { normalizeHexColor, toCategoryResponse } from './mappers/category.mapper';
 import { createChildLogger } from '@shared/logger';
 import { CategoriesSyncDto } from './dto/categories-sync.dto';
@@ -22,8 +21,7 @@ export class CategoriesService {
     private readonly repo: CategoriesRepository,
     private readonly prisma: PrismaService,
     private readonly caps: CapabilityRegistryService,
-    private readonly crm: CrmAdapterService,
-    private readonly scheduler: SyncSchedulerService,
+    private readonly crmIntegration: CrmIntegrationService,
   ) {}
 
   async listPublic(query: ListQueryDto): Promise<CategoryListResponseDto> {
@@ -40,7 +38,7 @@ export class CategoriesService {
     };
   }
 
-  async listForOwner(userId: string, opts?: { page?: number; limit?: number }): Promise<CategoryListResponseDto> {
+  async pullFromDb(userId: string, opts?: { page?: number; limit?: number }): Promise<CategoryListResponseDto> {
     const { salonId } = await this.requireOwnerSalon(userId);
     const { page, limit, skip } = this.normalizePagination(opts?.page, opts?.limit);
     const { items, total } = await this.repo.paginate(salonId, skip, limit);
@@ -54,27 +52,24 @@ export class CategoriesService {
 
   async create(ownerId: string, dto: CreateCategoryDto): Promise<CategoryResponseDto> {
     const { salonId, provider } = await this.requireOwnerSalon(ownerId);
-    const name = dto.name.trim();
+    const name = dto.title.trim();
     await this.ensureNameUnique(salonId, name);
-    this.ensureCrudSupported(provider);
 
-    const normalizedColor = normalizeHexColor(dto.color ?? null);
-    const sortOrder = dto.sortOrder ?? null;
+    const sortOrder = dto.weight ?? null;
 
-    const crmCategory = await this.crm.createCategory(salonId, provider, {
-      name,
-      color: normalizedColor ?? undefined,
-      sortOrder: sortOrder ?? undefined,
+    const crmCategory = await this.crmIntegration.createCategory(salonId, provider, {
+      title: name,
+      weight: sortOrder ?? undefined,
+      staff: dto.staff,
     });
 
     const saved = await this.repo.upsertFromCrm(salonId, {
       crmExternalId: crmCategory.externalId ?? null,
       name: crmCategory.name ?? name,
-      color: normalizeHexColor(crmCategory.color ?? normalizedColor),
+      color: normalizeHexColor(crmCategory.color ?? null),
       sortOrder: crmCategory.sortOrder ?? sortOrder,
     });
 
-    this.enqueueSync(salonId, provider);
     return toCategoryResponse(saved);
   }
 
@@ -90,51 +85,44 @@ export class CategoriesService {
     if (!category) {
       throw new NotFoundException('Category not found');
     }
-    this.ensureCrudSupported(provider);
 
-    const patch: { name?: string; color?: string | null; sortOrder?: number | null } = {};
-    if (dto.name !== undefined) {
-      patch.name = dto.name.trim();
-      if (patch.name.length === 0) {
+    const patch: CategoryUpdateInput = {};
+    if (dto.title !== undefined) {
+      patch.title = dto.title.trim();
+      if (patch.title.length === 0) {
         throw new BadRequestException('name must not be empty');
       }
-      await this.ensureNameUnique(salonId, patch.name, category.id);
+      await this.ensureNameUnique(salonId, patch.title, category.id);
     }
-    if (dto.color !== undefined) {
-      patch.color = normalizeHexColor(dto.color ?? null);
+    if (dto.weight !== undefined) {
+      patch.weight = dto.weight;
     }
-    if (dto.sortOrder !== undefined) {
-      patch.sortOrder = dto.sortOrder ?? null;
+    if (dto.staff !== undefined) {
+      patch.staff = dto.staff;
     }
 
     if (!category.crmExternalId) {
       throw new ConflictException({ message: 'Category is not linked to CRM', code: 'CATEGORY_MISSING_CRM_EXTERNAL_ID' });
     }
 
-    let crmResult: { name?: string; color?: string | null; sortOrder?: number | null } | undefined;
-    if (patch.name !== undefined || patch.color !== undefined || patch.sortOrder !== undefined) {
-      crmResult = await this.crm.updateCategory(salonId, provider, category.crmExternalId, {
-        name: patch.name,
-        color: patch.color ?? undefined,
-        sortOrder: patch.sortOrder ?? undefined,
-      });
+    let crmResult: CategoryData | undefined;
+    if (patch.title !== undefined || patch.weight !== undefined || patch.staff !== undefined) {
+      crmResult = await this.crmIntegration.updateCategory(salonId, provider, category.crmExternalId, patch);
     }
 
     const data: Record<string, any> = {};
     if (crmResult?.name !== undefined && crmResult.name.length > 0) data.name = crmResult.name;
-    else if (patch.name !== undefined) data.name = patch.name;
+    else if (patch.title !== undefined) data.name = patch.title;
 
     if (crmResult?.color !== undefined) data.color = normalizeHexColor(crmResult.color);
-    else if (patch.color !== undefined) data.color = patch.color;
 
     if (crmResult?.sortOrder !== undefined) data.sortOrder = crmResult.sortOrder;
-    else if (patch.sortOrder !== undefined) data.sortOrder = patch.sortOrder;
+    else if (patch.weight !== undefined) data.sortOrder = patch.weight;
 
     const updated = Object.keys(data).length
       ? await this.repo.update(category.id, data)
       : category;
 
-    this.enqueueSync(salonId, provider);
     return toCategoryResponse(updated);
   }
 
@@ -144,7 +132,6 @@ export class CategoriesService {
     if (!category) {
       throw new NotFoundException('Category not found');
     }
-    this.ensureCrudSupported(provider);
 
     const hasServices = await this.repo.hasServices(category.id);
     if (hasServices) {
@@ -155,18 +142,34 @@ export class CategoriesService {
       throw new ConflictException({ message: 'Category is not linked to CRM', code: 'CATEGORY_MISSING_CRM_EXTERNAL_ID' });
     }
 
-    await this.crm.deleteCategory(salonId, provider, category.crmExternalId);
+    await this.crmIntegration.deleteCategory(salonId, provider, category.crmExternalId);
     await this.repo.delete(category.id);
-    this.enqueueSync(salonId, provider);
   }
 
   async pullFromCrm(ownerId: string): Promise<Page<CategoryData>> {
     const { salonId, provider } = await this.requireOwnerSalon(ownerId);
     this.caps.assert(provider, 'supportsCategoriesSync');
-    return this.crm.pullCategories(salonId, provider);
+    return this.crmIntegration.pullCategories(salonId, provider);
   }
 
-  async syncFromCrm(payload: CategoriesSyncDto): Promise<{ upserted: number; deleted: number }> {
+  async rebaseFromCrm(ownerId: string): Promise<{ categories: CategoryResponseDto[]; upserted: number; deleted: number }> {
+    const { salonId, provider } = await this.requireOwnerSalon(ownerId);
+    this.caps.assert(provider, 'supportsCategoriesSync');
+    const result = await this.crmIntegration.rebaseCategoriesNow(salonId, provider);
+    return {
+      categories: (result.categories ?? []) as CategoryResponseDto[],
+      upserted: result.upserted ?? 0,
+      deleted: result.deleted ?? 0,
+    };
+  }
+
+  async rebaseFromCrmAsync(ownerId: string): Promise<{ jobId: string }> {
+    const { salonId, provider } = await this.requireOwnerSalon(ownerId);
+    this.caps.assert(provider, 'supportsCategoriesSync');
+    return this.crmIntegration.enqueueCategoriesSync(salonId, provider);
+  }
+
+  async syncFromCrm(payload: CategoriesSyncDto): Promise<{ upserted: number; deleted: number; categories: ReturnType<typeof toCategoryResponse>[] }> {
     const { salon_id, categories } = payload;
     const prismaAny = this.prisma as any;
     this.log.info('Syncing categories from CRM', { salon_id, categories });
@@ -231,7 +234,9 @@ export class CategoriesService {
       deleted = res.count ?? 0;
     }
 
-    return { upserted, deleted };
+    const final = await prismaAny.category.findMany({ where: { salonId: salon_id } });
+    const categoriesOut = final.map(toCategoryResponse);
+    return { upserted, deleted, categories: categoriesOut };
   }
 
   private async ensureNameUnique(salonId: string, name: string, excludeId?: string): Promise<void> {
@@ -273,11 +278,4 @@ export class CategoriesService {
     }
   }
 
-  private async enqueueSync(salonId: string, provider: CrmType): Promise<void> {
-    try {
-      await this.scheduler.scheduleSync({ salonId, provider });
-    } catch (err) {
-      this.log.warn('Failed to enqueue post-write sync', { salonId, provider, error: (err as Error)?.message });
-    }
-  }
 }

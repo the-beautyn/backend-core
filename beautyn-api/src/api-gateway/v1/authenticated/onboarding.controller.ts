@@ -148,4 +148,15 @@ export class OnboardingController {
     const { jobId } = await this.onboardingService.startInitialSync(userId);
     return { success: true, data: { jobId } } as any;
   }
+
+  @Post('crm/initial-pull-now')
+  @HttpCode(HttpStatus.OK)
+  @ApiTags('Onboarding / CRMs')
+  @ApiOperation({ summary: 'Run initial CRM pull synchronously for owner salon (no queue)' })
+  @ApiOkResponse(envelopeRef(Object))
+  async startInitialPullNow(@Req() req: Request & { user: { id: string } }) {
+    const userId = req.user.id as string;
+    const data = await this.onboardingService.startInitialPullNow(userId);
+    return { success: true, data };
+  }
 }

@@ -19,5 +19,4 @@ export class ServicesController {
   async list(@Query() query: ServicesListQuery) {
     return this.servicesService.list(query);
   }
-
 }

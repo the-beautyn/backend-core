@@ -13,7 +13,10 @@ describe('CategoriesController (e2e)', () => {
   let app: INestApplication;
   const service = {
     listPublic: jest.fn(),
-    listForOwner: jest.fn(),
+    pullFromDb: jest.fn(),
+    pullFromCrm: jest.fn(),
+    rebaseFromCrm: jest.fn(),
+    rebaseFromCrmAsync: jest.fn(),
     create: jest.fn(),
     update: jest.fn(),
     delete: jest.fn(),
@@ -95,7 +98,7 @@ describe('CategoriesController (e2e)', () => {
   });
 
   it('GET /api/v1/categories/my with owner token returns data', async () => {
-    service.listForOwner.mockResolvedValue({ items: [], page: 1, limit: 20, total: 0 });
+    service.pullFromDb.mockResolvedValue({ items: [], page: 1, limit: 20, total: 0 });
 
     const res = await request(app.getHttpServer())
       .get('/api/v1/categories/my')
@@ -103,14 +106,14 @@ describe('CategoriesController (e2e)', () => {
       .expect(200);
 
     expect(res.body).toEqual({ success: true, data: { items: [], page: 1, limit: 20, total: 0 } });
-    expect(service.listForOwner).toHaveBeenCalledWith('owner-1', expect.objectContaining({}));
+    expect(service.pullFromDb).toHaveBeenCalledWith('owner-1', expect.objectContaining({}));
   });
 
   it('POST /api/v1/categories rejects non-owner role', async () => {
     await request(app.getHttpServer())
       .post('/api/v1/categories')
       .set('Authorization', 'Bearer client-token')
-      .send({ name: 'VIP' })
+      .send({ title: 'VIP' })
       .expect(403);
     expect(service.create).not.toHaveBeenCalled();
   });
@@ -130,10 +133,10 @@ describe('CategoriesController (e2e)', () => {
     const res = await request(app.getHttpServer())
       .post('/api/v1/categories')
       .set('Authorization', 'Bearer owner-token')
-      .send({ name: 'VIP' })
+      .send({ title: 'VIP', weight: 1, staff: [1, 2] })
       .expect(201);
 
-    expect(service.create).toHaveBeenCalledWith('owner-1', { name: 'VIP' });
+    expect(service.create).toHaveBeenCalledWith('owner-1', { title: 'VIP', weight: 1, staff: [1, 2] });
     expect(res.body.success).toBe(true);
   });
 });

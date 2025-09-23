@@ -1,17 +1,9 @@
 import { CrmType } from '@crm/shared';
-import { CreateBookingInput, RescheduleBookingInput, CancelBookingInput, GetAvailabilityInput, CompleteBookingInput, SalonData, CategoryData, ServiceData, WorkerData, Page, BookingData } from '@crm/provider-core';
+import { CreateBookingInput, RescheduleBookingInput, CancelBookingInput, GetAvailabilityInput, CompleteBookingInput, SalonData, CategoryData, CategoryCreateInput, CategoryUpdateInput, ServiceData, WorkerData, Page, BookingData } from '@crm/provider-core';
 
-export interface CategoryCreatePayload {
-  name: string;
-  color?: string | null;
-  sortOrder?: number | null;
-}
+export type CategoryCreatePayload = CategoryCreateInput;
 
-export interface CategoryUpdatePayload {
-  name?: string;
-  color?: string | null;
-  sortOrder?: number | null;
-}
+export type CategoryUpdatePayload = CategoryUpdateInput;
 
 export interface ICrmAdapter {
   

@@ -4,6 +4,7 @@ import { PrismaService } from '../../src/shared/database/prisma.service';
 import { EasyWeekDiscoveryClient } from '../../src/onboarding/clients/easyweek-discovery.client';
 import { CrmIntegrationService } from '../../src/crm-integration/core/crm-integration.service';
 import { BadRequestException } from '@nestjs/common';
+import { SyncSchedulerService } from '@crm/sync-scheduler';
 
 describe('OnboardingService EasyWeek', () => {
   let service: OnboardingService;
@@ -18,6 +19,7 @@ describe('OnboardingService EasyWeek', () => {
         { provide: PrismaService, useValue: prisma },
         { provide: EasyWeekDiscoveryClient, useValue: discovery },
         { provide: CrmIntegrationService, useValue: crm },
+        { provide: SyncSchedulerService, useValue: {} },
       ],
     }).compile();
 

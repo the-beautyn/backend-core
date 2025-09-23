@@ -88,7 +88,15 @@ export class OnboardingService {
     if (!salon?.id || !salon?.provider) {
       throw new BadRequestException('Salon or provider not linked');
     }
-    const jobId = await this.scheduler.scheduleSync({ salonId: salon.id, provider: salon.provider as CrmType });
-    return { jobId };
+    return this.crmIntegration.enqueueInitialSync(salon.id, salon.provider as CrmType);
+  }
+
+  // New sync variant: run initial pull synchronously (no queue)
+  async startInitialPullNow(userId: string): Promise<{ categories: { upserted: number; deleted: number } }> {
+    if (!userId) throw new BadRequestException('user required');
+    const salon = await this.prisma.salon.findFirst({ where: { ownerUserId: userId } });
+    if (!salon?.id) throw new BadRequestException('Salon or provider not linked');
+    const result = await this.crmIntegration.runInitialPullNow(salon.id);
+    return result as any;
   }
 }

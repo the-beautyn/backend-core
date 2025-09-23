@@ -8,4 +8,3 @@ import { CategoriesInternalController } from './v1/internal/categories.internal.
 })
 export class InternalApiModule {}
 
-

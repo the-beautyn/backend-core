@@ -30,7 +30,7 @@ export class ServicesService {
     if (query.active !== undefined) where.isActive = query.active;
 
     const prismaAny = this.prisma as any;
-    const [items, total] = await this.prisma.$transaction([
+    const [items, total] = await prismaAny.$transaction([
       prismaAny.service.findMany({ where, skip, take: limit }),
       prismaAny.service.count({ where }),
     ]);

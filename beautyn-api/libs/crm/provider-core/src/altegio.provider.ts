@@ -271,17 +271,17 @@ export class AltegioProvider implements ICrmProvider {
 
   async createCategory(ctx: ProviderContext, data: CategoryCreateInput): Promise<CategoryData> {
     if (!this.externalSalonId) throw new CrmError('Provider not initialized (missing externalSalonId)', { kind: ErrorKind.INTERNAL, retryable: false });
-    const body: any = { title: data.name };
-    if (data.sortOrder !== undefined && data.sortOrder !== null) {
-      body.weight = data.sortOrder;
+    const body: any = { title: data.title };
+    if (data.weight !== undefined && data.weight !== null) {
+      body.weight = data.weight;
     }
-    const res = await this.http<any>('POST', `/api/v1/service_category/${this.externalSalonId}`, { body });
+    const res = await this.http<any>('POST', `/api/v1/service_categories/${this.externalSalonId}`, { body });
     const externalId = String(res?.id ?? res?.data?.id ?? res);
     return {
       externalId,
-      name: data.name,
-      sortOrder: data.sortOrder ?? null,
-      color: data.color ?? null,
+      name: data.title,
+      sortOrder: data.weight ?? null,
+      color: null,
       isActive: true,
     };
   }
@@ -289,14 +289,15 @@ export class AltegioProvider implements ICrmProvider {
   async updateCategory(ctx: ProviderContext, externalId: string, patch: CategoryUpdateInput): Promise<CategoryData> {
     if (!this.externalSalonId) throw new CrmError('Provider not initialized (missing externalSalonId)', { kind: ErrorKind.INTERNAL, retryable: false });
     const body: any = {};
-    if (patch.name !== undefined) body.title = patch.name;
-    if (patch.sortOrder !== undefined) body.weight = patch.sortOrder;
+    if (patch.title !== undefined) body.title = patch.title;
+    if (patch.weight !== undefined) body.weight = patch.weight;
+    if (patch.staff !== undefined) body.staff = patch.staff;
     await this.http('PUT', `/api/v1/service_category/${this.externalSalonId}/${externalId}`, { body });
     return {
       externalId: String(externalId),
-      name: patch.name ?? '',
-      sortOrder: patch.sortOrder ?? null,
-      color: patch.color ?? null,
+      name: patch.title ?? '',
+      sortOrder: patch.weight ?? null,
+      color: null,
       isActive: true,
     };
     }

@@ -61,15 +61,15 @@ export type AvailabilitySlot = {
 };
 
 export type CategoryCreateInput = {
-  name: string;
-  color?: string | null;
-  sortOrder?: number | null;
+  title: string;
+  weight?: number | null;
+  staff?: number[];
 };
 
 export type CategoryUpdateInput = {
-  name?: string;
-  color?: string | null;
-  sortOrder?: number | null;
+  title?: string;
+  weight?: number | null;
+  staff?: number[];
 };
 
 /** Standardized provider API surface */

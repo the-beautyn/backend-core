@@ -74,13 +74,13 @@ describe('CategoriesService', () => {
         updatedAt: new Date('2024-01-01T00:00:00Z'),
       } as any);
 
-      const result = await service.create('owner-1', { name: 'Hair', color: '#ffaa00', sortOrder: 10 });
+      const result = await service.create('owner-1', { title: 'Hair', weight: 10 });
 
       expect(repo.findByNameInsensitive).toHaveBeenCalledWith('salon-1', 'Hair', undefined);
       expect(crm.createCategory).toHaveBeenCalledWith('salon-1', 'ALTEGIO', {
-        name: 'Hair',
-        color: '#FFAA00',
-        sortOrder: 10,
+        title: 'Hair',
+        weight: 10,
+        staff: undefined,
       });
       expect(result).toMatchObject({
         id: 'cat-1',
@@ -88,18 +88,19 @@ describe('CategoriesService', () => {
         name: 'Hair',
         color: '#FFAA00',
       });
-      expect(scheduler.scheduleSync).toHaveBeenCalledWith({ salonId: 'salon-1', provider: 'ALTEGIO' });
+      // scheduling is internal to other flows now, do not assert
     });
 
-    it('throws 409 when capability is missing', () => {
+    it('creates even when category CRUD capability is absent', async () => {
       prisma.salon.findFirst.mockResolvedValue({ id: 'salon-1', provider: 'EASYWEEK' });
       repo.findByNameInsensitive.mockResolvedValue(null);
       caps.has.mockImplementation((_provider, key) => key !== 'supportsCategoryCrud');
+      crm.createCategory.mockResolvedValue({ externalId: '1', name: 'Hair' } as any);
+      repo.upsertFromCrm.mockResolvedValue({ id: 'x', salonId: 'salon-1', crmExternalId: '1', name: 'Hair' } as any);
 
-      return service
-        .create('owner-1', { name: 'Hair' })
-        .then(() => fail('Expected ConflictException'))
-        .catch((error) => expect(error).toBeInstanceOf(ConflictException));
+      const res = await service.create('owner-1', { title: 'Hair' });
+      expect(crm.createCategory).toHaveBeenCalled();
+      expect(res.name).toBe('Hair');
     });
 
     it('throws 409 on name conflict', async () => {
@@ -107,7 +108,7 @@ describe('CategoriesService', () => {
       repo.findByNameInsensitive.mockResolvedValue({ id: 'existing' } as any);
 
       await service
-        .create('owner-1', { name: 'Hair' })
+        .create('owner-1', { title: 'Hair' })
         .then(() => fail('Expected ConflictException'))
         .catch((error) => expect(error).toBeInstanceOf(ConflictException));
       expect(crm.createCategory).not.toHaveBeenCalled();
@@ -137,60 +138,25 @@ describe('CategoriesService', () => {
     });
   });
 
-  describe('pullFromCrm', () => {
-    it('upserts categories from CRM and removes stale ones', async () => {
-      prisma.salon.findFirst.mockResolvedValue({ id: 'salon-1', provider: 'ALTEGIO' });
-      caps.assert.mockImplementation(() => undefined);
-      prisma.category.findMany
-        .mockResolvedValueOnce([{ id: 'cat-old', crmExternalId: 'old-1' } as any])
+  describe('syncFromCrm', () => {
+    it('upserts categories from CRM payload and removes stale ones', async () => {
+      // existing in DB
+      (prisma.category.findMany as any) = jest.fn()
+        .mockResolvedValueOnce([{ id: 'cat-old', name: 'Old', crmExternalId: 'old-1' }])
         .mockResolvedValueOnce([
-          {
-            id: 'cat-new',
-            salonId: 'salon-1',
-            crmExternalId: '123',
-            name: 'Hair',
-            color: '#ABCDEF',
-            sortOrder: 5,
-            createdAt: new Date('2024-01-01T00:00:00Z'),
-            updatedAt: new Date('2024-01-02T00:00:00Z'),
-          },
-        ] as any);
+          { id: 'cat-new', salonId: 'salon-1', crmExternalId: '123', name: 'Hair', color: '#ABCDEF', sortOrder: 5 },
+        ]);
+      (prisma as any).category.update = jest.fn().mockImplementation(({ where, data }: any) => ({ id: where.id, ...data }));
+      (prisma as any).category.create = jest.fn().mockImplementation(({ data }: any) => ({ id: 'cat-new', ...data }));
+      (prisma as any).category.deleteMany = jest.fn().mockResolvedValue({ count: 1 });
 
-      crm.pullCategories.mockResolvedValue({
-        items: [
-          { externalId: '123', name: 'Hair', color: '#abcdef', sortOrder: 5 },
-        ],
-        fetched: 1,
-      });
-
-      repo.upsertFromCrm.mockResolvedValue({
-        id: 'cat-new',
-        salonId: 'salon-1',
-        crmExternalId: '123',
-        name: 'Hair',
-        color: '#ABCDEF',
-        sortOrder: 5,
-        createdAt: new Date('2024-01-01T00:00:00Z'),
-        updatedAt: new Date('2024-01-02T00:00:00Z'),
+      const result = await service.syncFromCrm({
+        salon_id: 'salon-1',
+        categories: [{ crm_external_id: '123', name: 'Hair', color: '#abcdef', sort_order: 5 }],
       } as any);
 
-      const result = await service.pullFromCrm('owner-1');
-
-      expect(caps.assert).toHaveBeenCalledWith('ALTEGIO', 'supportsCategoriesSync');
-      expect(crm.pullCategories).toHaveBeenCalledWith('salon-1', 'ALTEGIO');
-      expect(repo.upsertFromCrm).toHaveBeenCalledWith('salon-1', {
-        crmExternalId: '123',
-        name: 'Hair',
-        color: '#ABCDEF',
-        sortOrder: 5,
-      });
       expect(prisma.category.deleteMany).toHaveBeenCalledWith({ where: { id: { in: ['cat-old'] } } });
-      expect(result).toHaveLength(1);
-      expect(result[0]).toMatchObject({
-        crmExternalId: '123',
-        color: '#ABCDEF',
-        sortOrder: 5,
-      });
+      expect(result).toEqual({ upserted: 1, deleted: 1, categories: [expect.objectContaining({ name: 'Hair', color: '#ABCDEF', sortOrder: 5 })] });
     });
   });
 });
