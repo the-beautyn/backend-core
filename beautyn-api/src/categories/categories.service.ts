@@ -272,10 +272,4 @@ export class CategoriesService {
     };
   }
 
-  private ensureCrudSupported(provider: CrmType): void {
-    if (!this.caps.has(provider, 'supportsCategoryCrud')) {
-      throw new ConflictException({ message: 'Category CRUD not supported for provider', code: 'CATEGORY_CRUD_NOT_SUPPORTED' });
-    }
-  }
-
 }
