@@ -1,4 +1,5 @@
 import { Body, Controller, HttpCode, HttpStatus, Post, UseGuards } from '@nestjs/common';
+import { ApiExcludeEndpoint } from '@nestjs/swagger';
 import { CategoriesService } from '../../../categories/categories.service';
 import { InternalApiKeyGuard } from '../../../shared/guards/internal-api-key.guard';
 import { CategoriesSyncDto } from '../../../categories/dto/categories-sync.dto';
@@ -10,6 +11,7 @@ const log = createChildLogger('categories.internal');
 export class CategoriesInternalController {
   constructor(private readonly categoriesService: CategoriesService) {}
 
+  @ApiExcludeEndpoint()
   @Post('sync')
   @UseGuards(InternalApiKeyGuard)
   @HttpCode(HttpStatus.OK)
