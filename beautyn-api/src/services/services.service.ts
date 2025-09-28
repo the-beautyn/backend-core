@@ -3,8 +3,7 @@ import { PrismaService } from '../shared/database/prisma.service';
 import { ServicesListQuery } from './dto/services-list.query';
 import { ServicesSyncDto } from './dto/services-sync.dto';
 import { ServiceDto } from './dto/service.dto';
-import { CategoryDto } from './dto/category.dto';
-import { toServiceDto, toCategoryDto } from './mappers/service.mapper';
+import { toServiceDto } from './mappers/service.mapper';
 
 type CategoryRecord = { id: string; name: string; crmExternalId: string | null };
 type ServiceRecord = { id: string; name: string; crmExternalId: string | null };
@@ -31,7 +30,7 @@ export class ServicesService {
     if (query.active !== undefined) where.isActive = query.active;
 
     const prismaAny = this.prisma as any;
-    const [items, total] = await this.prisma.$transaction([
+    const [items, total] = await prismaAny.$transaction([
       prismaAny.service.findMany({ where, skip, take: limit }),
       prismaAny.service.count({ where }),
     ]);
@@ -42,14 +41,6 @@ export class ServicesService {
       limit,
       total,
     };
-  }
-
-  async listCategories(salonId: string): Promise<CategoryDto[]> {
-    const categories = await this.prisma.category.findMany({
-      where: { salonId },
-      orderBy: { sortOrder: 'asc' },
-    });
-    return categories.map(toCategoryDto);
   }
 
   async syncFromCrm(payload: ServicesSyncDto): Promise<{ upserted: number; deleted: number; categories_upserted: number }> {

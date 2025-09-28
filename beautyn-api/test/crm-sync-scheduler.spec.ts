@@ -1,22 +1,25 @@
-jest.mock('bullmq', () => {
-  class FakeQueue {
-    public jobs: any[] = [];
-    constructor() {}
-    async add(name: string, data: any, opts: any) {
-      const id = opts?.jobId ?? `${name}-${Math.random()}`;
-      this.jobs.push({ name, data, opts, id });
-      return { id } as any;
-    }
-  }
-  return { Queue: FakeQueue } as any;
-}, { virtual: true });
-
 import { SyncSchedulerService } from '@crm/sync-scheduler';
 import { JOB_SYNC } from '@crm/sync-scheduler';
 
 describe('SyncSchedulerService', () => {
+  let restore: jest.SpyInstance | undefined;
+
   beforeAll(() => {
     process.env.REDIS_URL = 'redis://localhost:6379';
+  });
+
+  beforeEach(() => {
+    const fakeQueue = {
+      add: jest.fn(async (name: string, _data: any, opts: any) => ({ id: opts?.jobId ?? name })),
+      getRepeatableJobs: jest.fn(async () => []),
+      removeRepeatableByKey: jest.fn(async () => true),
+      removeRepeatable: jest.fn(async () => true),
+    };
+    restore = jest.spyOn(SyncSchedulerService.prototype as any, 'getQueue').mockResolvedValue(fakeQueue as any);
+  });
+
+  afterEach(() => {
+    restore?.mockRestore();
   });
 
   it('enqueues initial sync with deterministic jobId', async () => {

@@ -1,6 +1,6 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { Injectable } from '@nestjs/common';
+import { Injectable, BadRequestException } from '@nestjs/common';
 import { Capability, CapabilityMap } from './types';
 import { CrmType } from '@crm/shared';
 
@@ -78,7 +78,7 @@ export class CapabilityRegistryService {
   get(provider: CrmType): Capability {
     const found = this.caps[provider];
     if (!found) {
-      throw new Error(`Unknown provider: ${provider}`);
+      throw new BadRequestException({ message: 'Unknown CRM provider', code: 'UNKNOWN_PROVIDER', provider });
     }
     return found;
   }
@@ -92,7 +92,12 @@ export class CapabilityRegistryService {
   assert<K extends keyof Capability>(provider: CrmType, key: K): void {
     const ok = this.has(provider, key);
     if (!ok) {
-      throw new Error(`Capability ${String(key)} is not supported by ${provider}`);
+      throw new BadRequestException({
+        message: 'Operation is not supported for this provider',
+        code: 'CAPABILITY_NOT_SUPPORTED',
+        provider,
+        capability: String(key),
+      });
     }
   }
 

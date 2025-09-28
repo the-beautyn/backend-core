@@ -10,6 +10,7 @@
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "NODE_ENV=${NODE_ENV:-production} dotenv -e .env.${NODE_ENV:-production} -- prisma generate --schema=./prisma/schema.prisma && npm run build && NODE_ENV=${NODE_ENV:-production} node dist/src/main.js",
     "start:dev": "NODE_ENV=dev dotenv -e .env.dev -- prisma generate --schema=./prisma/schema.prisma && NODE_ENV=dev dotenv -e .env.dev -- nest start --watch",
+    "start:dev:redis": "docker compose up -d redis && NODE_ENV=dev dotenv -e .env.dev -- prisma generate --schema=./prisma/schema.prisma && NODE_ENV=dev dotenv -e .env.dev -- nest start --watch",
     "start:local": "NODE_ENV=local dotenv -e .env.local -- prisma generate --schema=./prisma/schema.prisma && NODE_ENV=local dotenv -e .env.local -- nest start --watch",
     "start:local:redis": "docker compose up -d redis && NODE_ENV=local dotenv -e .env.local -- prisma generate --schema=./prisma/schema.prisma && NODE_ENV=local dotenv -e .env.local -- nest start --watch",
     "local:redis:down": "docker compose stop redis || true",
@@ -30,7 +31,13 @@
     "db:stage:migrate": "dotenv -e .env.stage -- npx prisma migrate dev",
     "db:stage:deploy": "dotenv -e .env.stage -- npx prisma migrate deploy",
     "db:prod:deploy": "dotenv -e .env.prod -- npx prisma migrate deploy",
-    "db:status:dev": "dotenv -e .env.dev -- npx prisma migrate status"
+    "db:status:dev": "dotenv -e .env.dev -- npx prisma migrate status",
+    "queue:local:inspect": "NODE_ENV=local dotenv -e .env.local -- ts-node -r tsconfig-paths/register src/scripts/queue-inspect.ts",
+    "queue:dev:inspect": "NODE_ENV=dev dotenv -e .env.dev -- ts-node -r tsconfig-paths/register src/scripts/queue-inspect.ts",
+    "queue:dev:failed:clear": "NODE_ENV=dev dotenv -e .env.dev -- ts-node -r tsconfig-paths/register src/scripts/queue-inspect.ts --clean-failed",
+    "queue:local:failed:clear": "NODE_ENV=local dotenv -e .env.local -- ts-node -r tsconfig-paths/register src/scripts/queue-inspect.ts --clean-failed",
+    "worker:local": "NODE_ENV=local dotenv -e .env.local -- ts-node -r tsconfig-paths/register src/workers/initial-sync.worker.ts",
+    "worker:dev": "NODE_ENV=dev dotenv -e .env.dev -- ts-node -r tsconfig-paths/register src/workers/initial-sync.worker.ts"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",

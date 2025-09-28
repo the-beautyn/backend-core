@@ -14,4 +14,3 @@ describe('Capability defaults include CRUD flags', () => {
     }
   });
 });
-

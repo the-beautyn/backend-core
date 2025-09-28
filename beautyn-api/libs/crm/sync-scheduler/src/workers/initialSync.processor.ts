@@ -24,11 +24,34 @@ export function startInitialSyncWorker(container: { providerFactory: ProviderFac
         const pf = container.providerFactory;
         const p = pf.make(provider);
         await p.init({ salonId, provider });
-        
-        await executeWithRetry(() => p.syncCategories({ salonId, provider }));
-        await executeWithRetry(() => p.syncServices({ salonId, provider }));
-        await executeWithRetry(() => p.syncWorkers({ salonId, provider }));
-        await executeWithRetry(() => p.syncBookings({ salonId, provider }, { clientExternalId: undefined, withDeleted: true, startDate: undefined, endDate: undefined }));
+
+        // Trigger internal categories sync for DB upsert
+        try {
+          const base = process.env.INTERNAL_API_BASE_URL;
+          const key = process.env.INTERNAL_API_KEY;
+          if (base && key) {
+            const page = await executeWithRetry(() => p.pullCategories({ salonId, provider }));
+            const items = (page?.items ?? []).map((c: any) => ({
+              crm_external_id: String(c.externalId),
+              name: String(c.name ?? ''),
+              color: c.color ?? undefined,
+              sort_order: typeof c.sortOrder === 'number' ? c.sortOrder : undefined,
+            }));
+            log.info('Pulled categories from CRM', { salonId, provider, jobId: job.id, categories: items });
+            await fetch(`${base}/api/v1/internal/categories/sync`, {
+              method: 'POST',
+              headers: { 'content-type': 'application/json', 'x-internal-key': key },
+              body: JSON.stringify({ salon_id: salonId, categories: items }),
+            });
+          } else {
+            log.warn('Skip internal categories sync: INTERNAL_API_BASE_URL or INTERNAL_API_KEY not set', { salonId, provider, jobId: job.id });
+          }
+        } catch (err) {
+          log.warn('Failed to call internal categories sync', { salonId, provider, jobId: job.id, error: (err as Error)?.message });
+        }
+        // await executeWithRetry(() => p.syncServices({ salonId, provider }));
+        // await executeWithRetry(() => p.syncWorkers({ salonId, provider }));
+        // await executeWithRetry(() => p.syncBookings({ salonId, provider }, { clientExternalId: undefined, withDeleted: true, startDate: undefined, endDate: undefined }));
 
         log.info('Initial sync completed', { salonId, provider, jobId: job.id });
       });

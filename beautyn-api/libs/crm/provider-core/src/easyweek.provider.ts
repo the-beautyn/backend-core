@@ -1,4 +1,4 @@
-import { ICrmProvider, ProviderContext, CreateBookingInput, RescheduleBookingInput, CancelBookingInput, CompleteBookingInput, GetAvailabilityInput, AvailabilitySlot } from './types';
+import { ICrmProvider, ProviderContext, CreateBookingInput, RescheduleBookingInput, CancelBookingInput, CompleteBookingInput, GetAvailabilityInput, AvailabilitySlot, CategoryCreateInput, CategoryUpdateInput } from './types';
 import { CategoryData, ServiceData, WorkerData, WorkerSchedule, SalonData, Page, WorkingDay, formatWorkingSchedule, BookingData } from './dtos';
 import { TokenStorageService } from '@crm/token-storage';
 import { AccountRegistryService } from '@crm/account-registry';
@@ -164,9 +164,36 @@ export class EasyWeekProvider implements ICrmProvider {
   // // CRUD stubs
   // async updateSalon(ctx: ProviderContext, patch: Partial<Omit<SalonData, 'externalId'>>): Promise<void> { this.notYet('updateSalon'); }
 
-  // async createCategory(ctx: ProviderContext, data: Omit<CategoryData, 'externalId' | 'updatedAtIso'> & { clientId?: string }): Promise<{ externalId: string }> { this.notYet('createCategory'); }
-  // async updateCategory(ctx: ProviderContext, externalId: string, patch: Partial<Omit<CategoryData, 'externalId'>>): Promise<void> { this.notYet('updateCategory'); }
-  // async deleteCategory(ctx: ProviderContext, externalId: string): Promise<void> { this.notYet('deleteCategory'); }
+
+  async pullCategories(ctx: ProviderContext, cursor?: string): Promise<Page<CategoryData>> {
+    const locationId = this.require(this.locationId, 'locationId');
+    const raw = await this.doFetch(`${this.base}/locations/${encodeURIComponent(locationId)}/service-categories`);
+    const data = Array.isArray(raw) ? raw : (Array.isArray(raw?.data) ? raw.data : []);
+    this.log.info('Pulled categories from EasyWeek', { count: Array.isArray(data) ? data.length : 0 });
+    const items: CategoryData[] = (data as any[])
+      .map((c: any) => {
+        const externalId = c?.uuid ?? c?.id;
+        if (!externalId) return null;
+        const order = c?.order ?? c?.sort_order ?? undefined;
+        return {
+          externalId: String(externalId),
+          name: String(c?.name ?? '').trim() || 'Category',
+          sortOrder: typeof order === 'number' ? Number(order) : null,
+          isActive: true
+        } as CategoryData;
+      })
+      .filter((item): item is CategoryData => !!item);
+    return { items, fetched: items.length };
+  }
+  async createCategory(ctx: ProviderContext, data: CategoryCreateInput): Promise<CategoryData> {
+    throw new CrmError('EasyWeek does not support category CRUD', { kind: ErrorKind.NOT_SUPPORTED, retryable: false });
+  }
+  async updateCategory(ctx: ProviderContext, externalId: string, patch: CategoryUpdateInput): Promise<CategoryData> {
+    throw new CrmError('EasyWeek does not support category CRUD', { kind: ErrorKind.NOT_SUPPORTED, retryable: false });
+  }
+  async deleteCategory(ctx: ProviderContext, externalId: string): Promise<void> {
+    throw new CrmError('EasyWeek does not support category CRUD', { kind: ErrorKind.NOT_SUPPORTED, retryable: false });
+  }
 
   // async createService(ctx: ProviderContext, data: Omit<ServiceData, 'externalId' | 'updatedAtIso'> & { clientId?: string }): Promise<{ externalId: string }> { this.notYet('createService'); }
   // async updateService(ctx: ProviderContext, externalId: string, patch: Partial<Omit<ServiceData, 'externalId'>>): Promise<void> { this.notYet('updateService'); }

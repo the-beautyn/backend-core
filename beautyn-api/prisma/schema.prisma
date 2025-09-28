@@ -147,12 +147,12 @@ model SalonImage {
 model Category {
   id            String   @id @default(uuid()) @db.Uuid
   salonId       String   @db.Uuid             @map("salon_id")
-  crmExternalId String?                        @map("crm_external_id")
-  name          String
+  crmExternalId String?  @db.VarChar(64)      @map("crm_external_id")
+  name          String   @db.VarChar(120)
   color         String?  @db.VarChar(7)
-  sortOrder     Int?                             @map("sort_order")
-  createdAt     DateTime @default(now())         @map("created_at")
-  updatedAt     DateTime @updatedAt              @map("updated_at")
+  sortOrder     Int?                          @map("sort_order")
+  createdAt     DateTime @default(now())      @map("created_at")
+  updatedAt     DateTime @updatedAt           @map("updated_at")
 
   services      Service[]
 

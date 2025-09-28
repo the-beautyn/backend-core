@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { CrmType, CrmError, ErrorKind } from '@crm/shared';
 import { CapabilityRegistryService } from '@crm/capability-registry';
 import { SyncSchedulerService } from '@crm/sync-scheduler';
-import { ProviderFactory, CreateBookingInput, RescheduleBookingInput, CancelBookingInput, CategoryData, ServiceData, WorkerData, WorkerSchedule, SalonData, GetAvailabilityInput, CompleteBookingInput, Page, BookingData } from '@crm/provider-core';
+import { ProviderFactory, CreateBookingInput, RescheduleBookingInput, CancelBookingInput, CategoryData, CategoryCreateInput, CategoryUpdateInput, ServiceData, WorkerData, WorkerSchedule, SalonData, GetAvailabilityInput, CompleteBookingInput, Page, BookingData } from '@crm/provider-core';
 import { executeWithRetry, CircuitBreaker } from '@crm/retry-handler';
 import { createChildLogger } from '@shared/logger';
 import { ICrmAdapter } from './types';
@@ -12,7 +12,7 @@ type Op = 'booking.create' | 'booking.reschedule' | 'booking.cancel' | 'booking.
   'category.create' | 'category.update' | 'category.delete' |
   'service.create' | 'service.update' | 'service.delete' |
   'worker.create' | 'worker.update' | 'worker.delete' | 'worker.updateSchedule' | 'booking.list' |
-  'pull.salon' | 'pull.categories' | 'pull.services' | 'pull.workers';
+  'pull.salon' | 'pull.categories' | 'pull.services' | 'pull.workers' | 'sync.categories';
 
 @Injectable()
 export class CrmAdapterService implements ICrmAdapter {
@@ -81,6 +81,16 @@ export class CrmAdapterService implements ICrmAdapter {
   //   });
   // }
 
+  // ---- Sync operations ----
+  async syncCategories(salonId: string, provider: CrmType): Promise<void> {
+    this.caps.assert(provider, 'supportsCategoriesSync');
+    await this.runOp('sync.categories', salonId, provider, async () => {
+      const p = this.providers.make(provider);
+      await p.init({ salonId, provider });
+      await p.syncCategories({ salonId, provider });
+    });
+  }
+
   // ---- Onboarding pulls ----
   async pullSalon(salonId: string, provider: CrmType): Promise<SalonData> {
     this.caps.assert(provider, 'supportsSalonSync');
@@ -141,30 +151,51 @@ export class CrmAdapterService implements ICrmAdapter {
   //   });
   // }
 
-  // async createCategory(salonId: string, provider: CrmType, data: Omit<CategoryData,'externalId'|'updatedAtIso'> & { clientId?: string }) {
-  //   this.caps.assert(provider, 'supportsCategoriesCreate');
-  //   return this.runOp('category.create', salonId, provider, async () => {
-  //     const p = this.providers.make(provider);
-  //     await p.init({ salonId, provider });
-  //     return p.createCategory({ salonId, provider }, data);
-  //   });
-  // }
-  // async updateCategory(salonId: string, provider: CrmType, externalId: string, patch: Partial<Omit<CategoryData,'externalId'>>) {
-  //   this.caps.assert(provider, 'supportsCategoriesUpdate');
-  //   return this.runOp('category.update', salonId, provider, async () => {
-  //     const p = this.providers.make(provider);
-  //     await p.init({ salonId, provider });
-  //     return p.updateCategory({ salonId, provider }, externalId, patch);
-  //   });
-  // }
-  // async deleteCategory(salonId: string, provider: CrmType, externalId: string) {
-  //   this.caps.assert(provider, 'supportsCategoriesDelete');
-  //   return this.runOp('category.delete', salonId, provider, async () => {
-  //     const p = this.providers.make(provider);
-  //     await p.init({ salonId, provider });
-  //     return p.deleteCategory({ salonId, provider }, externalId);
-  //   });
-  // }
+  // ---- Category operations ----
+  async pullCategories(salonId: string, provider: CrmType, cursor?: string): Promise<Page<CategoryData>> {
+    this.caps.assert(provider, 'supportsCategoriesSync');
+    return this.runOp('pull.categories', salonId, provider, async () => {
+      const p = this.providers.make(provider);
+      await p.init({ salonId, provider });
+      return p.pullCategories({ salonId, provider }, cursor);
+    });
+  }
+
+  async createCategory(
+    salonId: string,
+    provider: CrmType,
+    data: CategoryCreateInput,
+  ): Promise<CategoryData> {
+    this.caps.assert(provider, 'supportsCategoriesCreate');
+    return this.runOp('category.create', salonId, provider, async () => {
+      const p = this.providers.make(provider);
+      await p.init({ salonId, provider });
+      return p.createCategory({ salonId, provider }, data);
+    });
+  }
+
+  async updateCategory(
+    salonId: string,
+    provider: CrmType,
+    externalId: string,
+    patch: CategoryUpdateInput,
+  ): Promise<CategoryData> {
+    this.caps.assert(provider, 'supportsCategoriesUpdate');
+    return this.runOp('category.update', salonId, provider, async () => {
+      const p = this.providers.make(provider);
+      await p.init({ salonId, provider });
+      return p.updateCategory({ salonId, provider }, externalId, patch);
+    });
+  }
+
+  async deleteCategory(salonId: string, provider: CrmType, externalId: string): Promise<void> {
+    this.caps.assert(provider, 'supportsCategoriesDelete');
+    await this.runOp('category.delete', salonId, provider, async () => {
+      const p = this.providers.make(provider);
+      await p.init({ salonId, provider });
+      await p.deleteCategory({ salonId, provider }, externalId);
+    });
+  }
 
   // async createService(salonId: string, provider: CrmType, data: Omit<ServiceData,'externalId'|'updatedAtIso'> & { clientId?: string }) {
   //   this.caps.assert(provider, 'supportsServicesCreate');

@@ -137,4 +137,26 @@ export class OnboardingController {
     const data = await this.onboardingService.getCrmSalonPreviewForUser(userId);
     return { success: true, data };
   }
+
+  @Post('crm/initial-sync')
+  @HttpCode(HttpStatus.ACCEPTED)
+  @ApiTags('Onboarding / CRMs')
+  @ApiOperation({ summary: 'Schedule initial CRM sync for owner salon' })
+  @ApiAcceptedResponse(envelopeRef(Object))
+  async startInitialSync(@Req() req: Request & { user: { id: string } }) {
+    const userId = req.user.id as string;
+    const { jobId } = await this.onboardingService.startInitialSync(userId);
+    return { success: true, data: { jobId } } as any;
+  }
+
+  @Post('crm/initial-pull-now')
+  @HttpCode(HttpStatus.OK)
+  @ApiTags('Onboarding / CRMs')
+  @ApiOperation({ summary: 'Run initial CRM pull synchronously for owner salon (no queue)' })
+  @ApiOkResponse(envelopeRef(Object))
+  async startInitialPullNow(@Req() req: Request & { user: { id: string } }) {
+    const userId = req.user.id as string;
+    const data = await this.onboardingService.startInitialPullNow(userId);
+    return { success: true, data };
+  }
 }

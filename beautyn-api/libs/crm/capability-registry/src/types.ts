@@ -21,6 +21,7 @@ export interface Capability {
   supportsSalonUpdate: boolean;
 
   // Categories
+  supportsCategoryCrud: boolean;
   supportsCategoriesCreate: boolean;
   supportsCategoriesUpdate: boolean;
   supportsCategoriesDelete: boolean;

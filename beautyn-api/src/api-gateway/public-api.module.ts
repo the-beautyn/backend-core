@@ -6,6 +6,8 @@ import { SalonModule } from '../salon/salon.module';
 import { AuthPublicController } from './v1/public/auth.public.controller';
 import { HealthController } from './v1/public/health.controller';
 import { ServicesController } from './v1/public/services.controller';
+import { CategoriesModule } from '../categories/categories.module';
+import { CategoriesPublicController } from './v1/public/categories.controller';
 import { WorkersModule } from '../workers/workers.module';
 import { WorkersController } from './v1/public/workers.controller';
 import { SalonsController } from './v1/public/salons.controller';
@@ -16,8 +18,8 @@ import { OnboardingModule } from '../onboarding/onboarding.module';
 import { SyncTriggerService } from '../crm-integration/core/sync-trigger.service';
 
 @Module({
-  imports: [SharedModule, AuthModule, ServicesModule, WorkersModule, SalonModule, OnboardingModule],
-  controllers: [AuthPublicController, HealthController, ServicesController, WorkersController, SalonsController, AltegioWebhookController],
+  imports: [SharedModule, AuthModule, ServicesModule, WorkersModule, SalonModule, OnboardingModule, CategoriesModule],
+  controllers: [AuthPublicController, HealthController, ServicesController, WorkersController, SalonsController, AltegioWebhookController, CategoriesPublicController],
   providers: [AltegioWebhookService, SyncTriggerService, AltegioPartnerClient],
 })
 export class PublicApiModule {}

@@ -22,6 +22,8 @@ export type CategoryData = {
   externalId: string;
   name: string;
   parentExternalId?: string | null;
+  color?: string | null;
+  sortOrder?: number | null;
   isActive?: boolean;
   updatedAtIso?: string;
 };
@@ -114,4 +116,3 @@ export type BookingData = {
   serviceExternalIds?: string[];
   updatedAtIso?: string;
 };
-
