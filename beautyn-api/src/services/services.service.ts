@@ -118,13 +118,14 @@ export class ServicesService {
   }
 
   async update(ownerId: string, serviceId: string, dto: UpdateServiceDto): Promise<ServiceResponseDto> {
+    const { salonId, provider } = await this.requireOwnerSalon(ownerId);
+
     if (!dto || Object.keys(dto).length === 0) {
-      const fallback = await (this.prisma as any).service.findUnique({ where: { id: serviceId } });
+      const fallback = await this.servicesRepo.findByIdWithinSalon(serviceId, salonId);
       if (!fallback) throw new NotFoundException('Service not found');
       return this.toServiceResponse(fallback);
     }
 
-    const { salonId, provider } = await this.requireOwnerSalon(ownerId);
     const service = await this.servicesRepo.findByIdWithinSalon(serviceId, salonId);
     if (!service) {
       throw new NotFoundException('Service not found');
@@ -232,7 +233,7 @@ export class ServicesService {
     const keepServiceIds = new Set<string>();
     for (const svc of payload.services) {
       let existing: any;
-      if (svc.crm_service_id && servicesByCrm.has(svc.crm_service_id)) {
+      if (servicesByCrm.has(svc.crm_service_id)) {
         existing = servicesByCrm.get(svc.crm_service_id);
       }
 
@@ -242,7 +243,7 @@ export class ServicesService {
 
       const data = {
         salonId: salon_id,
-        crmServiceId: svc.crm_service_id ?? null,
+        crmServiceId: svc.crm_service_id,
         categoryId,
         name: svc.name,
         description: svc.description ?? null,

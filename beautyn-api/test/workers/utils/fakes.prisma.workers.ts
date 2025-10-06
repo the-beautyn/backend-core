@@ -162,16 +162,17 @@ export function createFakePrismaForWorkers(): FakePrismaWorkersApi {
         ),
     },
     service: {
-      findMany: async ({ where: { salonId, crm_service_id } }: { where: { salonId: string; crm_service_id?: { in?: string[] } } }): Promise<ServiceRecord[]> =>
-        services.filter(
-          (s) =>
-            s.salonId === salonId &&
-            (
-              Array.isArray(crm_service_id?.in)
-                ? crm_service_id.in.includes(s.crm_service_id)
-                : true
-            ),
-        ),
+      findMany: async ({ where: { salonId, crm_service_id } }: { where: { salonId: string; crm_service_id?: { in?: string[] } } }): Promise<ServiceRecord[]> => {
+        return services.filter((s) => {
+          if (s.salonId !== salonId) return false;
+          if (crm_service_id && 'in' in crm_service_id) {
+            const list = crm_service_id.in;
+            if (!Array.isArray(list)) return false;
+            return list.includes(s.crm_service_id);
+          }
+          return true;
+        });
+      },
     },
     $queryRaw: async (query: { values?: unknown[] }): Promise<Array<{ id: string }>> => {
       const values = (query.values || []) as string[];
