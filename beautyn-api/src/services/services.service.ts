@@ -240,19 +240,19 @@ export class ServicesService {
       const categoryId = svc.category_external_id
         ? categoriesByCrm.get(svc.category_external_id)?.id ?? null
         : null;
-
+        
       const data = {
         salonId: salon_id,
         crmServiceId: svc.crm_service_id,
         categoryId,
         name: svc.name,
         description: svc.description ?? null,
-        duration: svc.duration ?? (typeof svc.duration === 'number' ? svc.duration : 0),
-        price: svc.price ?? 0,
-        currency: svc.currency ?? 'UAH',
-        sortOrder: svc.sort_order ?? null,
-        workerIds: [],
-        isActive: svc.is_active ?? true,
+        duration: svc.duration ?? existing?.duration ?? undefined,
+        price: svc.price ?? existing?.price ?? undefined,
+        currency: (svc.currency ?? existing?.currency ?? 'UAH'),
+        sortOrder: (svc.sort_order ?? existing?.sortOrder ?? null),
+        workerIds: existing?.workerIds ?? [],
+        isActive: (svc.is_active ?? existing?.isActive ?? false),
       };
 
       let record;
