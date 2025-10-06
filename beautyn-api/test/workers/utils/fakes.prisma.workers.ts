@@ -166,7 +166,11 @@ export function createFakePrismaForWorkers(): FakePrismaWorkersApi {
         services.filter(
           (s) =>
             s.salonId === salonId &&
-            (crm_service_id?.in ? crm_service_id.in.includes(s.crm_service_id) : true),
+            (
+              Array.isArray(crm_service_id?.in)
+                ? crm_service_id.in.includes(s.crm_service_id)
+                : true
+            ),
         ),
     },
     $queryRaw: async (query: { values?: unknown[] }): Promise<Array<{ id: string }>> => {
