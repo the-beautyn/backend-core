@@ -479,7 +479,7 @@ export class ServicesService {
       id: record.id,
       salonId: record.salonId,
       categoryId: record.categoryId ?? null,
-      crmServiceId: record.crmServiceId ?? null,
+      crmServiceId: record.crmServiceId,
       title: record.name,
       description: record.description ?? null,
       duration: record.duration,

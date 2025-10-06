@@ -7,8 +7,8 @@ export class CategoryResponseDto {
   @ApiProperty({ format: 'uuid' })
   salonId!: string;
 
-  @ApiProperty({ required: false, nullable: true })
-  crmCategoryId!: string | null;
+  @ApiProperty({ required: true })
+  crmCategoryId!: string;
 
   @ApiProperty()
   name!: string;

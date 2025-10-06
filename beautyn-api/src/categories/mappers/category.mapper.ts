@@ -13,7 +13,7 @@ export function toCategoryResponse(entity: Category): CategoryResponseDto {
   return {
     id: entity.id,
     salonId: entity.salonId,
-    crmCategoryId: entity.crmCategoryId ?? null,
+    crmCategoryId: entity.crmCategoryId,
     name: entity.name,
     color: entity.color ?? null,
     sortOrder: entity.sortOrder ?? null,

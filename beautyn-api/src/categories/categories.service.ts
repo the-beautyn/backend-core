@@ -184,7 +184,7 @@ export class CategoriesService {
       const sortOrder = cat.sort_order ?? null;
 
       let existingRecord: { id: string; name: string } | undefined;
-      if (cat.crm_category_id && categoriesByCrm.has(cat.crm_category_id)) {
+      if (categoriesByCrm.has(cat.crm_category_id)) {
         existingRecord = categoriesByCrm.get(cat.crm_category_id);
       }
 

@@ -149,7 +149,7 @@ model SalonImage {
 model Category {
   id            String   @id @default(uuid()) @db.Uuid
   salonId       String   @map("salon_id") @db.Uuid
-  crmCategoryId String?  @map("crm_category_id") @db.VarChar(64)
+  crmCategoryId String   @map("crm_category_id") @db.VarChar(64)
   name          String   @db.VarChar(120)
   color         String?  @db.VarChar(7)
   sortOrder     Int?     @map("sort_order")
@@ -167,7 +167,7 @@ model Category {
 model Service {
   id           String   @id @default(uuid()) @db.Uuid
   salonId      String   @map("salon_id") @db.Uuid
-  crmServiceId String?  @map("crm_service_id")
+  crmServiceId String   @map("crm_service_id")
   categoryId   String?  @map("category_id") @db.Uuid
   name         String   @db.VarChar(160)
   description  String?

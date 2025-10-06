@@ -5,7 +5,7 @@ export function toServiceDto(service: Service): ServiceDto {
   return {
     id: service.id,
     salon_id: service.salonId,
-    crm_service_id: service.crmServiceId ?? null,
+    crm_service_id: service.crmServiceId,
     category_id: service.categoryId ?? null,
     name: service.name,
     description: service.description ?? null,

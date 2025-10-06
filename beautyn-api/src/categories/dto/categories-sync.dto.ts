@@ -3,10 +3,9 @@ import { IsOptional, IsString, IsUUID, IsInt, ValidateNested } from 'class-valid
 import { Type } from 'class-transformer';
 
 export class CategorySyncItemDto {
-  @ApiProperty({ required: false })
-  @IsOptional()
+  @ApiProperty({ required: true })
   @IsString()
-  crm_category_id?: string;
+  crm_category_id!: string;
 
   @ApiProperty()
   @IsString()

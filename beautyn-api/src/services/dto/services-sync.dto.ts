@@ -11,10 +11,9 @@ import {
 import { Type } from 'class-transformer';
 
 class ServicesSyncServiceDto {
-  @ApiProperty({ required: false })
-  @IsOptional()
+  @ApiProperty({ required: true })
   @IsString()
-  crm_service_id?: string;
+  crm_service_id!: string;
 
   @ApiProperty({ required: false })
   @IsOptional()

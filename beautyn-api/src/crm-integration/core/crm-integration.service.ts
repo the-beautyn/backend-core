@@ -218,9 +218,9 @@ export class CrmIntegrationService {
     return salon.provider as CrmType;
   }
 
-  private prepareCategoriesSyncPayload(categories: CategoryData[]): Array<{ crm_category_id?: string; name: string; color?: string | null; sort_order?: number | null }> {
+  private prepareCategoriesSyncPayload(categories: CategoryData[]): Array<{ crm_category_id: string; name: string; color?: string | null; sort_order?: number | null }> {
     return categories.map((category) => ({
-      crm_category_id: category.externalId ? String(category.externalId) : undefined,
+      crm_category_id: String(category.externalId),
       name: String(category.name ?? ''),
       color: category.color ?? undefined,
       sort_order: category.sortOrder ?? undefined,
@@ -229,7 +229,7 @@ export class CrmIntegrationService {
 
   private async pushCategoriesToInternal(
     salonId: string,
-    categories: Array<{ crm_category_id?: string; name: string; color?: string | null; sort_order?: number | null }>,
+    categories: Array<{ crm_category_id: string; name: string; color?: string | null; sort_order?: number | null }>,
   ): Promise<{ categories: any[]; upserted: number; deleted: number }> {
     const base = process.env.INTERNAL_API_BASE_URL?.trim();
     const key = process.env.INTERNAL_API_KEY?.trim();
@@ -260,7 +260,7 @@ export class CrmIntegrationService {
   private prepareServicesSyncPayload(
     services: ServiceData[],
   ): Array<{
-    crm_service_id?: string;
+    crm_service_id: string;
     category_external_id?: string | null;
     name: string;
     description?: string | null;
@@ -278,7 +278,7 @@ export class CrmIntegrationService {
       const currency = (svc?.currency ?? 'UAH').trim();
 
       return {
-        crm_service_id: svc?.externalId ? String(svc.externalId) : undefined,
+        crm_service_id: svc?.externalId,
         category_external_id: svc?.categoryExternalId ? String(svc.categoryExternalId) : undefined,
         name,
         description: svc?.description ?? undefined,
@@ -298,7 +298,7 @@ export class CrmIntegrationService {
   private async pushServicesToInternal(
     salonId: string,
     services: Array<{
-      crm_service_id?: string;
+      crm_service_id: string;
       category_external_id?: string | null;
       name: string;
       description?: string | null;
