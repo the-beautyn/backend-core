@@ -247,7 +247,7 @@ export class ServicesService {
         name: svc.name,
         description: svc.description ?? null,
         duration: svc.duration ?? (typeof svc.duration === 'number' ? svc.duration : 0),
-        price: svc.price ?? svc.price ?? 0,
+        price: svc.price ?? 0,
         currency: svc.currency ?? 'UAH',
         sortOrder: svc.sort_order ?? null,
         workerIds: [],
