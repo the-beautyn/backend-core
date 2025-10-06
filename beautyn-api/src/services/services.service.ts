@@ -240,7 +240,7 @@ export class ServicesService {
       const categoryId = svc.category_external_id
         ? categoriesByCrm.get(svc.category_external_id)?.id ?? null
         : null;
-        
+
       const data = {
         salonId: salon_id,
         crmServiceId: svc.crm_service_id,
@@ -252,7 +252,7 @@ export class ServicesService {
         currency: (svc.currency ?? existing?.currency ?? 'UAH'),
         sortOrder: (svc.sort_order ?? existing?.sortOrder ?? null),
         workerIds: existing?.workerIds ?? [],
-        isActive: (svc.is_active ?? existing?.isActive ?? false),
+        isActive: (svc.is_active ?? existing?.isActive ?? undefined),
       };
 
       let record;
