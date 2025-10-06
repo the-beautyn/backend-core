@@ -36,8 +36,16 @@
     "queue:dev:inspect": "NODE_ENV=dev dotenv -e .env.dev -- ts-node -r tsconfig-paths/register src/scripts/queue-inspect.ts",
     "queue:dev:failed:clear": "NODE_ENV=dev dotenv -e .env.dev -- ts-node -r tsconfig-paths/register src/scripts/queue-inspect.ts --clean-failed",
     "queue:local:failed:clear": "NODE_ENV=local dotenv -e .env.local -- ts-node -r tsconfig-paths/register src/scripts/queue-inspect.ts --clean-failed",
-    "worker:local": "NODE_ENV=local dotenv -e .env.local -- ts-node -r tsconfig-paths/register src/workers/initial-sync.worker.ts",
-    "worker:dev": "NODE_ENV=dev dotenv -e .env.dev -- ts-node -r tsconfig-paths/register src/workers/initial-sync.worker.ts"
+    "worker:initial:local": "NODE_ENV=local dotenv -e .env.local -- ts-node -r tsconfig-paths/register libs/crm/sync-scheduler/src/workers/initial-sync.worker.ts",
+    "worker:initial:dev": "NODE_ENV=dev dotenv -e .env.dev -- ts-node -r tsconfig-paths/register libs/crm/sync-scheduler/src/workers/initial-sync.worker.ts",
+    "worker:categories:local": "NODE_ENV=local dotenv -e .env.local -- ts-node -r tsconfig-paths/register libs/crm/sync-scheduler/src/workers/categories-sync.worker.ts",
+    "worker:categories:dev": "NODE_ENV=dev dotenv -e .env.dev -- ts-node -r tsconfig-paths/register libs/crm/sync-scheduler/src/workers/categories-sync.worker.ts",
+    "worker:services:local": "NODE_ENV=local dotenv -e .env.local -- ts-node -r tsconfig-paths/register libs/crm/sync-scheduler/src/workers/services-sync.worker.ts",
+    "worker:services:dev": "NODE_ENV=dev dotenv -e .env.dev -- ts-node -r tsconfig-paths/register libs/crm/sync-scheduler/src/workers/services-sync.worker.ts",
+    "worker:nightly:local": "NODE_ENV=local dotenv -e .env.local -- ts-node -r tsconfig-paths/register libs/crm/sync-scheduler/src/workers/cron-diff.worker.ts",
+    "worker:nightly:dev": "NODE_ENV=dev dotenv -e .env.dev -- ts-node -r tsconfig-paths/register libs/crm/sync-scheduler/src/workers/cron-diff.worker.ts",
+    "worker:local": "concurrently -n initial,categories,services,nightly -c green,magenta,cyan,yellow \"npm:worker:initial:local\" \"npm:worker:categories:local\" \"npm:worker:services:local\" \"npm:worker:nightly:local\"",
+    "worker:dev": "concurrently -n initial,categories,services,nightly -c green,magenta,cyan,yellow \"npm:worker:initial:dev\" \"npm:worker:categories:dev\" \"npm:worker:services:dev\" \"npm:worker:nightly:dev\""
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
@@ -86,7 +94,7 @@
     "jest": "^30.0.0",
     "jsonwebtoken": "^9.0.2",
     "prettier": "^3.4.2",
-    "prisma": "^6.14.0",
+    "prisma": "^6.16.3",
     "source-map-support": "^0.5.21",
     "supertest": "^7.0.0",
     "ts-jest": "^29.2.5",

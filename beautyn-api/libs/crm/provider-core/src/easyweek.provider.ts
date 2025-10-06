@@ -1,16 +1,19 @@
-import { ICrmProvider, ProviderContext, CreateBookingInput, RescheduleBookingInput, CancelBookingInput, CompleteBookingInput, GetAvailabilityInput, AvailabilitySlot, CategoryCreateInput, CategoryUpdateInput } from './types';
+import { ICrmProvider, ProviderContext, CreateBookingInput, RescheduleBookingInput, CancelBookingInput, CompleteBookingInput, GetAvailabilityInput, AvailabilitySlot, CategoryCreateInput, CategoryUpdateInput, ServiceCreateInput, ServiceUpdateInput } from './types';
 import { CategoryData, ServiceData, WorkerData, WorkerSchedule, SalonData, Page, WorkingDay, formatWorkingSchedule, BookingData } from './dtos';
+import * as EWSalon from './easyweek/salon';
+import * as EWCategories from './easyweek/categories';
+import * as EWServices from './easyweek/services';
 import { TokenStorageService } from '@crm/token-storage';
 import { AccountRegistryService } from '@crm/account-registry';
 import { createChildLogger } from '@shared/logger';
 import { CrmError, ErrorKind } from '@crm/shared';
 
 export class EasyWeekProvider implements ICrmProvider {
-  private log = createChildLogger('provider.easyweek');
-  private apiKey?: string;
-  private workspaceSlug?: string;
-  private locationId?: string;
-  private readonly base = 'https://my.easyweek.io/api/public/v2';
+  public log = createChildLogger('provider.easyweek');
+  public apiKey?: string;
+  public workspaceSlug?: string;
+  public locationId?: string;
+  public readonly base = process.env.EASYWEEK_API_BASE?.trim() || 'https://my.easyweek.io/api/public/v2';
 
   constructor(
     private tokens: TokenStorageService,
@@ -46,9 +49,7 @@ export class EasyWeekProvider implements ICrmProvider {
 
   // Normalized pull (stubs)
   async pullSalon(ctx: ProviderContext): Promise<SalonData> {
-    const loc = await this.findLocationById();
-    if (!loc) throw new CrmError('EasyWeek location not found', { kind: ErrorKind.VALIDATION, retryable: false });
-    return this.mapSalon(loc);
+    return EWSalon.pullSalon(this.ctx());
   }
 
   async pullBookings(ctx: ProviderContext, args?: { clientExternalId?: string; withDeleted?: boolean; startDate?: string; endDate?: string; }): Promise<BookingData[]> {
@@ -166,24 +167,9 @@ export class EasyWeekProvider implements ICrmProvider {
 
 
   async pullCategories(ctx: ProviderContext, cursor?: string): Promise<Page<CategoryData>> {
-    const locationId = this.require(this.locationId, 'locationId');
-    const raw = await this.doFetch(`${this.base}/locations/${encodeURIComponent(locationId)}/service-categories`);
-    const data = Array.isArray(raw) ? raw : (Array.isArray(raw?.data) ? raw.data : []);
-    this.log.info('Pulled categories from EasyWeek', { count: Array.isArray(data) ? data.length : 0 });
-    const items: CategoryData[] = (data as any[])
-      .map((c: any) => {
-        const externalId = c?.uuid ?? c?.id;
-        if (!externalId) return null;
-        const order = c?.order ?? c?.sort_order ?? undefined;
-        return {
-          externalId: String(externalId),
-          name: String(c?.name ?? '').trim() || 'Category',
-          sortOrder: typeof order === 'number' ? Number(order) : null,
-          isActive: true
-        } as CategoryData;
-      })
-      .filter((item): item is CategoryData => !!item);
-    return { items, fetched: items.length };
+    const page = await EWCategories.pullCategories(this.ctx());
+    this.log.info('Pulled categories from EasyWeek', { count: page.items.length });
+    return page;
   }
   async createCategory(ctx: ProviderContext, data: CategoryCreateInput): Promise<CategoryData> {
     throw new CrmError('EasyWeek does not support category CRUD', { kind: ErrorKind.NOT_SUPPORTED, retryable: false });
@@ -193,6 +179,24 @@ export class EasyWeekProvider implements ICrmProvider {
   }
   async deleteCategory(ctx: ProviderContext, externalId: string): Promise<void> {
     throw new CrmError('EasyWeek does not support category CRUD', { kind: ErrorKind.NOT_SUPPORTED, retryable: false });
+  }
+
+  async pullServices(ctx: ProviderContext, cursor?: string): Promise<Page<ServiceData>> {
+    const page = await EWServices.pullServices(this.ctx());
+    this.log.info('Pulled services from EasyWeek', { count: page.items.length });
+    return page;
+  }
+
+  async createService(ctx: ProviderContext, data: ServiceCreateInput): Promise<ServiceData> {
+    throw new CrmError('EasyWeek does not support service CRUD', { kind: ErrorKind.NOT_SUPPORTED, retryable: false });
+  }
+
+  async updateService(ctx: ProviderContext, externalId: string, patch: ServiceUpdateInput): Promise<ServiceData> {
+    throw new CrmError('EasyWeek does not support service CRUD', { kind: ErrorKind.NOT_SUPPORTED, retryable: false });
+  }
+
+  async deleteService(ctx: ProviderContext, externalId: string): Promise<void> {
+    throw new CrmError('EasyWeek does not support service CRUD', { kind: ErrorKind.NOT_SUPPORTED, retryable: false });
   }
 
   // async createService(ctx: ProviderContext, data: Omit<ServiceData, 'externalId' | 'updatedAtIso'> & { clientId?: string }): Promise<{ externalId: string }> { this.notYet('createService'); }
@@ -210,14 +214,14 @@ export class EasyWeekProvider implements ICrmProvider {
   }
 
   // ---- internals ----
-  private require<T>(v: T | undefined | null, name: string): T {
+  public require<T>(v: T | undefined | null, name: string): T {
     if (v == null || (typeof v === 'string' && v.length === 0)) {
       throw new CrmError(`Missing ${name}`, { kind: ErrorKind.INTERNAL, retryable: false });
     }
     return v as T;
   }
 
-  private headers(): Record<string, string> {
+  public headers(): Record<string, string> {
     const rawKey = this.require(this.apiKey, 'apiKey');
     const workspace = this.require(this.workspaceSlug, 'workspaceSlug');
     const auth = String(rawKey).startsWith('Bearer ')
@@ -226,7 +230,7 @@ export class EasyWeekProvider implements ICrmProvider {
     return { Authorization: auth, Workspace: workspace, 'Content-Type': 'application/json' };
   }
 
-  private async doFetch(url: string, opts: { method?: string; body?: any } = {}): Promise<any> {
+  public async doFetch(url: string, opts: { method?: string; body?: any } = {}): Promise<any> {
     const init: any = { method: opts.method ?? 'GET', headers: this.headers() };
     if (opts.body != null) init.body = JSON.stringify(opts.body);
     const startedAt = Date.now();
@@ -259,7 +263,7 @@ export class EasyWeekProvider implements ICrmProvider {
     try { return await res.json(); } catch { return undefined; }
   }
 
-  private async fetchAll(url: string): Promise<any[]> {
+  public async fetchAll(url: string): Promise<any[]> {
     const out: any[] = [];
     let next: string | null = url;
     while (next) {
@@ -271,13 +275,13 @@ export class EasyWeekProvider implements ICrmProvider {
     return out;
   }
 
-  private async findLocationById(): Promise<any | null> {
+  public async findLocationById(): Promise<any | null> {
     const locationId = this.require(this.locationId, 'locationId');
     const list = await this.fetchAll(`${this.base}/locations`);
     return list.find((x: any) => String(x?.uuid) === String(locationId)) ?? null;
   }
 
-  private mapSalon(loc: any): SalonData {
+  public mapSalon(loc: any): SalonData {
     const schedule: string | undefined = this.mapOpeningHours(loc?.opening_hours?.days);
     return {
       externalId: String(loc.uuid),
@@ -297,7 +301,7 @@ export class EasyWeekProvider implements ICrmProvider {
     };
   }
 
-  private mapOpeningHours(days: any): string | undefined {
+  public mapOpeningHours(days: any): string | undefined {
     if (!days || typeof days !== 'object') return undefined;
     const dayMap: Record<string, number> = { sun: 0, mon: 1, tue: 2, wed: 3, thu: 4, fri: 5, sat: 6 };
     const out: WorkingDay[] = [];
@@ -309,4 +313,18 @@ export class EasyWeekProvider implements ICrmProvider {
     }
     return out.length ? formatWorkingSchedule(out) : undefined;
   }
+  // Build a delegate context for the split EasyWeek modules
+  private ctx() {
+  return {
+    log: this.log,
+    base: this.base,
+    workspaceSlug: this.workspaceSlug,
+    locationId: this.locationId,
+    require: this.require.bind(this),
+    doFetch: this.doFetch.bind(this),
+    fetchAll: this.fetchAll.bind(this),
+    findLocationById: this.findLocationById.bind(this),
+    mapSalon: this.mapSalon.bind(this),
+  };
+}
 }

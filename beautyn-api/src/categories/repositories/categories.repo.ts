@@ -3,7 +3,7 @@ import { Category, Prisma } from '@prisma/client';
 import { PrismaService } from '../../shared/database/prisma.service';
 
 interface UpsertInput {
-  crmExternalId: string | null;
+  crmCategoryId: string | null;
   name: string;
   color: string | null;
   sortOrder: number | null;
@@ -47,9 +47,9 @@ export class CategoriesRepository {
 
   async upsertFromCrm(salonId: string, payload: UpsertInput): Promise<Category> {
     const prismaAny = this.prisma as any;
-    if (payload.crmExternalId) {
+    if (payload.crmCategoryId) {
       const existing = await prismaAny.category.findFirst({
-        where: { salonId, crmExternalId: payload.crmExternalId },
+        where: { salonId, crmCategoryId: payload.crmCategoryId },
       });
       if (existing) {
         return prismaAny.category.update({
@@ -66,7 +66,7 @@ export class CategoriesRepository {
     return prismaAny.category.create({
       data: {
         salonId,
-        crmExternalId: payload.crmExternalId,
+        crmCategoryId: payload.crmCategoryId,
         name: payload.name,
         color: payload.color,
         sortOrder: payload.sortOrder,
@@ -74,7 +74,7 @@ export class CategoriesRepository {
     });
   }
 
-  async update(categoryId: string, data: Partial<Omit<UpsertInput, 'crmExternalId'>>): Promise<Category> {
+  async update(categoryId: string, data: Partial<Omit<UpsertInput, 'crmCategoryId'>>): Promise<Category> {
     return (this.prisma as any).category.update({
       where: { id: categoryId },
       data,

@@ -25,7 +25,7 @@ describe('SyncSchedulerService', () => {
   it('enqueues initial sync with deterministic jobId', async () => {
     const svc = new SyncSchedulerService();
     const id = await svc.scheduleSync({ salonId: 's', provider: 'ALTEGIO' as any });
-    expect(id).toContain(`${JOB_SYNC}:ALTEGIO:s`);
+    expect(id).toContain(`${JOB_SYNC}:initial:ALTEGIO:s`);
   });
 
   it('schedules nightly diff with repeat options', async () => {

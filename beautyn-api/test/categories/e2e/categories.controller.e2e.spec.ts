@@ -1,12 +1,14 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { INestApplication, ForbiddenException, UnauthorizedException } from '@nestjs/common';
+import { INestApplication, ForbiddenException, UnauthorizedException, BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
 import request from 'supertest';
 import { CategoriesService } from '../../../src/categories/categories.service';
 import { CategoriesPublicController } from '../../../src/api-gateway/v1/public/categories.controller';
 import { CategoriesAuthenticatedController } from '../../../src/api-gateway/v1/authenticated/categories.controller';
+import { CategoriesInternalController } from '../../../src/api-gateway/v1/internal/categories.internal.controller';
 import { JwtAuthGuard } from '../../../src/shared/guards/jwt-auth.guard';
 import { OwnerRolesGuard } from '../../../src/shared/guards/roles.guard';
 import { CategoryOwnerGuard } from '../../../src/categories/guards/category-owner.guard';
+import { InternalApiKeyGuard } from '../../../src/shared/guards/internal-api-key.guard';
 import { TransformInterceptor } from '../../../src/shared/interceptors/transform.interceptor';
 
 describe('CategoriesController (e2e)', () => {
@@ -17,6 +19,7 @@ describe('CategoriesController (e2e)', () => {
     pullFromCrm: jest.fn(),
     rebaseFromCrm: jest.fn(),
     rebaseFromCrmAsync: jest.fn(),
+    syncFromCrm: jest.fn(),
     create: jest.fn(),
     update: jest.fn(),
     delete: jest.fn(),
@@ -56,9 +59,20 @@ describe('CategoriesController (e2e)', () => {
     canActivate: jest.fn().mockReturnValue(true),
   };
 
+  const mockInternalApiKeyGuard = {
+    canActivate: jest.fn().mockImplementation((context) => {
+      const req = context.switchToHttp().getRequest();
+      const key = req.headers['x-internal-key'];
+      if (key !== 'good-key') {
+        throw new UnauthorizedException();
+      }
+      return true;
+    }),
+  };
+
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
-      controllers: [CategoriesPublicController, CategoriesAuthenticatedController],
+      controllers: [CategoriesPublicController, CategoriesAuthenticatedController, CategoriesInternalController],
       providers: [{ provide: CategoriesService, useValue: service }],
     })
       .overrideGuard(JwtAuthGuard)
@@ -67,6 +81,8 @@ describe('CategoriesController (e2e)', () => {
       .useValue(mockOwnerRolesGuard)
       .overrideGuard(CategoryOwnerGuard)
       .useValue(mockCategoryOwnerGuard)
+      .overrideGuard(InternalApiKeyGuard)
+      .useValue(mockInternalApiKeyGuard)
       .compile();
 
     app = moduleFixture.createNestApplication();
@@ -109,6 +125,15 @@ describe('CategoriesController (e2e)', () => {
     expect(service.pullFromDb).toHaveBeenCalledWith('owner-1', expect.objectContaining({}));
   });
 
+  it('GET /api/v1/categories without salonId returns 400', async () => {
+    service.listPublic.mockRejectedValue(new BadRequestException('salonId is required'));
+
+    const res = await request(app.getHttpServer())
+      .get('/api/v1/categories')
+      .expect(400);
+    expect(res.body).toHaveProperty('message');
+  });
+
   it('POST /api/v1/categories rejects non-owner role', async () => {
     await request(app.getHttpServer())
       .post('/api/v1/categories')
@@ -122,10 +147,11 @@ describe('CategoriesController (e2e)', () => {
     service.create.mockResolvedValue({
       id: 'cat-1',
       salonId: 'salon-1',
-      crmExternalId: '123',
+      crmCategoryId: '123',
       name: 'VIP',
       color: null,
       sortOrder: null,
+      serviceIds: [],
       createdAt: '2024-01-01T00:00:00.000Z' as unknown as Date,
       updatedAt: '2024-01-01T00:00:00.000Z' as unknown as Date,
     });
@@ -137,6 +163,87 @@ describe('CategoriesController (e2e)', () => {
       .expect(201);
 
     expect(service.create).toHaveBeenCalledWith('owner-1', { title: 'VIP', weight: 1, staff: [1, 2] });
+    expect(res.body.success).toBe(true);
+  });
+
+  it('GET /api/v1/categories/crm returns CRM page for owner', async () => {
+    service.pullFromCrm.mockResolvedValue({ items: [], fetched: 0, total: 0, nextCursor: undefined });
+    const res = await request(app.getHttpServer())
+      .get('/api/v1/categories/crm')
+      .set('Authorization', 'Bearer owner-token')
+      .expect(200);
+    expect(res.body.success).toBe(true);
+    expect(service.pullFromCrm).toHaveBeenCalledWith('owner-1');
+  });
+
+  it('POST /api/v1/categories/crm/sync returns sync result', async () => {
+    service.rebaseFromCrm.mockResolvedValue({ categories: [], upserted: 0, deleted: 0 });
+    const res = await request(app.getHttpServer())
+      .post('/api/v1/categories/crm/sync')
+      .set('Authorization', 'Bearer owner-token')
+      .expect(201);
+    expect(res.body.success).toBe(true);
+    expect(service.rebaseFromCrm).toHaveBeenCalledWith('owner-1');
+  });
+
+  it('POST /api/v1/categories/crm/sync/async returns 202 and jobId', async () => {
+    service.rebaseFromCrmAsync.mockResolvedValue({ jobId: 'job-1' });
+    const res = await request(app.getHttpServer())
+      .post('/api/v1/categories/crm/sync/async')
+      .set('Authorization', 'Bearer owner-token')
+      .expect(202);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data.jobId).toBe('job-1');
+  });
+
+  it('PATCH /api/v1/categories/:id updates category', async () => {
+    service.update.mockResolvedValue({ id: 'cat-1', name: 'New', crmCategoryId: '123' } as any);
+    const res = await request(app.getHttpServer())
+      .patch('/api/v1/categories/cat-1')
+      .set('Authorization', 'Bearer owner-token')
+      .send({ title: 'New' })
+      .expect(200);
+    expect(res.body.success).toBe(true);
+    expect(service.update).toHaveBeenCalledWith('owner-1', 'cat-1', { title: 'New' });
+  });
+
+  it('PATCH /api/v1/categories/:id returns 409 on conflict', async () => {
+    service.update.mockRejectedValue(new ConflictException('Category has linked services'));
+    await request(app.getHttpServer())
+      .patch('/api/v1/categories/cat-1')
+      .set('Authorization', 'Bearer owner-token')
+      .send({ title: 'New' })
+      .expect(409);
+  });
+
+  it('DELETE /api/v1/categories/:id returns 204 on success', async () => {
+    service.delete.mockResolvedValue(undefined);
+    await request(app.getHttpServer())
+      .delete('/api/v1/categories/cat-1')
+      .set('Authorization', 'Bearer owner-token')
+      .expect(204);
+  });
+
+  it('DELETE /api/v1/categories/:id returns 404 when missing', async () => {
+    service.delete.mockRejectedValue(new NotFoundException());
+    await request(app.getHttpServer())
+      .delete('/api/v1/categories/cat-1')
+      .set('Authorization', 'Bearer owner-token')
+      .expect(404);
+  });
+
+  it('POST /api/v1/internal/categories/sync requires valid key', async () => {
+    await request(app.getHttpServer())
+      .post('/api/v1/internal/categories/sync')
+      .send({ salon_id: 's', categories: [] })
+      .expect(401);
+
+    service.syncFromCrm.mockResolvedValue({ upserted: 0, deleted: 0, categories: [] } as any);
+    const res = await request(app.getHttpServer())
+      .post('/api/v1/internal/categories/sync')
+      .set('x-internal-key', 'good-key')
+      .send({ salon_id: 's', categories: [] })
+      .expect(200);
     expect(res.body.success).toBe(true);
   });
 });

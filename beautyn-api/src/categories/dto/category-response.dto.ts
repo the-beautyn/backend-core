@@ -7,8 +7,8 @@ export class CategoryResponseDto {
   @ApiProperty({ format: 'uuid' })
   salonId!: string;
 
-  @ApiProperty({ required: false, nullable: true })
-  crmExternalId!: string | null;
+  @ApiProperty({ required: true })
+  crmCategoryId!: string;
 
   @ApiProperty()
   name!: string;
@@ -18,6 +18,9 @@ export class CategoryResponseDto {
 
   @ApiProperty({ required: false, nullable: true })
   sortOrder!: number | null;
+
+  @ApiProperty({ type: String, isArray: true })
+  serviceIds!: string[];
 
   @ApiProperty()
   createdAt!: Date;
@@ -39,4 +42,3 @@ export class CategoryListResponseDto {
   @ApiProperty()
   total!: number;
 }
-

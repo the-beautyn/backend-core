@@ -31,12 +31,14 @@ export type CategoryData = {
 export type ServiceData = {
   externalId: string;
   name: string;
-  durationMin: number;
-  priceMinor: number;
-  currency: string;
-  categoryExternalId: string;
+  duration?: number;
+  price?: number;
+  currency?: string;
+  categoryExternalId?: string;
   description?: string;
   isActive?: boolean;
+  sortOrder?: number | null;
+  workerExternalIds?: string[];
   updatedAtIso?: string;
 };
 

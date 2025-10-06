@@ -211,12 +211,13 @@ ALTER TABLE "public"."_prisma_migrations" OWNER TO "postgres";
 CREATE TABLE IF NOT EXISTS "public"."categories" (
     "id" "uuid" NOT NULL,
     "salon_id" "uuid" NOT NULL,
-    "crm_external_id" "text",
-    "name" "text" NOT NULL,
+    "name" character varying(120) NOT NULL,
     "color" character varying(7),
     "sort_order" integer,
     "created_at" timestamp(3) without time zone DEFAULT "now"() NOT NULL,
-    "updated_at" timestamp(3) without time zone NOT NULL
+    "updated_at" timestamp(3) without time zone NOT NULL,
+    "crm_category_id" character varying(64),
+    "service_ids" "uuid"[] DEFAULT '{}'::"uuid"[] NOT NULL
 );
 
 
@@ -319,7 +320,7 @@ CREATE TABLE IF NOT EXISTS "public"."salons" (
     "name" "text",
     "address_line" "text",
     "city" "text",
-    "country" character(2),
+    "country" character varying(64),
     "latitude" numeric(9,6),
     "longitude" numeric(9,6),
     "phone" "text",
@@ -347,16 +348,18 @@ ALTER TABLE "public"."salons" OWNER TO "postgres";
 CREATE TABLE IF NOT EXISTS "public"."services" (
     "id" "uuid" NOT NULL,
     "salon_id" "uuid" NOT NULL,
-    "crm_external_id" "text",
     "category_id" "uuid",
     "name" character varying(160) NOT NULL,
     "description" "text",
-    "duration_minutes" integer NOT NULL,
-    "price_cents" integer NOT NULL,
     "currency" character(3) NOT NULL,
     "is_active" boolean DEFAULT true NOT NULL,
     "created_at" timestamp(3) without time zone DEFAULT "now"() NOT NULL,
-    "updated_at" timestamp(3) without time zone NOT NULL
+    "updated_at" timestamp(3) without time zone NOT NULL,
+    "crm_service_id" "text",
+    "duration" integer NOT NULL,
+    "price" integer NOT NULL,
+    "sort_order" integer,
+    "worker_ids" "text"[]
 );
 
 
@@ -603,6 +606,10 @@ CREATE INDEX "crm_salon_snapshot_salon_fetched_idx" ON "public"."crm_salon_snaps
 
 
 
+CREATE UNIQUE INDEX "idx_category_salon_lower_name" ON "public"."categories" USING "btree" ("salon_id", "lower"(("name")::"text"));
+
+
+
 CREATE INDEX "idx_category_salon_sort" ON "public"."categories" USING "btree" ("salon_id", "sort_order");
 
 
@@ -647,6 +654,11 @@ CREATE INDEX "workers_salon_id_last_name_idx" ON "public"."workers" USING "btree
 
 
 
+ALTER TABLE ONLY "public"."categories"
+    ADD CONSTRAINT "categories_salon_id_fkey" FOREIGN KEY ("salon_id") REFERENCES "public"."salons"("id") ON UPDATE CASCADE ON DELETE CASCADE;
+
+
+
 ALTER TABLE ONLY "public"."crm_salon_change_proposal"
     ADD CONSTRAINT "crm_salon_change_proposal_salon_id_fkey" FOREIGN KEY ("salon_id") REFERENCES "public"."salons"("id") ON UPDATE CASCADE ON DELETE CASCADE;
 
@@ -679,6 +691,11 @@ ALTER TABLE ONLY "public"."salons"
 
 ALTER TABLE ONLY "public"."services"
     ADD CONSTRAINT "services_category_id_fkey" FOREIGN KEY ("category_id") REFERENCES "public"."categories"("id") ON UPDATE CASCADE ON DELETE SET NULL;
+
+
+
+ALTER TABLE ONLY "public"."services"
+    ADD CONSTRAINT "services_salon_id_fkey" FOREIGN KEY ("salon_id") REFERENCES "public"."salons"("id") ON UPDATE CASCADE ON DELETE CASCADE;
 
 
 

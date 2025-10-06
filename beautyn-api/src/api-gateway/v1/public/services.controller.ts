@@ -6,17 +6,17 @@ import { ServicesListResponseDto } from '../../../services/dto/services-list.res
 import { envelopeErrorSchema, envelopeRef } from '../../../shared/utils/swagger-envelope.util';
 
 @ApiTags('Services')
-@Controller('api/v1')
+@Controller('api/v1/services')
 export class ServicesController {
   constructor(private readonly servicesService: ServicesService) {}
 
-  @Get('services')
+  @Get()
   @ApiOperation({ summary: 'List services with filtering and pagination' })
   @ApiOkResponse(envelopeRef(ServicesListResponseDto))
   @ApiBadRequestResponse(
     envelopeErrorSchema({ statusCode: 400, message: 'Bad Request', error: 'Bad Request' }),
   )
   async list(@Query() query: ServicesListQuery) {
-    return this.servicesService.list(query);
+    return this.servicesService.listPublic(query);
   }
 }

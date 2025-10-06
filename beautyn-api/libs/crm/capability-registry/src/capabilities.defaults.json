@@ -19,9 +19,9 @@
     "supportsCategoriesUpdate": true,
     "supportsCategoriesDelete": true,
 
-    "supportsServicesCreate": false,
-    "supportsServicesUpdate": false,
-    "supportsServicesDelete": false,
+    "supportsServicesCreate": true,
+    "supportsServicesUpdate": true,
+    "supportsServicesDelete": true,
     "supportsBulkUpsertServices": false,
 
     "supportsWorkersCreate": false,

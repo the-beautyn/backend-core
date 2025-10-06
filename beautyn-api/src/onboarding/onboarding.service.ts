@@ -1,19 +1,22 @@
 import { BadRequestException, Injectable, Optional } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { randomInt, createHmac } from 'crypto';
 import { PrismaService } from '../shared/database/prisma.service';
 import { OnboardingProgressDto } from './dto/onboarding-progress.dto';
 import { OnboardingMapper } from './mappers/onboarding.mapper';
 import { EasyWeekDiscoveryClient } from './clients/easyweek-discovery.client';
 import { CrmIntegrationService } from '../crm-integration/core/crm-integration.service';
-import { SyncSchedulerService } from '@crm/sync-scheduler';
 import { CrmType } from '@crm/shared';
+import { createChildLogger } from '@shared/logger';
+import { SubmitSalonFromCrmDto } from './dto/submit-salon-from-crm.dto';
 
 @Injectable()
 export class OnboardingService {
+  private readonly log = createChildLogger('onboarding.service');
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly crmIntegration: CrmIntegrationService,
-    private readonly scheduler: SyncSchedulerService,
     @Optional() private readonly ew?: EasyWeekDiscoveryClient
   ) {}
 
@@ -98,5 +101,174 @@ export class OnboardingService {
     if (!salon?.id) throw new BadRequestException('Salon or provider not linked');
     const result = await this.crmIntegration.runInitialPullNow(salon.id);
     return result as any;
+  }
+
+  /**
+   * Applies the latest CRM salon preview to the local Salon record and advances onboarding.
+   */
+  async submitSalonFromCrm(userId: string, dto?: SubmitSalonFromCrmDto): Promise<{ salonId: string }> {
+    this.log.info('Submitting salon from CRM', { userId });
+    if (!userId) throw new BadRequestException('user required');
+    const salon = await this.prisma.salon.findFirst({ where: { ownerUserId: userId } });
+    if (!salon?.id || !salon?.provider) {
+      throw new BadRequestException('Salon or provider not linked');
+    }
+
+    // Resolve snapshot: prefer latest stored snapshot; if absent, pull live and detect changes
+    const latestSnapshot = await this.prisma.crmSalonSnapshot.findFirst({
+      where: { salonId: salon.id },
+      orderBy: { fetchedAt: 'desc' },
+      select: { payloadJson: true },
+    });
+
+    this.log.debug('Latest snapshot resolved', { hasSnapshot: Boolean(latestSnapshot) });
+
+    const remote = latestSnapshot?.payloadJson ?? (await this.crmIntegration.pullSalonAndDetectChanges(salon.id));
+
+    // Define allowed/known field paths
+    const allowedPaths = new Set<string>([
+      'name',
+      'description',
+      'mainImageUrl',
+      'imageUrls',
+      'location.country',
+      'location.city',
+      'location.addressLine',
+      'location.lat',
+      'location.lon',
+      'workingSchedule',
+      'timezone',
+    ]);
+
+    const toDecimal = (value: unknown): Prisma.Decimal | null => {
+      if (value === null || value === undefined) return null;
+      const num = typeof value === 'number' ? value : Number(value);
+      return Number.isFinite(num) ? new Prisma.Decimal(num) : null;
+    };
+
+    const normalizeCountry = (value: unknown): string | null => {
+      if (value == null) return null;
+      const s = String(value).trim();
+      return s.length ? s.slice(0, 64) : null;
+    };
+
+    const getByPath = (obj: any, path: string) => path.split('.').reduce((acc, key) => (acc == null ? acc : acc[key]), obj);
+
+    const shouldApply = (path: string): boolean => {
+      if (!dto || dto.accept_all) return true;
+      if (Array.isArray(dto.accepted_fields) && dto.accepted_fields.length) {
+        return dto.accepted_fields.includes(path);
+      }
+      return false;
+    };
+
+    // Apply snapshot (all or selected) and overrides in a single transaction
+    await this.prisma.$transaction(async (tx) => {
+      const baseUpdate: any = {};
+      // Apply from snapshot based on mode
+      for (const path of allowedPaths) {
+        this.log.info(`Applying path: ${path}`);
+        if (!shouldApply(path)) continue;
+        const value = getByPath(remote as any, path);
+        if (value === undefined) continue;
+
+        switch (path) {
+          case 'name':
+            baseUpdate.name = value ?? null;
+            break;
+          case 'description':
+            baseUpdate.description = value ?? null;
+            break;
+          case 'mainImageUrl':
+            baseUpdate.coverImageUrl = value ?? null;
+            break;
+          case 'workingSchedule':
+            baseUpdate.workingSchedule = value ?? null;
+            break;
+          case 'timezone':
+            baseUpdate.timezone = value ?? null;
+            break;
+          case 'location.country':
+            baseUpdate.country = normalizeCountry(value);
+            break;
+          case 'location.city':
+            baseUpdate.city = value ?? null;
+            break;
+          case 'location.addressLine':
+            baseUpdate.addressLine = value ?? null;
+            break;
+          case 'location.lat':
+            baseUpdate.latitude = toDecimal(value);
+            break;
+          case 'location.lon':
+            baseUpdate.longitude = toDecimal(value);
+            break;
+        }
+      }
+
+      if (Object.keys(baseUpdate).length) {
+        await tx.salon.update({ where: { id: salon.id }, data: baseUpdate });
+      }
+
+      // Images from snapshot
+      if (shouldApply('imageUrls')) {
+        const urls: string[] = Array.isArray((remote as any)?.imageUrls)
+          ? ((remote as any).imageUrls.filter((u: unknown): u is string => typeof u === 'string' && u.length > 0) as string[])
+          : [];
+        await tx.salonImage.deleteMany({ where: { salonId: salon.id } });
+        if (urls.length) {
+          await tx.salonImage.createMany({
+            data: urls.map((imageUrl, index) => ({ salonId: salon.id, imageUrl, sortOrder: index })),
+          });
+        }
+        await tx.salon.update({ where: { id: salon.id }, data: { imagesCount: urls.length } });
+      }
+
+      // Apply overrides last (if provided)
+      if (dto?.overrides) {
+        const o = dto.overrides as any;
+        const overrideUpdate: any = {};
+        if ('name' in o) overrideUpdate.name = o.name ?? null;
+        if ('description' in o) overrideUpdate.description = o.description ?? null;
+        if ('mainImageUrl' in o) overrideUpdate.coverImageUrl = o.mainImageUrl ?? null;
+        if ('workingSchedule' in o) overrideUpdate.workingSchedule = o.workingSchedule ?? null;
+        if ('timezone' in o) overrideUpdate.timezone = o.timezone ?? null;
+        if (o.location) {
+          if ('country' in o.location) overrideUpdate.country = o.location.country ?? null;
+          if ('city' in o.location) overrideUpdate.city = o.location.city ?? null;
+          if ('addressLine' in o.location) overrideUpdate.addressLine = o.location.addressLine ?? null;
+          if ('lat' in o.location) overrideUpdate.latitude = toDecimal(o.location.lat);
+          if ('lon' in o.location) overrideUpdate.longitude = toDecimal(o.location.lon);
+        }
+
+        if ('country' in overrideUpdate) {
+          overrideUpdate.country = normalizeCountry(overrideUpdate.country);
+        }
+
+        if (Object.keys(overrideUpdate).length) {
+          await tx.salon.update({ where: { id: salon.id }, data: overrideUpdate });
+        }
+
+        if (Array.isArray(o.imageUrls)) {
+          const urls: string[] = (o.imageUrls.filter((u: unknown): u is string => typeof u === 'string' && u.length > 0) as string[]);
+          await tx.salonImage.deleteMany({ where: { salonId: salon.id } });
+          if (urls.length) {
+            await tx.salonImage.createMany({
+              data: urls.map((imageUrl, index) => ({ salonId: salon.id, imageUrl, sortOrder: index })),
+            });
+          }
+          await tx.salon.update({ where: { id: salon.id }, data: { imagesCount: urls.length } });
+        }
+      }
+
+      // Advance onboarding progress
+      await tx.onboardingStep.upsert({
+        where: { userId },
+        create: { userId, crmConnected: true, salonCreated: true, currentStep: 'SUBSCRIPTION' },
+        update: { crmConnected: true, salonCreated: true, currentStep: 'SUBSCRIPTION' },
+      });
+    });
+
+    return { salonId: salon.id };
   }
 }

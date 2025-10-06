@@ -43,6 +43,46 @@ describe('Auth (e2e)', () => {
       }),
     };
 
+    // In-memory Prisma mock (users only) to avoid real DB
+    const memUsers: any[] = [];
+    const prismaMock: Partial<PrismaService> = {
+      users: {
+        create: jest.fn().mockImplementation(({ data }: any) => {
+          const row = {
+            role: 'client',
+            isProfileCreated: false,
+            ...data,
+          };
+          memUsers.push(row);
+          return row;
+        }),
+        findUnique: jest.fn().mockImplementation(({ where }: any) => {
+          if (where?.email) return memUsers.find((u) => u.email === where.email) || null;
+          if (where?.id) return memUsers.find((u) => u.id === where.id) || null;
+          return null;
+        }),
+        update: jest.fn().mockImplementation(({ where, data }: any) => {
+          const idx = memUsers.findIndex((u) => u.id === where.id || u.email === where.email);
+          if (idx < 0) throw new Error('User not found');
+          memUsers[idx] = { ...memUsers[idx], ...data };
+          return memUsers[idx];
+        }),
+        deleteMany: jest.fn().mockImplementation(({ where }: any = {}) => {
+          if (where?.email?.in && Array.isArray(where.email.in)) {
+            const set = new Set(where.email.in);
+            const before = memUsers.length;
+            for (let i = memUsers.length - 1; i >= 0; i--) {
+              if (set.has(memUsers[i].email)) memUsers.splice(i, 1);
+            }
+            return { count: before - memUsers.length };
+          }
+          const count = memUsers.length;
+          memUsers.length = 0;
+          return { count };
+        }),
+      } as any,
+    };
+
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     })
@@ -60,6 +100,8 @@ describe('Auth (e2e)', () => {
       })
       .overrideGuard(JwtAuthGuard)
       .useValue(mockJwtGuard)
+      .overrideProvider(PrismaService)
+      .useValue(prismaMock)
       .compile();
 
     app = moduleFixture.createNestApplication();
@@ -74,8 +116,17 @@ describe('Auth (e2e)', () => {
   });
 
   beforeEach(async () => {
-    // Clean up database before each test
-    await prisma.users.deleteMany();
+    // No-op: in-memory state persists only within process; each test should create unique data
+  });
+
+  afterEach(async () => {
+    // Targeted cleanup: remove only test-created users
+    const emails = ['newuser@example.com', 'confirm@example.com'];
+    try {
+      await prisma.users.deleteMany({ where: { email: { in: emails } } } as any);
+    } catch (_) {
+      // ignore if table not present or other transient issues in local setups
+    }
   });
 
   describe('/api/v1/auth/register (POST)', () => {

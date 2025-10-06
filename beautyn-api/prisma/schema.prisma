@@ -3,9 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider  = "postgresql"
   url       = env("DATABASE_URL") // pooled, transaction mode (6543) + ?pgbouncer=true
-  directUrl = env("DIRECT_URL")   // direct/session mode (5432) for migrations
+  directUrl = env("DIRECT_URL") // direct/session mode (5432) for migrations
 }
 
 model SubscriptionPlan {
@@ -73,156 +73,164 @@ enum CrmSalonChangeStatus {
 
 model OnboardingStep {
   id              String              @id @default(uuid()) @db.Uuid
-  userId          String              @map("user_id") @unique @db.Uuid
-  crmConnected    Boolean             @map("crm_connected") @default(false)
-  salonCreated    Boolean             @map("salon_created") @default(false)
-  subscriptionSet Boolean             @map("subscription_set") @default(false)
-  currentStep     OnboardingStepState @map("current_step") @default(CRM)
+  userId          String              @unique @map("user_id") @db.Uuid
+  crmConnected    Boolean             @default(false) @map("crm_connected")
+  salonCreated    Boolean             @default(false) @map("salon_created")
+  subscriptionSet Boolean             @default(false) @map("subscription_set")
+  currentStep     OnboardingStepState @default(CRM) @map("current_step")
   completed       Boolean             @default(false)
   createdAt       DateTime            @default(now()) @map("created_at")
   updatedAt       DateTime            @updatedAt @map("updated_at")
 
-  user            Users @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user Users @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("onboarding_step")
 }
 
 model Salon {
-  id             String   @id @default(uuid())   @db.Uuid
-  crmId          String?  @map("crm_id")
+  id              String    @id @default(uuid()) @db.Uuid
+  crmId           String?   @map("crm_id")
   // CRM link (draft onboarding support)
   // externalSalonId stores provider-specific external id (stringified)
-  externalSalonId String? @map("external_salon_id")
+  externalSalonId String?   @map("external_salon_id")
   // provider stores which CRM this salon is linked to (e.g., 'ALTEGIO' | 'EASYWEEK')
-  provider        String?  @map("provider")
+  provider        String?   @map("provider")
   // owner user link (used for onboarding flows)
-  ownerUserId     String?  @db.Uuid @map("owner_user_id")
-  owner           Users?   @relation("UserSalons", fields: [ownerUserId], references: [id], onDelete: SetNull)
+  ownerUserId     String?   @map("owner_user_id") @db.Uuid
+  owner           Users?    @relation("UserSalons", fields: [ownerUserId], references: [id], onDelete: SetNull)
   name            String?
-  description     String?  @map("description")
-  addressLine     String?  @map("address_line")
+  description     String?   @map("description")
+  addressLine     String?   @map("address_line")
   city            String?
-  country         String?  @db.Char(2)
-  latitude        Decimal? @db.Decimal(9, 6)
-  longitude       Decimal? @db.Decimal(9, 6)
-  timezone        String?  @map("timezone")
-  phone          String?
-  email          String?
-  ratingAvg      Decimal? @db.Decimal(2, 1)      @map("rating_avg")
-  ratingCount    Int?     @map("rating_count")
-  openHoursJson  Json?    @map("open_hours_json")
-  workingSchedule String?  @map("working_schedule")
-  imagesCount    Int?     @map("images_count")
-  coverImageUrl  String?  @map("cover_image_url")
-  createdAt      DateTime @default(now())        @map("created_at")
-  updatedAt      DateTime @updatedAt             @map("updated_at")
-  deletedAt      DateTime?                       @map("deleted_at")
+  country         String?   @db.VarChar(64)
+  latitude        Decimal?  @db.Decimal(9, 6)
+  longitude       Decimal?  @db.Decimal(9, 6)
+  timezone        String?   @map("timezone")
+  phone           String?
+  email           String?
+  ratingAvg       Decimal?  @map("rating_avg") @db.Decimal(2, 1)
+  ratingCount     Int?      @map("rating_count")
+  openHoursJson   Json?     @map("open_hours_json")
+  workingSchedule String?   @map("working_schedule")
+  imagesCount     Int?      @map("images_count")
+  coverImageUrl   String?   @map("cover_image_url")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+  deletedAt       DateTime? @map("deleted_at")
 
-  images         SalonImage[]
-  crmHashes      CrmSalonLastHash[]
+  images             SalonImage[]
+  categories         Category[]
+  services           Service[]
+  crmHashes          CrmSalonLastHash[]
   crmChangeProposals CrmSalonChangeProposal[]
-  crmSnapshots   CrmSalonSnapshot[]
+  crmSnapshots       CrmSalonSnapshot[]
 
-  @@map("salons")
+  @@unique([ownerUserId], map: "uniq_salon_owner")
   @@index([latitude, longitude])
   @@index([ownerUserId], map: "idx_salon_owner")
-  @@unique([ownerUserId], map: "uniq_salon_owner")
+  @@map("salons")
 }
 
 model SalonImage {
-  id         String   @id @default(uuid()) @db.Uuid
-  salonId    String   @db.Uuid            @map("salon_id")
-  imageUrl   String                          @map("image_url")
-  caption    String?
-  sortOrder  Int?                             @map("sort_order")
-  createdAt  DateTime @default(now())         @map("created_at")
-  updatedAt  DateTime @updatedAt              @map("updated_at")
+  id        String   @id @default(uuid()) @db.Uuid
+  salonId   String   @map("salon_id") @db.Uuid
+  imageUrl  String   @map("image_url")
+  caption   String?
+  sortOrder Int?     @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
-  salon      Salon    @relation(fields: [salonId], references: [id], onDelete: Cascade)
+  salon Salon @relation(fields: [salonId], references: [id], onDelete: Cascade)
 
-  @@map("salon_images")
   @@index([salonId, sortOrder])
+  @@map("salon_images")
 }
 
 model Category {
   id            String   @id @default(uuid()) @db.Uuid
-  salonId       String   @db.Uuid             @map("salon_id")
-  crmExternalId String?  @db.VarChar(64)      @map("crm_external_id")
+  salonId       String   @map("salon_id") @db.Uuid
+  crmCategoryId String   @map("crm_category_id") @db.VarChar(64)
   name          String   @db.VarChar(120)
   color         String?  @db.VarChar(7)
-  sortOrder     Int?                          @map("sort_order")
-  createdAt     DateTime @default(now())      @map("created_at")
-  updatedAt     DateTime @updatedAt           @map("updated_at")
+  sortOrder     Int?     @map("sort_order")
+  serviceIds    String[] @default([]) @map("service_ids") @db.Uuid
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
 
-  services      Service[]
+  salon    Salon     @relation(fields: [salonId], references: [id], onDelete: Cascade)
+  services Service[]
 
-  @@map("categories")
   @@index([salonId, sortOrder], map: "idx_category_salon_sort")
+  @@map("categories")
 }
 
 model Service {
-  id             String   @id @default(uuid()) @db.Uuid
-  salonId        String   @db.Uuid             @map("salon_id")
-  crmExternalId  String?                        @map("crm_external_id")
-  categoryId     String?  @db.Uuid             @map("category_id")
-  name           String    @db.VarChar(160)
-  description    String?
-  durationMinutes Int                              @map("duration_minutes")
-  priceCents     Int                               @map("price_cents")
-  currency       String    @db.Char(3)
-  isActive       Boolean   @default(true)          @map("is_active")
-  createdAt      DateTime  @default(now())         @map("created_at")
-  updatedAt      DateTime  @updatedAt              @map("updated_at")
+  id           String   @id @default(uuid()) @db.Uuid
+  salonId      String   @map("salon_id") @db.Uuid
+  crmServiceId String   @map("crm_service_id")
+  categoryId   String?  @map("category_id") @db.Uuid
+  name         String   @db.VarChar(160)
+  description  String?
+  duration     Int
+  price        Int
+  currency     String   @db.Char(3)
+  sortOrder    Int?     @map("sort_order")
+  workerIds    String[] @map("worker_ids")
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
 
-  category       Category? @relation(fields: [categoryId], references: [id])
+  salon    Salon     @relation(fields: [salonId], references: [id], onDelete: Cascade)
+  category Category? @relation(fields: [categoryId], references: [id])
 
-  @@map("services")
   @@index([salonId, isActive])
   @@index([categoryId, isActive])
+  @@map("services")
 }
 
 model Worker {
-  id          String   @id @default(uuid()) @db.Uuid
-  salonId     String   @db.Uuid            @map("salon_id")
-  firstName   String   @db.VarChar(100)    @map("first_name")
-  lastName    String   @db.VarChar(100)    @map("last_name")
-  role        String?  @db.VarChar(100)
-  email       String?  @unique             @db.VarChar(255)
-  phone       String?  @unique             @db.VarChar(30)
-  photoUrl    String?                       @map("photo_url")
-  workSchedule Json?                        @map("work_schedule")
-  isActive    Boolean  @default(true)       @map("is_active")
-  createdAt   DateTime @default(now())      @map("created_at")
-  updatedAt   DateTime @updatedAt           @map("updated_at")
+  id           String   @id @default(uuid()) @db.Uuid
+  salonId      String   @map("salon_id") @db.Uuid
+  firstName    String   @map("first_name") @db.VarChar(100)
+  lastName     String   @map("last_name") @db.VarChar(100)
+  role         String?  @db.VarChar(100)
+  email        String?  @unique @db.VarChar(255)
+  phone        String?  @unique @db.VarChar(30)
+  photoUrl     String?  @map("photo_url")
+  workSchedule Json?    @map("work_schedule")
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
 
-  services    WorkerService[]
+  services WorkerService[]
 
-  @@map("workers")
   @@index([salonId, firstName])
   @@index([salonId, lastName])
+  @@map("workers")
 }
 
 model WorkerService {
-  workerId  String @db.Uuid @map("worker_id")
-  serviceId String @db.Uuid @map("service_id")
+  workerId  String @map("worker_id") @db.Uuid
+  serviceId String @map("service_id") @db.Uuid
 
-  worker    Worker  @relation(fields: [workerId], references: [id], onDelete: Cascade)
+  worker Worker @relation(fields: [workerId], references: [id], onDelete: Cascade)
+
   // Service model exists in another branch; FK can be added later.
   @@id([workerId, serviceId])
   @@map("worker_services")
 }
 
 model CrmPairingCode {
-  id        String   @id @default(uuid()) @db.Uuid
+  id        String    @id @default(uuid()) @db.Uuid
   provider  String
-  userId    String   @db.Uuid @map("user_id")
-  salonId   String?  @db.Uuid @map("salon_id")
-  codeHash  String   @map("code_hash")
-  attempts  Int      @default(0)
-  expiresAt DateTime @map("expires_at")
-  usedAt    DateTime?@map("used_at")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  userId    String    @map("user_id") @db.Uuid
+  salonId   String?   @map("salon_id") @db.Uuid
+  codeHash  String    @map("code_hash")
+  attempts  Int       @default(0)
+  expiresAt DateTime  @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
 
   @@index([provider, expiresAt], map: "crm_pairing_codes_provider_exp_idx")
   @@map("crm_pairing_codes")
@@ -256,13 +264,13 @@ model CrmAccount {
 }
 
 model CrmSalonLastHash {
-  salonId     String   @db.Uuid        @map("salon_id")
-  provider    String                   @map("provider")
-  fieldPath   String                   @map("field_path")
-  lastCrmHash String                   @map("last_crm_hash")
+  salonId     String   @map("salon_id") @db.Uuid
+  provider    String   @map("provider")
+  fieldPath   String   @map("field_path")
+  lastCrmHash String   @map("last_crm_hash")
   updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  salon       Salon    @relation(fields: [salonId], references: [id], onDelete: Cascade)
+  salon Salon @relation(fields: [salonId], references: [id], onDelete: Cascade)
 
   @@id([salonId, provider, fieldPath])
   @@map("crm_salon_last_hash")
@@ -270,33 +278,33 @@ model CrmSalonLastHash {
 
 model CrmSalonChangeProposal {
   id         String               @id @default(uuid()) @db.Uuid
-  salonId    String               @db.Uuid             @map("salon_id")
+  salonId    String               @map("salon_id") @db.Uuid
   provider   String               @map("provider")
   fieldPath  String               @map("field_path")
   oldValue   Json?                @map("old_value")
   newValue   Json?                @map("new_value")
   newHash    String               @map("new_hash")
-  status     CrmSalonChangeStatus @default(pending)    @map("status")
+  status     CrmSalonChangeStatus @default(pending) @map("status")
   detectedAt DateTime             @map("detected_at") @db.Timestamptz(6)
-  decidedAt  DateTime?            @map("decided_at")  @db.Timestamptz(6)
-  decidedBy  String?              @map("decided_by")  @db.Uuid
+  decidedAt  DateTime?            @map("decided_at") @db.Timestamptz(6)
+  decidedBy  String?              @map("decided_by") @db.Uuid
 
-  salon      Salon                @relation(fields: [salonId], references: [id], onDelete: Cascade)
+  salon Salon @relation(fields: [salonId], references: [id], onDelete: Cascade)
 
-  @@index([salonId, status], map: "crm_salon_change_proposal_salon_status_idx")
   @@unique([salonId, fieldPath, newHash], map: "crm_salon_change_proposal_unique_hash")
+  @@index([salonId, status], map: "crm_salon_change_proposal_salon_status_idx")
   @@map("crm_salon_change_proposal")
 }
 
 model CrmSalonSnapshot {
   id          String   @id @default(uuid()) @db.Uuid
-  salonId     String   @db.Uuid             @map("salon_id")
-  provider    String                         @map("provider")
-  payloadJson Json                           @map("payload_json")
-  payloadHash String                         @map("payload_hash")
-  fetchedAt   DateTime                       @map("fetched_at") @db.Timestamptz(6)
+  salonId     String   @map("salon_id") @db.Uuid
+  provider    String   @map("provider")
+  payloadJson Json     @map("payload_json")
+  payloadHash String   @map("payload_hash")
+  fetchedAt   DateTime @map("fetched_at") @db.Timestamptz(6)
 
-  salon       Salon                          @relation(fields: [salonId], references: [id], onDelete: Cascade)
+  salon Salon @relation(fields: [salonId], references: [id], onDelete: Cascade)
 
   @@index([salonId, fetchedAt], map: "crm_salon_snapshot_salon_fetched_idx")
   @@map("crm_salon_snapshot")
@@ -319,46 +327,51 @@ model SyncShadow {
 }
 
 model SyncOutbox {
-  id             String   @id @default(cuid())
-  salonId        String   @db.Uuid
+  id             String    @id @default(cuid())
+  salonId        String    @db.Uuid
   entityType     String
-  entityId       String   @db.Uuid
+  entityId       String    @db.Uuid
   provider       String
   op             String
   payload        Json
   idempotencyKey String?
-  status         String   @default("pending")
-  attempts       Int      @default(0)
+  status         String    @default("pending")
+  attempts       Int       @default(0)
   nextRunAt      DateTime?
   lastError      String?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   @@index([status, nextRunAt])
 }
 
 // Simple mapping tables (composite unique)
 model CategoryMapping {
-  id         String   @id @default(cuid())
+  id         String @id @default(cuid())
   provider   String
   externalId String
-  categoryId String   @db.Uuid
+  categoryId String @db.Uuid
+
   @@unique([provider, externalId])
   @@index([categoryId])
 }
+
 model ServiceMapping {
-  id         String   @id @default(cuid())
+  id         String @id @default(cuid())
   provider   String
   externalId String
-  serviceId  String   @db.Uuid
+  serviceId  String @db.Uuid
+
   @@unique([provider, externalId])
   @@index([serviceId])
 }
+
 model WorkerMapping {
-  id         String   @id @default(cuid())
+  id         String @id @default(cuid())
   provider   String
   externalId String
-  workerId   String   @db.Uuid
+  workerId   String @db.Uuid
+
   @@unique([provider, externalId])
   @@index([workerId])
 }

@@ -13,12 +13,12 @@ export function toCategoryResponse(entity: Category): CategoryResponseDto {
   return {
     id: entity.id,
     salonId: entity.salonId,
-    crmExternalId: entity.crmExternalId ?? null,
+    crmCategoryId: entity.crmCategoryId,
     name: entity.name,
     color: entity.color ?? null,
     sortOrder: entity.sortOrder ?? null,
+    serviceIds: Array.isArray((entity as any).serviceIds) ? (entity as any).serviceIds : [],
     createdAt: entity.createdAt,
     updatedAt: entity.updatedAt,
   };
 }
-

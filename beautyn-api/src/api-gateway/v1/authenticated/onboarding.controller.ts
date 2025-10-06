@@ -33,6 +33,7 @@ import { CrmProviderListResponseDto } from '../../../onboarding/dto/crm-provider
 import { CrmProviderDto } from '../../../onboarding/dto/crm-provider.dto';
 import { CrmSalonPreviewDto } from '../../../onboarding/dto/crm-salon-preview.dto';
 import { AltegioPairCodeResponseDto } from '../../../onboarding/dto/altegio-pair-code.dto';
+import { SubmitSalonFromCrmDto } from '../../../onboarding/dto/submit-salon-from-crm.dto';
 
 @ApiTags('Onboarding')
 @ApiBearerAuth()
@@ -138,7 +139,7 @@ export class OnboardingController {
     return { success: true, data };
   }
 
-  @Post('crm/initial-sync')
+  @Post('crm/initial/sync/async')
   @HttpCode(HttpStatus.ACCEPTED)
   @ApiTags('Onboarding / CRMs')
   @ApiOperation({ summary: 'Schedule initial CRM sync for owner salon' })
@@ -149,7 +150,7 @@ export class OnboardingController {
     return { success: true, data: { jobId } } as any;
   }
 
-  @Post('crm/initial-pull-now')
+  @Post('crm/initial/sync')
   @HttpCode(HttpStatus.OK)
   @ApiTags('Onboarding / CRMs')
   @ApiOperation({ summary: 'Run initial CRM pull synchronously for owner salon (no queue)' })
@@ -158,5 +159,16 @@ export class OnboardingController {
     const userId = req.user.id as string;
     const data = await this.onboardingService.startInitialPullNow(userId);
     return { success: true, data };
+  }
+
+  @Post('submit-salon')
+  @HttpCode(HttpStatus.OK)
+  @ApiTags('Onboarding / CRMs')
+  @ApiOperation({ summary: 'Apply CRM salon preview to local record and advance onboarding' })
+  @ApiOkResponse(envelopeRef(Object))
+  async submitSalon(@Req() req: Request & { user: { id: string } }, @Body() dto: SubmitSalonFromCrmDto) {
+    const userId = req.user.id as string;
+    const result = await this.onboardingService.submitSalonFromCrm(userId, dto);
+    return { success: true, data: result } as any;
   }
 }

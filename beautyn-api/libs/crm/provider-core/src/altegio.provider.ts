@@ -1,5 +1,11 @@
-import { ICrmProvider, ProviderContext, CreateBookingInput, RescheduleBookingInput, CancelBookingInput, CompleteBookingInput, GetAvailabilityInput, CategoryCreateInput, CategoryUpdateInput } from './types';
+import { ICrmProvider, ProviderContext, CreateBookingInput, RescheduleBookingInput, CancelBookingInput, CompleteBookingInput, GetAvailabilityInput, CategoryCreateInput, CategoryUpdateInput, ServiceCreateInput, ServiceUpdateInput } from './types';
 import { CategoryData, ServiceData, WorkerData, WorkerSchedule, SalonData, Page, BookingData } from './dtos';
+import { AltegioContext } from './altegio/context';
+import * as SalonBlock from './altegio/salon';
+import * as CategoriesBlock from './altegio/categories';
+import * as ServicesBlock from './altegio/services';
+import * as WorkersBlock from './altegio/workers';
+import * as BookingsBlock from './altegio/bookings';
 import { AccountRegistryService } from '@crm/account-registry';
 import { TokenStorageService } from '@crm/token-storage';
 import { CrmType } from '@crm/shared';
@@ -119,99 +125,27 @@ export class AltegioProvider implements ICrmProvider {
 
   // Normalized pull
   async pullSalon(ctx: ProviderContext): Promise<SalonData> {
-    if (!this.externalSalonId) throw new CrmError('Provider not initialized (missing externalSalonId)', { kind: ErrorKind.INTERNAL, retryable: false });
-    const c = await this.http<any>('GET', `/api/v1/company/${this.externalSalonId}`);
-    const gallery: string[] = c?.company_photos || [];
-    const mainImage = c?.logo || gallery[0];
-    const out: SalonData = {
-      externalId: String(c.id),
-      name: c.public_title || c.title || 'Salon',
-      description: this.stripHtml(c.description),
-      mainImageUrl: mainImage,
-      imageUrls: gallery,
-      location: {
-        country: c.country ?? '',
-        city: c.city ?? '',
-        addressLine: c.address ?? '',
-        lat: c.coordinate_lat ?? undefined,
-        lon: c.coordinate_lon ?? undefined,
-      },
-      workingSchedule: c.schedule ?? undefined,
-      timezone: c.timezone_name ?? undefined,
-    };
-    return out;
+    return SalonBlock.pullSalon(this.ctx());
   }
 
   async pullBookings(
     ctx: ProviderContext,
     args?: { clientExternalId?: string; withDeleted?: boolean; startDate?: string; endDate?: string; page?: number; count?: number }
   ): Promise<BookingData[]> {
-    if (!this.externalSalonId) throw new CrmError('Provider not initialized (missing externalSalonId)', { kind: ErrorKind.INTERNAL, retryable: false });
-    const query: Record<string, any> = {};
-    if (args?.clientExternalId) query.client_id = args.clientExternalId;
-    if (args?.withDeleted !== undefined) query.with_deleted = args.withDeleted ? 1 : 0;
-    if (args?.startDate) query.start_date = args.startDate;
-    if (args?.endDate) query.end_date = args.endDate;
-    if (args?.page && args?.page > 0) query.page = args.page;
-    if (args?.count && args?.count > 0) query.count = args.count;
-    const items = await this.http<any[]>('GET', `/api/v1/records/${this.externalSalonId}`, { query });
-    const mapped: BookingData[] = (items || []).map((b: any) => ({
-      externalId: String(b.id),
-      startAtIso: b.datetime,
-      durationMin: b.seance_length ?? undefined,
-      note: b.comment ?? undefined,
-      isDeleted: !!b.is_deleted,
-      workerExternalId: b.staff?.id ? String(b.staff.id) : undefined,
-      serviceExternalIds: Array.isArray(b.services) ? b.services.map((s: any) => String(s?.id)).filter(Boolean) : undefined,
-    }));
-    return mapped;
+    return BookingsBlock.pullBookings(this.ctx(), args);
   }
 
   async pullCategories(ctx: ProviderContext, cursor?: string): Promise<Page<CategoryData>> {
-    if (!this.externalSalonId) throw new CrmError('Provider not initialized (missing externalSalonId)', { kind: ErrorKind.INTERNAL, retryable: false });
-    const items = await this.http<any[]>('GET', `/api/v1/company/${this.externalSalonId}/service_categories`);
-    const mapped: CategoryData[] = (items || []).map((x: any) => ({
-      externalId: String(x.id),
-      name: x.title,
-      sortOrder: typeof x.weight === 'number' ? Number(x.weight) : null,
-      isActive: true,
-    }));
-    return { items: mapped, fetched: mapped.length };
+    return CategoriesBlock.pullCategories(this.ctx());
   }
 
-  private async pullServices(ctx: ProviderContext, cursor?: string): Promise<Page<ServiceData>> {
-    if (!this.externalSalonId) throw new CrmError('Provider not initialized (missing externalSalonId)', { kind: ErrorKind.INTERNAL, retryable: false });
-    const items = await this.http<any[]>('GET', `/api/v1/company/${this.externalSalonId}/services`);
-    const mapped: ServiceData[] = (items || []).map((s: any) => ({
-      externalId: String(s.id),
-      name: s.title,
-      durationMin: s.seance_length ?? 0,
-      priceMinor: typeof s.price_min === 'number' ? s.price_min : 0,
-      currency: 'RUB',
-      categoryExternalId: String(s.category_id ?? ''),
-      description: s.description ? this.stripHtml(s.description) : undefined,
-      isActive: true,
-    }));
-    return { items: mapped, fetched: mapped.length };
+  async pullServices(ctx: ProviderContext, cursor?: string): Promise<Page<ServiceData>> {
+    return ServicesBlock.pullServices(this.ctx());
   }
 
   private async pullWorkers(ctx: ProviderContext, cursor?: string): Promise<Page<WorkerData>> {
-    if (!this.externalSalonId) throw new CrmError('Provider not initialized (missing externalSalonId)', { kind: ErrorKind.INTERNAL, retryable: false });
-    const items = await this.http<any[]>('GET', `/api/v1/company/${this.externalSalonId}/staff`);
-    const mapped: WorkerData[] = (items || []).map((w: any) => ({
-      externalId: String(w.id),
-      name: w.name,
-      position: w.specialization,
-      photoUrl: w.avatar_big || w.avatar || undefined,
-      email: w.email || undefined,
-      phone: w.phone || undefined,
-      isActive: w.is_bookable ?? true,
-    }));
-    return { items: mapped, fetched: mapped.length };
+    return WorkersBlock.pullWorkers(this.ctx());
   }
-
-  
-
 
   // async createBooking(ctx: ProviderContext, payload: CreateBookingInput): Promise<{ externalBookingId: string }> {
   //   if (!this.externalSalonId) throw new CrmError('Provider not initialized (missing externalSalonId)', { kind: ErrorKind.INTERNAL, retryable: false });
@@ -270,46 +204,28 @@ export class AltegioProvider implements ICrmProvider {
   // }
 
   async createCategory(ctx: ProviderContext, data: CategoryCreateInput): Promise<CategoryData> {
-    if (!this.externalSalonId) throw new CrmError('Provider not initialized (missing externalSalonId)', { kind: ErrorKind.INTERNAL, retryable: false });
-    const body: any = { title: data.title };
-    if (data.weight !== undefined && data.weight !== null) {
-      body.weight = data.weight;
-    }
-    const res = await this.http<any>('POST', `/api/v1/service_categories/${this.externalSalonId}`, { body });
-    const externalId = String(res?.id ?? res?.data?.id ?? res);
-    return {
-      externalId,
-      name: data.title,
-      sortOrder: data.weight ?? null,
-      color: null,
-      isActive: true,
-    };
+    return CategoriesBlock.createCategory(this.ctx(), data);
   }
 
   async updateCategory(ctx: ProviderContext, externalId: string, patch: CategoryUpdateInput): Promise<CategoryData> {
-    if (!this.externalSalonId) throw new CrmError('Provider not initialized (missing externalSalonId)', { kind: ErrorKind.INTERNAL, retryable: false });
-    const body: any = {};
-    if (patch.title !== undefined) body.title = patch.title;
-    if (patch.weight !== undefined) body.weight = patch.weight;
-    if (patch.staff !== undefined) body.staff = patch.staff;
-    await this.http('PUT', `/api/v1/service_category/${this.externalSalonId}/${externalId}`, { body });
-    return {
-      externalId: String(externalId),
-      name: patch.title ?? '',
-      sortOrder: patch.weight ?? null,
-      color: null,
-      isActive: true,
-    };
-    }
-
-  async deleteCategory(ctx: ProviderContext, externalId: string): Promise<void> {
-    if (!this.externalSalonId) throw new CrmError('Provider not initialized (missing externalSalonId)', { kind: ErrorKind.INTERNAL, retryable: false });
-    await this.http('DELETE', `/api/v1/service_category/${this.externalSalonId}/${externalId}`);
+    return CategoriesBlock.updateCategory(this.ctx(), externalId, patch);
   }
 
-  // async createService(ctx: ProviderContext, data: Omit<ServiceData, 'externalId' | 'updatedAtIso'> & { clientId?: string }): Promise<{ externalId: string }> { this.notYet('createService'); }
-  // async updateService(ctx: ProviderContext, externalId: string, patch: Partial<Omit<ServiceData, 'externalId'>>): Promise<void> { this.notYet('updateService'); }
-  // async deleteService(ctx: ProviderContext, externalId: string): Promise<void> { this.notYet('deleteService'); }
+  async deleteCategory(ctx: ProviderContext, externalId: string): Promise<void> {
+    return CategoriesBlock.deleteCategory(this.ctx(), externalId);
+  }
+
+  async createService(ctx: ProviderContext, data: ServiceCreateInput): Promise<ServiceData> {
+    return ServicesBlock.createService(this.ctx(), data);
+  }
+
+  async updateService(ctx: ProviderContext, externalId: string, patch: ServiceUpdateInput): Promise<ServiceData> {
+    return ServicesBlock.updateService(this.ctx(), externalId, patch);
+  }
+
+  async deleteService(ctx: ProviderContext, externalId: string): Promise<void> {
+    return ServicesBlock.deleteService(this.ctx(), externalId);
+  }
 
   // async createWorker(ctx: ProviderContext, data: Omit<WorkerData, 'externalId' | 'updatedAtIso'> & { clientId?: string }): Promise<{ externalId: string }> { this.notYet('createWorker'); }
   // async updateWorker(ctx: ProviderContext, externalId: string, patch: Partial<Omit<WorkerData, 'externalId'>>): Promise<void> { this.notYet('updateWorker'); }
@@ -319,5 +235,19 @@ export class AltegioProvider implements ICrmProvider {
   private notYet(method: string): never {
     this.log.warn('Stub method called', { method, externalSalonId: this.externalSalonId });
     throw new CrmError('Not implemented', { kind: ErrorKind.INTERNAL, retryable: false });
+  }
+
+  private ctx(): AltegioContext {
+    return {
+      log: this.log,
+      baseUrl: this.baseUrl,
+      externalSalonId: this.externalSalonId,
+      http: this.http.bind(this),
+      stripHtml: this.stripHtml.bind(this),
+      requireExternalSalonId: () => {
+        if (!this.externalSalonId) throw new CrmError('Provider not initialized (missing externalSalonId)', { kind: ErrorKind.INTERNAL, retryable: false });
+        return this.externalSalonId;
+      },
+    };
   }
 }

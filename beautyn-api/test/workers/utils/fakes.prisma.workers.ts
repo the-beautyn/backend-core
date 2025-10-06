@@ -20,7 +20,7 @@ export interface WorkerServiceLink {
 export interface ServiceRecord {
   id: string;
   salonId: string;
-  crm_external_id: string;
+  crm_service_id: string;
 }
 
 export interface TextContains {
@@ -55,7 +55,7 @@ export interface FakePrismaWorkersApi {
     findMany(args?: { where?: Partial<WorkerServiceLink> }): Promise<WorkerServiceLink[]>;
   };
   service: {
-    findMany(args: { where: { salonId: string; crm_external_id?: { in?: string[] } } }): Promise<ServiceRecord[]>;
+    findMany(args: { where: { salonId: string; crm_service_id?: { in?: string[] } } }): Promise<ServiceRecord[]>;
   };
   $queryRaw(query: { values?: unknown[] }): Promise<Array<{ id: string }>>;
   $transaction<T>(ops: Array<Promise<T>>): Promise<T[]>;
@@ -67,9 +67,9 @@ export function createFakePrismaForWorkers(): FakePrismaWorkersApi {
   const workers: WorkerEntity[] = [];
   const workerServices: WorkerServiceLink[] = [];
   const services: ServiceRecord[] = [
-    { id: 'svc1', salonId: 'salon1', crm_external_id: 'ext1' },
-    { id: 'svc2', salonId: 'salon1', crm_external_id: 'ext2' },
-    { id: 'svc3', salonId: 'salon1', crm_external_id: 'ext3' },
+    { id: 'svc1', salonId: 'salon1', crm_service_id: 'ext1' },
+    { id: 'svc2', salonId: 'salon1', crm_service_id: 'ext2' },
+    { id: 'svc3', salonId: 'salon1', crm_service_id: 'ext3' },
   ];
 
   const applyWorkerWhere = (where: WorkerWhere = {}): WorkerEntity[] => {
@@ -162,23 +162,27 @@ export function createFakePrismaForWorkers(): FakePrismaWorkersApi {
         ),
     },
     service: {
-      findMany: async ({ where: { salonId, crm_external_id } }: { where: { salonId: string; crm_external_id?: { in?: string[] } } }): Promise<ServiceRecord[]> =>
-        services.filter(
-          (s) =>
-            s.salonId === salonId &&
-            crm_external_id?.in?.includes(s.crm_external_id),
-        ),
+      findMany: async ({ where: { salonId, crm_service_id } }: { where: { salonId: string; crm_service_id?: { in?: string[] } } }): Promise<ServiceRecord[]> => {
+        return services.filter((s) => {
+          if (s.salonId !== salonId) return false;
+          if (crm_service_id && 'in' in crm_service_id) {
+            const list = crm_service_id.in;
+            if (!Array.isArray(list)) return false;
+            return list.includes(s.crm_service_id);
+          }
+          return true;
+        });
+      },
     },
     $queryRaw: async (query: { values?: unknown[] }): Promise<Array<{ id: string }>> => {
       const values = (query.values || []) as string[];
       const salonId = values[0];
       const ids = values.slice(1);
       return services
-        .filter((s) => s.salonId === salonId && ids.includes(s.crm_external_id))
+        .filter((s) => s.salonId === salonId && ids.includes(s.crm_service_id))
         .map((s) => ({ id: s.id }));
     },
     $transaction: async <T>(ops: Array<Promise<T>>): Promise<T[]> => Promise.all(ops),
     data: { workers, workerServices, services },
   };
 }
-
