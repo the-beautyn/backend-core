@@ -65,8 +65,7 @@ describe('Onboarding (e2e)', () => {
   });
 
   beforeEach(async () => {
-    await prisma.onboardingStep.deleteMany();
-    await prisma.users.deleteMany();
+    // In-memory mock already isolates state; no real DB cleanup
   });
 
   afterAll(async () => {

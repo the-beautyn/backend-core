@@ -6,7 +6,7 @@ export class CategorySyncItemDto {
   @ApiProperty({ required: false })
   @IsOptional()
   @IsString()
-  crm_external_id?: string;
+  crm_category_id?: string;
 
   @ApiProperty()
   @IsString()

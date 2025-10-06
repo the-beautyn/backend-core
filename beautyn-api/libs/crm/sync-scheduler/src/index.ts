@@ -1,6 +1,7 @@
 export * from './types';
 export * from './sync-scheduler.module';
 export * from './sync-scheduler.service';
-export * from './workers/initialSync.processor';
-export * from './workers/nightlyDiff.processor';
-
+export * from './workers/processors/initialSync.processor';
+export * from './workers/processors/cronDiff.processor';
+export * from './workers/processors/categoriesSync.processor';
+export * from './workers/processors/servicesSync.processor';

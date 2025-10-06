@@ -5,6 +5,8 @@ export type CronDiffJob = { salonId: string; provider: CrmType; requestId?: stri
 export interface CronDiffJobWithSchedule extends CronDiffJob { cron?: string; tz?: string }
 
 export const SYNC_QUEUE = 'crm-sync';
+export const CATEGORIES_QUEUE = 'crm-categories';
+export const SERVICES_QUEUE = 'crm-services';
+export const CRON_DIFF_QUEUE = 'crm-cron-diff';
 export const JOB_SYNC = 'sync';
 export const JOB_CRON_DIFF = 'cron-diff';
-

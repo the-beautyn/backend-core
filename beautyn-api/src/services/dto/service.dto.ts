@@ -12,7 +12,7 @@ export class ServiceDto {
 
   @ApiProperty({ required: false, nullable: true })
   @Expose()
-  crm_external_id!: string | null;
+  crm_service_id!: string | null;
 
   @ApiProperty({ required: false, nullable: true })
   @Expose()
@@ -28,11 +28,11 @@ export class ServiceDto {
 
   @ApiProperty()
   @Expose()
-  duration_minutes!: number;
+  duration!: number;
 
   @ApiProperty()
   @Expose()
-  price_cents!: number;
+  price!: number;
 
   @ApiProperty()
   @Expose()
@@ -41,4 +41,12 @@ export class ServiceDto {
   @ApiProperty()
   @Expose()
   is_active!: boolean;
+
+  @ApiProperty({ required: false, nullable: true })
+  @Expose()
+  sort_order!: number | null;
+
+  @ApiProperty({ type: [String], required: false })
+  @Expose()
+  worker_ids!: string[];
 }

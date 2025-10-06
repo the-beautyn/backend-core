@@ -5,12 +5,7 @@ import { Type } from 'class-transformer';
 export class ServicesListQuery {
   @ApiProperty()
   @IsUUID()
-  salon_id!: string;
-
-  @ApiProperty({ required: false })
-  @IsOptional()
-  @IsUUID()
-  category_id?: string;
+  salonId!: string;
 
   @ApiProperty({ required: false })
   @IsOptional()

@@ -1,9 +1,13 @@
 import { CrmType } from '@crm/shared';
-import { CreateBookingInput, RescheduleBookingInput, CancelBookingInput, GetAvailabilityInput, CompleteBookingInput, SalonData, CategoryData, CategoryCreateInput, CategoryUpdateInput, ServiceData, WorkerData, Page, BookingData } from '@crm/provider-core';
+import { CreateBookingInput, RescheduleBookingInput, CancelBookingInput, GetAvailabilityInput, CompleteBookingInput, SalonData, CategoryData, CategoryCreateInput, CategoryUpdateInput, ServiceData, ServiceCreateInput, ServiceUpdateInput, WorkerData, Page, BookingData } from '@crm/provider-core';
 
 export type CategoryCreatePayload = CategoryCreateInput;
 
 export type CategoryUpdatePayload = CategoryUpdateInput;
+
+export type ServiceCreatePayload = ServiceCreateInput;
+
+export type ServiceUpdatePayload = ServiceUpdateInput;
 
 export interface ICrmAdapter {
   
@@ -28,7 +32,7 @@ export interface ICrmAdapter {
   // Onboarding pulls
   /** Stage 1: Pull normalized salon profile for initial configuration. */
   pullSalon(salonId: string, provider: CrmType): Promise<SalonData>;
-  // pullServices(salonId: string, provider: CrmType, cursor?: string): Promise<Page<ServiceData>>;
+  pullServices(salonId: string, provider: CrmType, cursor?: string): Promise<Page<ServiceData>>;
   // pullWorkers(salonId: string, provider: CrmType, cursor?: string): Promise<Page<WorkerData>>;
 
   // Bookings pull
@@ -42,4 +46,7 @@ export interface ICrmAdapter {
   createCategory(salonId: string, provider: CrmType, payload: CategoryCreatePayload): Promise<CategoryData>;
   updateCategory(salonId: string, provider: CrmType, externalId: string, payload: CategoryUpdatePayload): Promise<CategoryData>;
   deleteCategory(salonId: string, provider: CrmType, externalId: string): Promise<void>;
+  createService(salonId: string, provider: CrmType, payload: ServiceCreatePayload): Promise<ServiceData>;
+  updateService(salonId: string, provider: CrmType, externalId: string, payload: ServiceUpdatePayload): Promise<ServiceData>;
+  deleteService(salonId: string, provider: CrmType, externalId: string): Promise<void>;
 }

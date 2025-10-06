@@ -5,36 +5,16 @@ import {
   IsString,
   IsInt,
   IsBoolean,
+  IsArray,
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-
-class ServicesSyncCategoryDto {
-  @ApiProperty({ required: false })
-  @IsOptional()
-  @IsString()
-  crm_external_id?: string;
-
-  @ApiProperty()
-  @IsString()
-  name!: string;
-
-  @ApiProperty({ required: false })
-  @IsOptional()
-  @IsString()
-  color?: string;
-
-  @ApiProperty({ required: false })
-  @IsOptional()
-  @IsInt()
-  sort_order?: number;
-}
 
 class ServicesSyncServiceDto {
   @ApiProperty({ required: false })
   @IsOptional()
   @IsString()
-  crm_external_id?: string;
+  crm_service_id?: string;
 
   @ApiProperty({ required: false })
   @IsOptional()
@@ -50,22 +30,36 @@ class ServicesSyncServiceDto {
   @IsString()
   description?: string;
 
-  @ApiProperty()
+  @ApiProperty({ required: false })
+  @IsOptional()
   @IsInt()
-  duration_minutes!: number;
+  duration?: number;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsInt()
+  price?: number;
 
   @ApiProperty()
-  @IsInt()
-  price_cents!: number;
-
-  @ApiProperty()
+  @IsOptional()
   @IsString()
-  currency!: string;
+  currency?: string;
 
   @ApiProperty({ required: false })
   @IsOptional()
   @IsBoolean()
   is_active?: boolean;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsInt()
+  sort_order?: number;
+
+  @ApiProperty({ required: false, type: [String] })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  worker_ids?: string[];
 }
 
 export class ServicesSyncDto {
@@ -73,16 +67,10 @@ export class ServicesSyncDto {
   @IsUUID()
   salon_id!: string;
 
-  @ApiProperty({ type: [ServicesSyncCategoryDto], required: false })
-  @IsOptional()
-  @ValidateNested({ each: true })
-  @Type(() => ServicesSyncCategoryDto)
-  categories?: ServicesSyncCategoryDto[];
-
   @ApiProperty({ type: [ServicesSyncServiceDto] })
   @ValidateNested({ each: true })
   @Type(() => ServicesSyncServiceDto)
   services!: ServicesSyncServiceDto[];
 }
 
-export { ServicesSyncCategoryDto, ServicesSyncServiceDto };
+export { ServicesSyncServiceDto };

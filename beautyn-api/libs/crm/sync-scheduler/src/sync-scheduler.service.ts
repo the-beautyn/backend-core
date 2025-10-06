@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { SyncJob, CronDiffJob, CronDiffJobWithSchedule, SYNC_QUEUE, JOB_SYNC, JOB_CRON_DIFF } from './types';
+import { SyncJob, CronDiffJob, CronDiffJobWithSchedule, SYNC_QUEUE, CATEGORIES_QUEUE, SERVICES_QUEUE, CRON_DIFF_QUEUE, JOB_SYNC, JOB_CRON_DIFF } from './types';
 
 type BullQueueLike = {
   add: (name: string, data: unknown, opts?: any) => Promise<{ id: string | number } & any>;
@@ -8,25 +8,30 @@ type BullQueueLike = {
   removeRepeatable?: (name: string, repeat: { pattern: string; tz?: string }, jobId?: string | null) => Promise<boolean>;
 };
 
-async function makeQueue(): Promise<BullQueueLike> {
+async function makeQueue(name: string): Promise<BullQueueLike> {
   const { REDIS_URL } = process.env;
   if (!REDIS_URL) throw new Error('REDIS_URL is required');
   const { Queue } = await import('bullmq');
-  return new Queue(SYNC_QUEUE, { connection: { url: REDIS_URL } });
+  const limiterMax = Number.parseInt(process.env.CRM_SYNC_RATE_MAX ?? '') || undefined;
+  const limiterDuration = Number.parseInt(process.env.CRM_SYNC_RATE_DURATION_MS ?? '') || undefined;
+  const limiter = limiterMax && limiterDuration ? { max: limiterMax, duration: limiterDuration } : undefined;
+  return new Queue(name, { connection: { url: REDIS_URL }, ...(limiter ? { limiter } : {}) });
 }
 
 @Injectable()
 export class SyncSchedulerService {
-  private queue?: BullQueueLike;
+  private queues: Record<string, BullQueueLike> = {};
 
-  private async getQueue(): Promise<BullQueueLike> {
-    if (!this.queue) this.queue = await makeQueue();
-    return this.queue;
+  private async getQueue(name: string): Promise<BullQueueLike> {
+    if (!this.queues[name]) this.queues[name] = await makeQueue(name);
+    return this.queues[name];
   }
 
-  async scheduleSync(job: SyncJob): Promise<string> {
-    const id = `${JOB_SYNC}:${job.provider}:${job.salonId}`;
-    const res = await (await this.getQueue()).add(JOB_SYNC, job, {
+  async scheduleSync(job: SyncJob, opts?: { type?: 'initial' | 'categories' | 'services' }): Promise<string> {
+    const type = opts?.type ?? 'initial';
+    const queueName = type === 'categories' ? CATEGORIES_QUEUE : type === 'services' ? SERVICES_QUEUE : SYNC_QUEUE;
+    const id = `${JOB_SYNC}:${type}:${job.provider}:${job.salonId}`;
+    const res = await (await this.getQueue(queueName)).add(JOB_SYNC, job, {
       jobId: id,
       attempts: 5,
       removeOnComplete: true,
@@ -37,7 +42,7 @@ export class SyncSchedulerService {
 
   async scheduleCronDiff(job: CronDiffJobWithSchedule): Promise<void> {
     const id = `${JOB_CRON_DIFF}:${job.provider}:${job.salonId}`;
-    const queue = await this.getQueue();
+    const queue = await this.getQueue(CRON_DIFF_QUEUE);
 
     // Ensure re-scheduling actually updates existing repeat job
     try {

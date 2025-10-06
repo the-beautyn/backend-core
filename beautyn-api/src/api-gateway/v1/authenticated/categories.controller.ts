@@ -11,6 +11,7 @@ import { JwtAuthGuard } from '../../../shared/guards/jwt-auth.guard';
 import { OwnerRolesGuard } from '../../../shared/guards/roles.guard';
 import { CategoryOwnerGuard } from '../../../categories/guards/category-owner.guard';
 import type { Request } from 'express';
+import { log } from 'console';
 
 @ApiTags('Categories')
 @Controller('api/v1/categories')

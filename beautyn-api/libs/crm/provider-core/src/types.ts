@@ -72,6 +72,30 @@ export type CategoryUpdateInput = {
   staff?: number[];
 };
 
+export type ServiceCreateInput = {
+  name: string;
+  duration?: number;
+  price?: number;
+  currency?: string;
+  categoryExternalId?: string | null;
+  description?: string | null;
+  isActive?: boolean;
+  sortOrder?: number | null;
+  workerExternalIds?: string[];
+};
+
+export type ServiceUpdateInput = {
+  name?: string;
+  duration?: number;
+  price?: number;
+  currency?: string;
+  categoryExternalId?: string | null;
+  description?: string | null;
+  isActive?: boolean;
+  sortOrder?: number | null;
+  workerExternalIds?: string[];
+};
+
 /** Standardized provider API surface */
 export interface ICrmProvider {
   /** Optional one-time setup per (salonId, provider). */
@@ -85,8 +109,8 @@ export interface ICrmProvider {
 
   // // Normalized pull (MVP) for SoT reconciliation
   pullSalon(ctx: ProviderContext): Promise<SalonData>;
-  // pullCategories(ctx: ProviderContext, cursor?: string): Promise<Page<CategoryData>>;
-  // pullServices(ctx: ProviderContext, cursor?: string): Promise<Page<ServiceData>>;
+  pullCategories(ctx: ProviderContext, cursor?: string): Promise<Page<CategoryData>>;
+  pullServices(ctx: ProviderContext, cursor?: string): Promise<Page<ServiceData>>;
   // pullWorkers(ctx: ProviderContext, cursor?: string): Promise<Page<WorkerData>>;
   pullBookings(
     ctx: ProviderContext,
@@ -117,10 +141,10 @@ export interface ICrmProvider {
   updateCategory(ctx: ProviderContext, externalId: string, patch: CategoryUpdateInput): Promise<CategoryData>;
   deleteCategory(ctx: ProviderContext, externalId: string): Promise<void>;
 
-  // // Services
-  // createService(ctx: ProviderContext, data: Omit<ServiceData, 'externalId' | 'updatedAtIso'> & { clientId?: string }): Promise<{ externalId: string }>;
-  // updateService(ctx: ProviderContext, externalId: string, patch: Partial<Omit<ServiceData, 'externalId'>>): Promise<void>;
-  // deleteService(ctx: ProviderContext, externalId: string): Promise<void>;
+  // Services
+  createService(ctx: ProviderContext, data: ServiceCreateInput): Promise<ServiceData>;
+  updateService(ctx: ProviderContext, externalId: string, patch: ServiceUpdateInput): Promise<ServiceData>;
+  deleteService(ctx: ProviderContext, externalId: string): Promise<void>;
 
   // // Workers
   // createWorker(ctx: ProviderContext, data: Omit<WorkerData, 'externalId' | 'updatedAtIso'> & { clientId?: string }): Promise<{ externalId: string }>;

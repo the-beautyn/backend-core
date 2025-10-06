@@ -1,6 +1,5 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { CrmType } from '@crm/shared';
-import { CapabilityRegistryService } from '@crm/capability-registry';
 import { CrmIntegrationService } from '../crm-integration/core/crm-integration.service';
 import { PrismaService } from '../shared/database/prisma.service';
 import { CategoriesRepository } from './repositories/categories.repo';
@@ -20,7 +19,6 @@ export class CategoriesService {
   constructor(
     private readonly repo: CategoriesRepository,
     private readonly prisma: PrismaService,
-    private readonly caps: CapabilityRegistryService,
     private readonly crmIntegration: CrmIntegrationService,
   ) {}
 
@@ -64,7 +62,7 @@ export class CategoriesService {
     });
 
     const saved = await this.repo.upsertFromCrm(salonId, {
-      crmExternalId: crmCategory.externalId ?? null,
+      crmCategoryId: crmCategory.externalId ?? null,
       name: crmCategory.name ?? name,
       color: normalizeHexColor(crmCategory.color ?? null),
       sortOrder: crmCategory.sortOrder ?? sortOrder,
@@ -101,13 +99,13 @@ export class CategoriesService {
       patch.staff = dto.staff;
     }
 
-    if (!category.crmExternalId) {
+    if (!category.crmCategoryId) {
       throw new ConflictException({ message: 'Category is not linked to CRM', code: 'CATEGORY_MISSING_CRM_EXTERNAL_ID' });
     }
 
     let crmResult: CategoryData | undefined;
     if (patch.title !== undefined || patch.weight !== undefined || patch.staff !== undefined) {
-      crmResult = await this.crmIntegration.updateCategory(salonId, provider, category.crmExternalId, patch);
+      crmResult = await this.crmIntegration.updateCategory(salonId, provider, category.crmCategoryId, patch);
     }
 
     const data: Record<string, any> = {};
@@ -138,23 +136,21 @@ export class CategoriesService {
       throw new ConflictException({ message: 'Category has linked services', code: 'CATEGORY_HAS_SERVICES' });
     }
 
-    if (!category.crmExternalId) {
+    if (!category.crmCategoryId) {
       throw new ConflictException({ message: 'Category is not linked to CRM', code: 'CATEGORY_MISSING_CRM_EXTERNAL_ID' });
     }
 
-    await this.crmIntegration.deleteCategory(salonId, provider, category.crmExternalId);
+    await this.crmIntegration.deleteCategory(salonId, provider, category.crmCategoryId);
     await this.repo.delete(category.id);
   }
 
   async pullFromCrm(ownerId: string): Promise<Page<CategoryData>> {
     const { salonId, provider } = await this.requireOwnerSalon(ownerId);
-    this.caps.assert(provider, 'supportsCategoriesSync');
     return this.crmIntegration.pullCategories(salonId, provider);
   }
 
   async rebaseFromCrm(ownerId: string): Promise<{ categories: CategoryResponseDto[]; upserted: number; deleted: number }> {
     const { salonId, provider } = await this.requireOwnerSalon(ownerId);
-    this.caps.assert(provider, 'supportsCategoriesSync');
     const result = await this.crmIntegration.rebaseCategoriesNow(salonId, provider);
     return {
       categories: (result.categories ?? []) as CategoryResponseDto[],
@@ -165,7 +161,6 @@ export class CategoriesService {
 
   async rebaseFromCrmAsync(ownerId: string): Promise<{ jobId: string }> {
     const { salonId, provider } = await this.requireOwnerSalon(ownerId);
-    this.caps.assert(provider, 'supportsCategoriesSync');
     return this.crmIntegration.enqueueCategoriesSync(salonId, provider);
   }
 
@@ -178,7 +173,7 @@ export class CategoriesService {
     const categoriesByCrm = new Map<string, { id: string; name: string }>();
     const categoriesByName = new Map<string, { id: string; name: string }>();
     for (const c of existing) {
-      if (c.crmExternalId) categoriesByCrm.set(c.crmExternalId, { id: c.id, name: c.name });
+      if (c.crmCategoryId) categoriesByCrm.set(c.crmCategoryId, { id: c.id, name: c.name });
       categoriesByName.set(c.name.toLowerCase(), { id: c.id, name: c.name });
     }
 
@@ -189,17 +184,15 @@ export class CategoriesService {
       const sortOrder = cat.sort_order ?? null;
 
       let existingRecord: { id: string; name: string } | undefined;
-      if (cat.crm_external_id && categoriesByCrm.has(cat.crm_external_id)) {
-        existingRecord = categoriesByCrm.get(cat.crm_external_id);
-      } else if (categoriesByName.has(cat.name.toLowerCase())) {
-        existingRecord = categoriesByName.get(cat.name.toLowerCase());
+      if (cat.crm_category_id && categoriesByCrm.has(cat.crm_category_id)) {
+        existingRecord = categoriesByCrm.get(cat.crm_category_id);
       }
 
       if (existingRecord) {
         const updated = await prismaAny.category.update({
           where: { id: existingRecord.id },
           data: {
-            crmExternalId: cat.crm_external_id ?? null,
+            crmCategoryId: cat.crm_category_id ?? null,
             name: cat.name,
             color,
             sortOrder,
@@ -207,12 +200,12 @@ export class CategoriesService {
         });
         keepIds.add(updated.id);
         categoriesByName.set(updated.name.toLowerCase(), { id: updated.id, name: updated.name });
-        if (updated.crmExternalId) categoriesByCrm.set(updated.crmExternalId, { id: updated.id, name: updated.name });
+        if (updated.crmCategoryId) categoriesByCrm.set(updated.crmCategoryId, { id: updated.id, name: updated.name });
       } else {
         const created = await prismaAny.category.create({
           data: {
             salonId: salon_id,
-            crmExternalId: cat.crm_external_id ?? null,
+            crmCategoryId: cat.crm_category_id ?? null,
             name: cat.name,
             color,
             sortOrder,
@@ -220,7 +213,7 @@ export class CategoriesService {
         });
         keepIds.add(created.id);
         categoriesByName.set(created.name.toLowerCase(), { id: created.id, name: created.name });
-        if (created.crmExternalId) categoriesByCrm.set(created.crmExternalId, { id: created.id, name: created.name });
+        if (created.crmCategoryId) categoriesByCrm.set(created.crmCategoryId, { id: created.id, name: created.name });
       }
       upserted++;
     }
