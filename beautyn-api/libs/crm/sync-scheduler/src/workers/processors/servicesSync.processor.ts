@@ -31,7 +31,7 @@ export function startServicesSyncWorker(container: { providerFactory: ProviderFa
         if (base && key) {
           const page = await executeWithRetry(() => p.pullServices({ salonId, provider }));
           const services = (page?.items ?? []).map((s: any) => ({
-            crm_service_id: s.externalId ? String(s.externalId) : undefined,
+            crm_service_id: String(s.externalId),
             category_external_id: s.categoryExternalId ?? undefined,
             name: String(s.name ?? ''),
             description: s.description ?? undefined,
