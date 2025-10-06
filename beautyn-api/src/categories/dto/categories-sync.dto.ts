@@ -1,9 +1,10 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsOptional, IsString, IsUUID, IsInt, ValidateNested } from 'class-validator';
+import { IsOptional, IsString, IsNotEmpty, IsUUID, IsInt, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class CategorySyncItemDto {
   @ApiProperty({ required: true })
+  @IsNotEmpty()
   @IsString()
   crm_category_id!: string;
 

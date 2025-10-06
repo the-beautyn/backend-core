@@ -6,12 +6,14 @@ import {
   IsInt,
   IsBoolean,
   IsArray,
+  IsNotEmpty,
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
 class ServicesSyncServiceDto {
   @ApiProperty({ required: true })
+  @IsNotEmpty()
   @IsString()
   crm_service_id!: string;
 
