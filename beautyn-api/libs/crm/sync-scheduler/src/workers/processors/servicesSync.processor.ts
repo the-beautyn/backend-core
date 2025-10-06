@@ -36,7 +36,7 @@ export function startServicesSyncWorker(container: { providerFactory: ProviderFa
             name: String(s.name ?? ''),
             description: s.description ?? undefined,
             duration: s.duration ?? undefined,
-            price: s.duration ?? undefined,
+            price: s.price ?? undefined,
             currency: s.currency ?? 'UAH',
             is_active: s.isActive ?? undefined,
             sort_order: s.sortOrder ?? 1,
