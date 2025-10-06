@@ -2,7 +2,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import { IsArray, IsBoolean, IsInt, IsNotEmpty, IsOptional, IsString, IsUUID, Length, Min } from 'class-validator';
 
 export class UpdateServiceDto {
-  @ApiProperty({ required: false, nullable: true, description: 'CRM category external id' })
+  @ApiProperty({ required: true, description: 'CRM category external id' })
   @IsNotEmpty()
   @IsUUID()
   category_id!: string;
