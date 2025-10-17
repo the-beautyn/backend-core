@@ -33,6 +33,7 @@ export interface Capability {
   supportsBulkUpsertServices: boolean;
 
   // Workers
+  supportsWorkersPull: boolean;
   supportsWorkersCreate: boolean;
   supportsWorkersUpdate: boolean;
   supportsWorkersDelete: boolean;

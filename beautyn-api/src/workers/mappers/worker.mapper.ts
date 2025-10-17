@@ -1,22 +1,35 @@
 import { Worker, WorkerService } from '@prisma/client';
 import { WorkerDto } from '../dto/worker.dto';
+import { PublicWorkerDto } from '../dto/worker-public.dto';
 
 export class WorkerMapper {
   static toDto(worker: Worker & { services?: WorkerService[] }): WorkerDto {
-    const dto: WorkerDto = {
+    return {
       id: worker.id,
-      salon_id: worker.salonId,
-      first_name: worker.firstName,
-      last_name: worker.lastName,
-      role: worker.role ?? null,
+      crmWorkerId: worker.crmWorkerId ?? null,
+      salonId: worker.salonId,
+      firstName: worker.firstName,
+      lastName: worker.lastName,
+      position: worker.position ?? worker.role ?? null,
+      description: worker.description ?? null,
       email: worker.email ?? null,
       phone: worker.phone ?? null,
-      photo_url: worker.photoUrl ?? null,
-      is_active: worker.isActive,
+      photoUrl: worker.photoUrl ?? null,
+      serviceIds: worker.services ? worker.services.map((service) => service.serviceId) : undefined,
+      isActive: worker.isActive,
+      createdAt: worker.createdAt,
+      updatedAt: worker.updatedAt,
     };
-    if (worker.services) {
-      dto.service_ids = worker.services.map((s) => s.serviceId);
-    }
-    return dto;
+  }
+
+  static toPublicDto(worker: Worker): PublicWorkerDto {
+    return {
+      id: worker.id,
+      firstName: worker.firstName,
+      lastName: worker.lastName,
+      position: worker.position ?? worker.role ?? null,
+      description: worker.description ?? null,
+      photoUrl: worker.photoUrl ?? null,
+    };
   }
 }

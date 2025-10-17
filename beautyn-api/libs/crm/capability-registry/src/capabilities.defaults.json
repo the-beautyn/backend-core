@@ -24,15 +24,17 @@
     "supportsServicesDelete": true,
     "supportsBulkUpsertServices": false,
 
+    "supportsWorkersPull": true,
     "supportsWorkersCreate": false,
-    "supportsWorkersUpdate": false,
-    "supportsWorkersDelete": false,
+    "supportsWorkersUpdate": true,
+    "supportsWorkersDelete": true,
     "supportsWorkerScheduleUpdate": false,
+
     "timeGranularityMin": 5,
     "authFlow": "dual"
   },
   "EASYWEEK": {
-    "webhooks": true,
+    "webhooks": false,
     "batchSize": 100,
     
     "supportsBooking": true,
@@ -56,10 +58,12 @@
     "supportsServicesDelete": false,
     "supportsBulkUpsertServices": false,
 
+    "supportsWorkersPull": true,
     "supportsWorkersCreate": false,
     "supportsWorkersUpdate": false,
     "supportsWorkersDelete": false,
     "supportsWorkerScheduleUpdate": false,
+
     "timeGranularityMin": 10,
     "authFlow": "oauth"
   }

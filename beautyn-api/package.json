@@ -42,10 +42,12 @@
     "worker:categories:dev": "NODE_ENV=dev dotenv -e .env.dev -- ts-node -r tsconfig-paths/register libs/crm/sync-scheduler/src/workers/categories-sync.worker.ts",
     "worker:services:local": "NODE_ENV=local dotenv -e .env.local -- ts-node -r tsconfig-paths/register libs/crm/sync-scheduler/src/workers/services-sync.worker.ts",
     "worker:services:dev": "NODE_ENV=dev dotenv -e .env.dev -- ts-node -r tsconfig-paths/register libs/crm/sync-scheduler/src/workers/services-sync.worker.ts",
-    "worker:nightly:local": "NODE_ENV=local dotenv -e .env.local -- ts-node -r tsconfig-paths/register libs/crm/sync-scheduler/src/workers/cron-diff.worker.ts",
-    "worker:nightly:dev": "NODE_ENV=dev dotenv -e .env.dev -- ts-node -r tsconfig-paths/register libs/crm/sync-scheduler/src/workers/cron-diff.worker.ts",
-    "worker:local": "concurrently -n initial,categories,services,nightly -c green,magenta,cyan,yellow \"npm:worker:initial:local\" \"npm:worker:categories:local\" \"npm:worker:services:local\" \"npm:worker:nightly:local\"",
-    "worker:dev": "concurrently -n initial,categories,services,nightly -c green,magenta,cyan,yellow \"npm:worker:initial:dev\" \"npm:worker:categories:dev\" \"npm:worker:services:dev\" \"npm:worker:nightly:dev\""
+    "worker:workers:local": "NODE_ENV=local dotenv -e .env.local -- ts-node -r tsconfig-paths/register libs/crm/sync-scheduler/src/workers/workers-sync.worker.ts",
+    "worker:workers:dev": "NODE_ENV=dev dotenv -e .env.dev -- ts-node -r tsconfig-paths/register libs/crm/sync-scheduler/src/workers/workers-sync.worker.ts",
+    "worker:cron:local": "NODE_ENV=local dotenv -e .env.local -- ts-node -r tsconfig-paths/register libs/crm/sync-scheduler/src/workers/cron-diff.worker.ts",
+    "worker:cron:dev": "NODE_ENV=dev dotenv -e .env.dev -- ts-node -r tsconfig-paths/register libs/crm/sync-scheduler/src/workers/cron-diff.worker.ts",
+    "worker:local": "concurrently -n initial,categories,services,workers,cron -c green,magenta,cyan,blue,yellow \"npm:worker:initial:local\" \"npm:worker:categories:local\" \"npm:worker:services:local\" \"npm:worker:workers:local\" \"npm:worker:cron:local\"",
+    "worker:dev": "concurrently -n initial,categories,services,workers,cron -c green,magenta,cyan,blue,yellow \"npm:worker:initial:dev\" \"npm:worker:categories:dev\" \"npm:worker:services:dev\" \"npm:worker:workers:dev\" \"npm:worker:cron:dev\""
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",

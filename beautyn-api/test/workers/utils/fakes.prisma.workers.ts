@@ -6,10 +6,15 @@ export interface WorkerEntity {
   salonId: string;
   firstName: string;
   lastName: string;
+  crmWorkerId?: string | null;
+  position?: string | null;
+  description?: string | null;
   email?: string;
+  phone?: string | null;
+  photoUrl?: string | null;
   isActive: boolean;
-  // Free-form schedule used by tests
-  workSchedule?: Record<string, Array<{ from: string; to: string }>>;
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
 export interface WorkerServiceLink {
@@ -113,9 +118,15 @@ export function createFakePrismaForWorkers(): FakePrismaWorkersApi {
           salonId: data.salonId,
           firstName: data.firstName,
           lastName: data.lastName,
+          crmWorkerId: data.crmWorkerId ?? null,
+          position: data.position ?? null,
+          description: data.description ?? null,
           email: data.email,
+           phone: data.phone ?? null,
+           photoUrl: data.photoUrl ?? null,
           isActive: data.isActive,
-          workSchedule: data.workSchedule,
+          createdAt: data.createdAt ?? new Date(),
+          updatedAt: data.updatedAt ?? new Date(),
         };
         workers.push(worker);
         return worker;
@@ -123,7 +134,7 @@ export function createFakePrismaForWorkers(): FakePrismaWorkersApi {
       update: async ({ where: { id }, data }: { where: { id: string }; data: Partial<WorkerEntity> }): Promise<WorkerEntity> => {
         const idx = workers.findIndex((w) => w.id === id);
         if (idx === -1) throw new Error('not found');
-        workers[idx] = { ...workers[idx], ...data };
+        workers[idx] = { ...workers[idx], ...data, updatedAt: new Date() };
         return workers[idx];
       },
       deleteMany: async ({ where }: { where?: { salonId?: string; id?: string } }): Promise<{ count: number }> => {

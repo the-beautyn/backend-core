@@ -95,12 +95,15 @@ export class OnboardingService {
   }
 
   // New sync variant: run initial pull synchronously (no queue)
-  async startInitialPullNow(userId: string): Promise<{ categories: { upserted: number; deleted: number } }> {
+  async startInitialPullNow(userId: string): Promise<{
+    categories: { items: any[]; upserted: number; deleted: number };
+    services: { items: any[]; upserted: number; deleted: number };
+    workers: { items: any[]; upserted: number; deleted: number };
+  }> {
     if (!userId) throw new BadRequestException('user required');
     const salon = await this.prisma.salon.findFirst({ where: { ownerUserId: userId } });
     if (!salon?.id) throw new BadRequestException('Salon or provider not linked');
-    const result = await this.crmIntegration.runInitialPullNow(salon.id);
-    return result as any;
+    return this.crmIntegration.runInitialPullNow(salon.id);
   }
 
   /**

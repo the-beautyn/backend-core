@@ -13,6 +13,9 @@ import {
   ServiceData,
   ServiceCreateInput,
   ServiceUpdateInput,
+  WorkerData,
+  WorkerCreateInput,
+  WorkerUpdateInput,
   Page,
   SalonData,
 } from '@crm/provider-core';
@@ -92,8 +95,42 @@ export class CrmIntegrationService {
     return { jobId };
   }
 
-  async runInitialPullNow(salonId: string): Promise<{ categories: any[]; upserted: number; deleted: number }> {
-    return this.syncCategoriesNow(salonId);
+  async runInitialPullNow(
+    salonId: string,
+  ): Promise<{
+    categories: { items: any[]; upserted: number; deleted: number };
+    services: { items: any[]; upserted: number; deleted: number };
+    workers: { items: any[]; upserted: number; deleted: number };
+  }> {
+    const provider = await this.resolveSalonProvider(salonId);
+
+    const categoriesResult = await this.rebaseCategoriesNow(salonId, provider);
+    const servicesResult = await this.rebaseServicesNow(salonId, provider);
+    const workersResult = await this.rebaseWorkersNow(salonId, provider);
+
+    const [categoriesSnapshot, servicesSnapshot, workersSnapshot] = await Promise.all([
+      this.loadFinalCategoriesSnapshot(salonId),
+      this.loadFinalServicesSnapshot(salonId),
+      this.loadFinalWorkersSnapshot(salonId),
+    ]);
+
+    return {
+      categories: {
+        items: categoriesSnapshot,
+        upserted: categoriesResult.upserted ?? 0,
+        deleted: categoriesResult.deleted ?? 0,
+      },
+      services: {
+        items: servicesSnapshot,
+        upserted: servicesResult.upserted ?? 0,
+        deleted: servicesResult.deleted ?? 0,
+      },
+      workers: {
+        items: workersSnapshot,
+        upserted: workersResult.upserted ?? 0,
+        deleted: workersResult.deleted ?? 0,
+      },
+    };
   }
 
   //*** Salon Sync ***//
@@ -208,7 +245,124 @@ export class CrmIntegrationService {
     return this.syncCategoriesNow(salonId, provider);
   }
 
+  //*** Workers Sync ***//
+
+  async enqueueWorkersSync(salonId: string, provider: CrmType): Promise<{ jobId: string }> {
+    const jobId = await this.scheduler.scheduleSync({ salonId, provider }, { type: 'workers' });
+    return { jobId };
+  }
+
+  async pullWorkers(salonId: string, provider: CrmType): Promise<WorkerData[]> {
+    return this.adapter.pullWorkers(salonId, provider);
+  }
+
+  async createWorker(salonId: string, provider: CrmType, data: WorkerCreateInput): Promise<WorkerData> {
+    return this.adapter.createWorker(salonId, provider, data);
+  }
+
+  async updateWorker(salonId: string, provider: CrmType, externalId: string, patch: WorkerUpdateInput): Promise<WorkerData> {
+    return this.adapter.updateWorker(salonId, provider, externalId, patch);
+  }
+
+  async deleteWorker(salonId: string, provider: CrmType, externalId: string): Promise<void> {
+    await this.adapter.deleteWorker(salonId, provider, externalId);
+  }
+
+  async syncWorkersNow(salonId: string, provider?: CrmType): Promise<WorkerData[]> {
+    const resolvedProvider = provider ?? (await this.resolveSalonProvider(salonId));
+    return this.adapter.pullWorkers(salonId, resolvedProvider);
+  }
+
+  async rebaseWorkersNow(
+    salonId: string,
+    provider: CrmType,
+  ): Promise<{ workers: any[]; upserted: number; deleted: number }> {
+    const workers = await this.adapter.pullWorkers(salonId, provider);
+    const payload = this.prepareWorkersSyncPayload(workers);
+    return this.pushWorkersToInternal(salonId, payload);
+  }
+
   //*** Private Helpers ***//
+
+  private async loadFinalCategoriesSnapshot(salonId: string): Promise<any[]> {
+    const categories = await this.prisma.category.findMany({
+      where: { salonId },
+      orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
+    });
+
+    return categories.map((category) => ({
+      id: category.id,
+      salonId: category.salonId,
+      crmCategoryId: category.crmCategoryId ?? null,
+      name: category.name,
+      color: category.color ?? null,
+      sortOrder: category.sortOrder ?? null,
+      serviceIds: Array.isArray(category.serviceIds) ? category.serviceIds : [],
+      createdAt: category.createdAt,
+      updatedAt: category.updatedAt,
+    }));
+  }
+
+  private async loadFinalServicesSnapshot(salonId: string): Promise<any[]> {
+    const services = await this.prisma.service.findMany({
+      where: { salonId },
+      include: { workerLinks: true },
+      orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
+    });
+
+    return services.map((service) => {
+      const workerIds =
+        Array.isArray((service as any).workerLinks) && (service as any).workerLinks.length
+          ? (service as any).workerLinks
+              .map((link: { workerId?: string | null; remoteWorkerId?: string | null }) => link.workerId ?? link.remoteWorkerId)
+              .filter((id: unknown): id is string => typeof id === 'string' && id.length > 0)
+          : [];
+
+      return {
+        id: service.id,
+        salon_id: service.salonId,
+        crm_service_id: service.crmServiceId ?? null,
+        category_id: service.categoryId ?? null,
+        name: service.name,
+        description: service.description ?? null,
+        duration: service.duration,
+        price: service.price,
+        currency: service.currency,
+        is_active: service.isActive,
+        sort_order: service.sortOrder ?? null,
+        worker_ids: workerIds,
+      };
+    });
+  }
+
+  private async loadFinalWorkersSnapshot(salonId: string): Promise<any[]> {
+    const workers = await this.prisma.worker.findMany({
+      where: { salonId },
+      include: { services: true },
+      orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
+    });
+
+    return workers.map((worker) => ({
+      id: worker.id,
+      crmWorkerId: worker.crmWorkerId ?? null,
+      salonId: worker.salonId,
+      firstName: worker.firstName,
+      lastName: worker.lastName,
+      position: worker.position ?? worker.role ?? null,
+      description: worker.description ?? null,
+      email: worker.email ?? null,
+      phone: worker.phone ?? null,
+      photoUrl: worker.photoUrl ?? null,
+      serviceIds: Array.isArray(worker.services)
+        ? worker.services
+            .map((link: { serviceId?: string | null }) => link?.serviceId)
+            .filter((id): id is string => typeof id === 'string' && id.length > 0)
+        : [],
+      isActive: worker.isActive,
+      createdAt: worker.createdAt,
+      updatedAt: worker.updatedAt,
+    }));
+  }
 
   private async resolveSalonProvider(salonId: string): Promise<CrmType> {
     const salon = await this.prisma.salon.findUnique({ where: { id: salonId }, select: { provider: true } });
@@ -255,6 +409,95 @@ export class CrmIntegrationService {
     const categoriesResult = (data?.categories ?? []) as any[];
 
     return { categories: categoriesResult, upserted, deleted };
+  }
+
+  private prepareWorkersSyncPayload(
+    workers: WorkerData[],
+  ): Array<{
+    crmWorkerId?: string | null;
+    firstName: string;
+    lastName: string;
+    position?: string | null;
+    description?: string | null;
+    email?: string | null;
+    phone?: string | null;
+    photoUrl?: string | null;
+    isActive?: boolean;
+  }> {
+    return (workers ?? []).map((worker) => {
+      const { firstName, lastName } = this.splitWorkerName(worker);
+      return {
+        crmWorkerId: worker.externalId ?? null,
+        firstName,
+        lastName,
+        position: worker.position ?? null,
+        description: worker.description ?? null,
+        email: worker.email ?? null,
+        phone: worker.phone ?? null,
+        photoUrl: worker.photoUrl ?? null,
+        isActive: worker.isActive ?? true,
+      };
+    });
+  }
+
+  private async pushWorkersToInternal(
+    salonId: string,
+    workers: Array<{
+      crmWorkerId?: string | null;
+      firstName: string;
+      lastName: string;
+      position?: string | null;
+      description?: string | null;
+      email?: string | null;
+      phone?: string | null;
+      photoUrl?: string | null;
+      isActive?: boolean;
+    }>,
+  ): Promise<{ workers: any[]; upserted: number; deleted: number }> {
+    const base = process.env.INTERNAL_API_BASE_URL?.trim();
+    const key = process.env.INTERNAL_API_KEY?.trim();
+    if (!base || !key) {
+      throw new BadRequestException('Internal API base URL or key not configured');
+    }
+
+    const res = await fetch(`${base}/api/v1/internal/workers/sync`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-internal-key': key },
+      body: JSON.stringify({ salonId, workers }),
+    } as any);
+
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      throw new BadRequestException(`Workers sync failed: ${res.status} ${text?.slice(0, 500)}`);
+    }
+
+    const body = await res.json().catch(() => ({} as any));
+    const data = body?.data ?? body ?? {};
+    const upserted = Number(data?.upserted ?? 0);
+    const deleted = Number(data?.deleted ?? 0);
+    const workersResult = (data?.workers ?? []) as any[];
+
+    return { workers: workersResult, upserted, deleted };
+  }
+
+  private splitWorkerName(worker: WorkerData): { firstName: string; lastName: string } {
+    const first = ((worker as any).firstName ?? '').trim();
+    const last = ((worker as any).lastName ?? '').trim();
+    if (first || last) {
+      return {
+        firstName: first || 'Unknown',
+        lastName: last || 'Worker',
+      };
+    }
+    const name = (worker.name ?? '').trim();
+    if (!name.length) {
+      return { firstName: 'Unknown', lastName: 'Worker' };
+    }
+    const parts = name.split(/\s+/).filter(Boolean);
+    if (parts.length === 1) {
+      return { firstName: parts[0], lastName: 'Worker' };
+    }
+    return { firstName: parts[0], lastName: parts.slice(1).join(' ') };
   }
 
   private prepareServicesSyncPayload(

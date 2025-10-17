@@ -175,13 +175,13 @@ model Service {
   price        Int
   currency     String   @db.Char(3)
   sortOrder    Int?     @map("sort_order")
-  workerIds    String[] @map("worker_ids")
   isActive     Boolean  @default(true) @map("is_active")
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
-  salon    Salon     @relation(fields: [salonId], references: [id], onDelete: Cascade)
-  category Category? @relation(fields: [categoryId], references: [id])
+  salon        Salon           @relation(fields: [salonId], references: [id], onDelete: Cascade)
+  category     Category?       @relation(fields: [categoryId], references: [id])
+  workerLinks  WorkerService[]
 
   @@index([salonId, isActive])
   @@index([categoryId, isActive])
@@ -191,32 +191,40 @@ model Service {
 model Worker {
   id           String   @id @default(uuid()) @db.Uuid
   salonId      String   @map("salon_id") @db.Uuid
+  crmWorkerId  String?  @map("crm_worker_id") @db.VarChar(128)
   firstName    String   @map("first_name") @db.VarChar(100)
   lastName     String   @map("last_name") @db.VarChar(100)
+  position     String?  @db.VarChar(160)
   role         String?  @db.VarChar(100)
+  description  String?  @db.Text
   email        String?  @unique @db.VarChar(255)
   phone        String?  @unique @db.VarChar(30)
   photoUrl     String?  @map("photo_url")
-  workSchedule Json?    @map("work_schedule")
+  workingSchedule Json? @map("work_schedule")
   isActive     Boolean  @default(true) @map("is_active")
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
+  salon    Salon @relation(fields: [salonId], references: [id], onDelete: Cascade)
   services WorkerService[]
 
   @@index([salonId, firstName])
   @@index([salonId, lastName])
+  @@index([salonId, crmWorkerId])
   @@map("workers")
 }
 
 model WorkerService {
-  workerId  String @map("worker_id") @db.Uuid
-  serviceId String @map("service_id") @db.Uuid
+  id             String  @id @default(uuid())
+  serviceId      String  @map("service_id") @db.Uuid
+  workerId       String? @map("worker_id") @db.Uuid
+  remoteWorkerId String? @map("remote_worker_id") @db.VarChar(128)
 
-  worker Worker @relation(fields: [workerId], references: [id], onDelete: Cascade)
+  service Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  worker  Worker? @relation(fields: [workerId], references: [id], onDelete: Cascade)
 
-  // Service model exists in another branch; FK can be added later.
-  @@id([workerId, serviceId])
+  @@unique([serviceId, workerId], map: "worker_services_service_worker_unique")
+  @@unique([serviceId, remoteWorkerId], map: "worker_services_service_remote_unique")
   @@map("worker_services")
 }
 

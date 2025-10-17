@@ -16,6 +16,7 @@ describe('ServicesService', () => {
       salon: { findFirst: jest.fn() },
       category: { findMany: jest.fn(), findFirst: jest.fn(), findUnique: jest.fn(), update: jest.fn() },
     } as unknown as jest.Mocked<PrismaService>;
+    (prisma.salon.findFirst as any).mockResolvedValue({ id: 'salon-1', provider: 'ALTEGIO' });
 
     integration = {
       pullServices: jest.fn(),
@@ -120,6 +121,23 @@ describe('ServicesService', () => {
       };
       (prisma.category.findUnique as any).mockResolvedValue({ serviceIds: [] });
       (prisma.category.update as any).mockResolvedValue({});
+      repo.findById.mockResolvedValue({
+        id: 'svc-1',
+        salonId: 'salon-1',
+        crmServiceId: 'ext-svc',
+        categoryId: 'cat-1',
+        name: 'Cut',
+        description: null,
+        duration: 3600,
+        price: 1000,
+        currency: 'UAH',
+        sortOrder: null,
+        workerIds: [],
+        workerLinks: [],
+        isActive: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      } as any);
 
       const res = await service.create('user-1', { title: 'Cut', category_id: 'cat-1', duration: 3600, price: 1000 } as any);
       expect(integration.createService).toHaveBeenCalledWith('salon-1', 'ALTEGIO', expect.objectContaining({ name: 'Cut', categoryExternalId: 'ext-cat' }));
@@ -135,7 +153,23 @@ describe('ServicesService', () => {
 
   describe('update', () => {
     it('returns existing service when dto is empty', async () => {
-      (prisma.service as any) = { findUnique: jest.fn().mockResolvedValue({ id: 'svc-1', name: 'Cut', duration: 3600, price: 1000, currency: 'UAH' }) };
+      repo.findByIdWithinSalon.mockResolvedValue({
+        id: 'svc-1',
+        salonId: 'salon-1',
+        name: 'Cut',
+        crmServiceId: 'ext-1',
+        categoryId: null,
+        description: null,
+        duration: 3600,
+        price: 1000,
+        currency: 'UAH',
+        sortOrder: null,
+        workerIds: [],
+        workerLinks: [],
+        isActive: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      } as any);
       const res = await service.update('user-1', 'svc-1', {} as any);
       expect(res.id).toBe('svc-1');
       expect(res.title).toBe('Cut');
@@ -161,7 +195,23 @@ describe('ServicesService', () => {
 
     it('moves serviceId from old category to new one', async () => {
       (prisma.salon.findFirst as any).mockResolvedValue({ id: 'salon-1', provider: 'ALTEGIO' });
-      repo.findByIdWithinSalon.mockResolvedValue({ id: 'svc-1', name: 'Cut', crmServiceId: 'ext-1', categoryId: 'old-cat', duration: 3600, price: 1000, currency: 'UAH', isActive: true, sortOrder: null, workerIds: [] } as any);
+      repo.findByIdWithinSalon.mockResolvedValue({
+        id: 'svc-1',
+        salonId: 'salon-1',
+        name: 'Cut',
+        crmServiceId: 'ext-1',
+        categoryId: 'old-cat',
+        duration: 3600,
+        price: 1000,
+        currency: 'UAH',
+        isActive: true,
+        sortOrder: null,
+        description: null,
+        workerIds: [],
+        workerLinks: [],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      } as any);
       (prisma.category.findFirst as any).mockResolvedValue({ id: 'new-cat', crmCategoryId: 'ext-cat' });
       integration.updateService.mockResolvedValue({ externalId: 'ext-1', name: 'Cut', categoryExternalId: 'ext-cat' } as any);
       (prisma as any).category.findUnique = jest.fn()
@@ -173,6 +223,23 @@ describe('ServicesService', () => {
         update: jest.fn().mockResolvedValue({ id: 'svc-1', categoryId: 'new-cat' }),
         create: jest.fn(),
       };
+      repo.findById.mockResolvedValue({
+        id: 'svc-1',
+        salonId: 'salon-1',
+        name: 'Cut',
+        crmServiceId: 'ext-1',
+        categoryId: 'new-cat',
+        duration: 3600,
+        price: 1000,
+        currency: 'UAH',
+        isActive: true,
+        sortOrder: null,
+        description: null,
+        workerIds: [],
+        workerLinks: [],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      } as any);
 
       await service.update('user-1', 'svc-1', { category_id: 'new-cat' } as any);
       // Removed from old category
@@ -225,5 +292,3 @@ describe('ServicesService', () => {
     });
   });
 });
-
-

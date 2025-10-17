@@ -4,6 +4,10 @@ export type Hhmm = string; // "09:00"
 export type WorkingInterval = { startAt: Hhmm; endAt: Hhmm };
 export type WorkingDay = { day: Day; opensAt: Hhmm; closesAt: Hhmm; breaks?: WorkingInterval[] };
 
+export type WorkerScheduleInterval = { start: Hhmm; end: Hhmm };
+export type WorkerScheduleDay = { weekday: number; isDayOff: boolean; intervals: WorkerScheduleInterval[] };
+export type WorkerWorkingSchedule = { timezone: string; days: WorkerScheduleDay[] };
+
 export type SalonData = {
   externalId: string;
   name: string;
@@ -44,7 +48,9 @@ export type ServiceData = {
 
 export type WorkerData = {
   externalId: string;
-  name: string;
+  name?: string;
+  firstName?: string;
+  lastName?: string;
   position?: string;
   description?: string;
   photoUrl?: string;
@@ -52,6 +58,7 @@ export type WorkerData = {
   phone?: string;
   isActive?: boolean;
   updatedAtIso?: string;
+  workingSchedule?: WorkerWorkingSchedule;
 };
 
 export type WorkerSchedule = WorkingDay[];

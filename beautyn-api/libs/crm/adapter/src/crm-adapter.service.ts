@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { CrmType, CrmError, ErrorKind } from '@crm/shared';
 import { CapabilityRegistryService } from '@crm/capability-registry';
 import { SyncSchedulerService } from '@crm/sync-scheduler';
-import { ProviderFactory, CreateBookingInput, RescheduleBookingInput, CancelBookingInput, CategoryData, CategoryCreateInput, CategoryUpdateInput, ServiceData, ServiceCreateInput, ServiceUpdateInput, WorkerData, WorkerSchedule, SalonData, GetAvailabilityInput, CompleteBookingInput, Page, BookingData } from '@crm/provider-core';
+import { ProviderFactory, CreateBookingInput, RescheduleBookingInput, CancelBookingInput, CategoryData, CategoryCreateInput, CategoryUpdateInput, ServiceData, ServiceCreateInput, ServiceUpdateInput, WorkerData, WorkerSchedule, WorkerCreateInput, WorkerUpdateInput, SalonData, GetAvailabilityInput, CompleteBookingInput, Page, BookingData } from '@crm/provider-core';
 import { executeWithRetry, CircuitBreaker } from '@crm/retry-handler';
 import { createChildLogger } from '@shared/logger';
 import { ICrmAdapter } from './types';
@@ -132,15 +132,6 @@ export class CrmAdapterService implements ICrmAdapter {
   //   });
   // }
 
-  // async pullWorkers(salonId: string, provider: CrmType, cursor?: string): Promise<Page<WorkerData>> {
-  //   this.caps.assert(provider, 'supportsWorkersSync');
-  //   return this.runOp('pull.workers', salonId, provider, async () => {
-  //     const p = this.providers.make(provider);
-  //     await p.init({ salonId, provider });
-  //     return p.pullWorkers({ salonId, provider }, cursor);
-  //   });
-  // }
-
   // // ---- Master-data operations ----
   // async updateSalon(salonId: string, provider: CrmType, patch: Partial<Omit<SalonData,'externalId'>>) {
   //   this.caps.assert(provider, 'supportsSalonUpdate');
@@ -239,30 +230,42 @@ export class CrmAdapterService implements ICrmAdapter {
     });
   }
 
-  // async createWorker(salonId: string, provider: CrmType, data: Omit<WorkerData,'externalId'|'updatedAtIso'> & { clientId?: string }) {
-  //   this.caps.assert(provider, 'supportsWorkersCreate');
-  //   return this.runOp('worker.create', salonId, provider, async () => {
-  //     const p = this.providers.make(provider);
-  //     await p.init({ salonId, provider });
-  //     return p.createWorker({ salonId, provider }, data);
-  //   });
-  // }
-  // async updateWorker(salonId: string, provider: CrmType, externalId: string, patch: Partial<Omit<WorkerData,'externalId'>>) {
-  //   this.caps.assert(provider, 'supportsWorkersUpdate');
-  //   return this.runOp('worker.update', salonId, provider, async () => {
-  //     const p = this.providers.make(provider);
-  //     await p.init({ salonId, provider });
-  //     return p.updateWorker({ salonId, provider }, externalId, patch);
-  //   });
-  // }
-  // async deleteWorker(salonId: string, provider: CrmType, externalId: string) {
-  //   this.caps.assert(provider, 'supportsWorkersDelete');
-  //   return this.runOp('worker.delete', salonId, provider, async () => {
-  //     const p = this.providers.make(provider);
-  //     await p.init({ salonId, provider });
-  //     return p.deleteWorker({ salonId, provider }, externalId);
-  //   });
-  // }
+  // ---- Workers operations ----
+  async pullWorkers(salonId: string, provider: CrmType, cursor?: string): Promise<WorkerData[]> {
+    this.caps.assert(provider, 'supportsWorkersSync');
+    return this.runOp('pull.workers', salonId, provider, async () => {
+      const p = this.providers.make(provider);
+      await p.init({ salonId, provider });
+      return p.pullWorkers({ salonId, provider }, cursor);
+    });
+  }
+
+  async createWorker(salonId: string, provider: CrmType, data: WorkerCreateInput): Promise<WorkerData> {
+    this.caps.assert(provider, 'supportsWorkersCreate');
+    return this.runOp('worker.create', salonId, provider, async () => {
+      const p = this.providers.make(provider);
+      await p.init({ salonId, provider });
+      return p.createWorker({ salonId, provider }, data);
+    });
+  }
+
+  async updateWorker(salonId: string, provider: CrmType, externalId: string, patch: WorkerUpdateInput): Promise<WorkerData> {
+    this.caps.assert(provider, 'supportsWorkersUpdate');
+    return this.runOp('worker.update', salonId, provider, async () => {
+      const p = this.providers.make(provider);
+      await p.init({ salonId, provider });
+      return p.updateWorker({ salonId, provider }, externalId, patch);
+    });
+  }
+
+  async deleteWorker(salonId: string, provider: CrmType, externalId: string): Promise<void> {
+    this.caps.assert(provider, 'supportsWorkersDelete');
+    await this.runOp('worker.delete', salonId, provider, async () => {
+      const p = this.providers.make(provider);
+      await p.init({ salonId, provider });
+      await p.deleteWorker({ salonId, provider }, externalId);
+    });
+  }
   // async updateWorkerSchedule(salonId: string, provider: CrmType, externalId: string, schedule: WorkerSchedule) {
   //   this.caps.assert(provider, 'supportsWorkerScheduleUpdate');
   //   return this.runOp('worker.updateSchedule', salonId, provider, async () => {

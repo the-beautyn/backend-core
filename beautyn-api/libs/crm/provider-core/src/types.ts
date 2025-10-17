@@ -1,5 +1,5 @@
 import { CrmType } from '@crm/shared';
-import { CategoryData, ServiceData, WorkerData, WorkerSchedule, SalonData, Page, BookingData } from './dtos';
+import { CategoryData, ServiceData, WorkerData, WorkerSchedule, WorkerWorkingSchedule, SalonData, Page, BookingData } from './dtos';
 
 /** Minimal context for a provider operation */
 export interface ProviderContext {
@@ -96,6 +96,23 @@ export type ServiceUpdateInput = {
   workerExternalIds?: string[];
 };
 
+export type WorkerCreateInput = {
+  firstName: string;
+  lastName: string;
+  position?: string | null;
+  description?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  photoUrl?: string | null;
+  isActive?: boolean;
+  workingSchedule?: WorkerWorkingSchedule | null;
+};
+
+export type WorkerUpdateInput = Partial<WorkerCreateInput> & {
+  firstName?: string;
+  lastName?: string;
+};
+
 /** Standardized provider API surface */
 export interface ICrmProvider {
   /** Optional one-time setup per (salonId, provider). */
@@ -111,7 +128,7 @@ export interface ICrmProvider {
   pullSalon(ctx: ProviderContext): Promise<SalonData>;
   pullCategories(ctx: ProviderContext, cursor?: string): Promise<Page<CategoryData>>;
   pullServices(ctx: ProviderContext, cursor?: string): Promise<Page<ServiceData>>;
-  // pullWorkers(ctx: ProviderContext, cursor?: string): Promise<Page<WorkerData>>;
+  pullWorkers(ctx: ProviderContext, cursor?: string): Promise<WorkerData[]>;
   pullBookings(
     ctx: ProviderContext,
     args?: { clientExternalId?: string; withDeleted?: boolean; startDate?: string; endDate?: string; page?: number; count?: number }
@@ -147,8 +164,8 @@ export interface ICrmProvider {
   deleteService(ctx: ProviderContext, externalId: string): Promise<void>;
 
   // // Workers
-  // createWorker(ctx: ProviderContext, data: Omit<WorkerData, 'externalId' | 'updatedAtIso'> & { clientId?: string }): Promise<{ externalId: string }>;
-  // updateWorker(ctx: ProviderContext, externalId: string, patch: Partial<Omit<WorkerData, 'externalId'>>): Promise<void>;
-  // deleteWorker(ctx: ProviderContext, externalId: string): Promise<void>;
+  createWorker(ctx: ProviderContext, data: WorkerCreateInput): Promise<WorkerData>;
+  updateWorker(ctx: ProviderContext, externalId: string, patch: WorkerUpdateInput): Promise<WorkerData>;
+  deleteWorker(ctx: ProviderContext, externalId: string): Promise<void>;
   // updateWorkerSchedule(ctx: ProviderContext, externalId: string, schedule: WorkerSchedule): Promise<void>;
 }

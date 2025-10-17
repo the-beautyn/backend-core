@@ -28,7 +28,7 @@ describe('SyncSchedulerService', () => {
     expect(id).toContain(`${JOB_SYNC}:initial:ALTEGIO:s`);
   });
 
-  it('schedules nightly diff with repeat options', async () => {
+  it('schedules cron diff with repeat options', async () => {
     const svc = new SyncSchedulerService();
     await expect(
       svc.scheduleCronDiff({ salonId: 's', provider: 'EASYWEEK' as any }),
