@@ -1,8 +1,10 @@
 import { ICrmProvider, ProviderContext, CreateBookingInput, RescheduleBookingInput, CancelBookingInput, CompleteBookingInput, GetAvailabilityInput, AvailabilitySlot, CategoryCreateInput, CategoryUpdateInput, ServiceCreateInput, ServiceUpdateInput } from './types';
 import { CategoryData, ServiceData, WorkerData, WorkerSchedule, SalonData, Page, WorkingDay, formatWorkingSchedule, BookingData } from './dtos';
+import { WorkerCreateInput, WorkerUpdateInput } from './types';
 import * as EWSalon from './easyweek/salon';
 import * as EWCategories from './easyweek/categories';
 import * as EWServices from './easyweek/services';
+import * as EWWorkers from './easyweek/workers';
 import { TokenStorageService } from '@crm/token-storage';
 import { AccountRegistryService } from '@crm/account-registry';
 import { createChildLogger } from '@shared/logger';
@@ -89,19 +91,11 @@ export class EasyWeekProvider implements ICrmProvider {
   //   }));
   //   return { items, fetched: items.length };
   // }
-  // async pullWorkers(ctx: ProviderContext, cursor?: string): Promise<Page<WorkerData>> {
-  //   const locationId = this.require(this.locationId, 'locationId');
-  //   const data = await this.fetchAll(`${this.base}/locations/${encodeURIComponent(locationId)}/staffers`);
-  //   const items: WorkerData[] = data.map((w: any) => ({
-  //     externalId: String(w.uuid),
-  //     name: [w.first_name, w.last_name].filter(Boolean).join(' ').trim(),
-  //     position: w.position ?? undefined,
-  //     description: w.description ?? undefined,
-  //     photoUrl: w.avatar ?? undefined,
-  //     isActive: true,
-  //   }));
-  //   return { items, fetched: items.length };
-  // }
+  async pullWorkers(ctx: ProviderContext, cursor?: string): Promise<WorkerData[]> {
+    const workers = await EWWorkers.pullWorkers(this.ctx());
+    this.log.info('Pulled workers from EasyWeek', { count: workers.length });
+    return workers;
+  }
 
   // async createBooking(ctx: ProviderContext, payload: CreateBookingInput): Promise<{ externalBookingId: string }> {
   //   const locationId = this.require(this.locationId, 'locationId');
@@ -197,6 +191,18 @@ export class EasyWeekProvider implements ICrmProvider {
 
   async deleteService(ctx: ProviderContext, externalId: string): Promise<void> {
     throw new CrmError('EasyWeek does not support service CRUD', { kind: ErrorKind.NOT_SUPPORTED, retryable: false });
+  }
+
+  async createWorker(ctx: ProviderContext, data: WorkerCreateInput): Promise<WorkerData> {
+    throw new CrmError('EasyWeek does not support worker CRUD', { kind: ErrorKind.NOT_SUPPORTED, retryable: false });
+  }
+
+  async updateWorker(ctx: ProviderContext, externalId: string, patch: WorkerUpdateInput): Promise<WorkerData> {
+    throw new CrmError('EasyWeek does not support worker CRUD', { kind: ErrorKind.NOT_SUPPORTED, retryable: false });
+  }
+
+  async deleteWorker(ctx: ProviderContext, externalId: string): Promise<void> {
+    throw new CrmError('EasyWeek does not support worker CRUD', { kind: ErrorKind.NOT_SUPPORTED, retryable: false });
   }
 
   // async createService(ctx: ProviderContext, data: Omit<ServiceData, 'externalId' | 'updatedAtIso'> & { clientId?: string }): Promise<{ externalId: string }> { this.notYet('createService'); }

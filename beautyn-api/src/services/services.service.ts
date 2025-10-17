@@ -14,7 +14,7 @@ import { ServiceResponseDto } from './dto/service-response.dto';
 import { toServiceDto } from './mappers/service.mapper';
 import { createChildLogger } from '@shared/logger';
 import { ServiceData, Page } from '@crm/provider-core';
-import { ServicesRepository } from './repositories/services.repo';
+import { ServicesRepository, ServiceRecord, WorkerServiceLinkRecord } from './repositories/services.repo';
 
 interface PaginationParams {
   page: number;
@@ -97,7 +97,7 @@ export class ServicesService {
       categoryExternalId: categoryRef?.crmCategoryId ?? '',
       isActive: dto.is_active ?? true,
       sortOrder: dto.sort_order ?? null,
-      workerIds: [], // TODO: add crm workerIds resolver
+      workerExternalIds: dto.worker_ids ?? [],
     };
 
     const crmService = await this.crmIntegration.createService(salonId, provider, payload);
@@ -109,7 +109,7 @@ export class ServicesService {
       fallbackPrice: dto.price ?? 0,
       fallbackCurrency: currency,
       fallbackIsActive: dto.is_active ?? true,
-      fallbackWorkerIds: dto.worker_ids ?? [],
+      fallbackWorkerExternalIds: dto.worker_ids ?? [],
     });
 
     await this.syncCategoryServiceLink(saved);
@@ -146,7 +146,7 @@ export class ServicesService {
       categoryExternalId?: string | null;
       isActive?: boolean;
       sortOrder?: number | null;
-      workerIds?: string[];
+      workerExternalIds?: string[];
     } = {};
 
     if (dto.title !== undefined) {
@@ -167,7 +167,7 @@ export class ServicesService {
     }
 
     if (dto.worker_ids !== undefined) {
-      patch.workerIds = dto.worker_ids;
+      patch.workerExternalIds = dto.worker_ids;
     }
 
     if (!service.crmServiceId) {
@@ -185,7 +185,7 @@ export class ServicesService {
       fallbackIsActive: patch.isActive ?? service.isActive,
       fallbackCategoryId: categoryExternalId !== undefined ? (await this.resolveCategoryIdByExternalId(salonId, categoryExternalId ?? undefined)) ?? null : service.categoryId,
       fallbackSortOrder: patch.sortOrder ?? service.sortOrder ?? null,
-      fallbackWorkerIds: patch.workerIds ?? service.workerIds ?? [],
+      fallbackWorkerExternalIds: patch.workerExternalIds ?? this.getWorkerExternalIds(service),
     });
 
     await this.syncCategoryServiceLink(saved, service.categoryId ?? null);
@@ -229,6 +229,17 @@ export class ServicesService {
       servicesByName.set(s.name.toLowerCase(), s);
     });
 
+    const workers = await this.prisma.worker.findMany({
+      where: { salonId: salon_id },
+      select: { id: true, crmWorkerId: true },
+    });
+    const workersByCrm = new Map<string, string>();
+    for (const w of workers) {
+      if (w.crmWorkerId) {
+        workersByCrm.set(w.crmWorkerId, w.id);
+      }
+    }
+
     let upserted = 0;
     const keepServiceIds = new Set<string>();
     for (const svc of payload.services) {
@@ -241,6 +252,8 @@ export class ServicesService {
         ? categoriesByCrm.get(svc.category_external_id)?.id ?? null
         : null;
 
+      const remoteWorkerIds = this.normalizeWorkerExternalIds(svc.worker_ids);
+
       const data = {
         salonId: salon_id,
         crmServiceId: svc.crm_service_id,
@@ -251,7 +264,6 @@ export class ServicesService {
         price: svc.price ?? existing?.price ?? undefined,
         currency: (svc.currency ?? existing?.currency ?? 'UAH'),
         sortOrder: (svc.sort_order ?? existing?.sortOrder ?? null),
-        workerIds: existing?.workerIds ?? [],
         isActive: (svc.is_active ?? existing?.isActive ?? undefined),
       };
 
@@ -261,6 +273,8 @@ export class ServicesService {
       } else {
         record = await this.servicesRepo.create(data as any);
       }
+
+      record = await this.syncServiceWorkers(salon_id, record.id, remoteWorkerIds, workersByCrm);
 
       upserted++;
       keepServiceIds.add(record.id);
@@ -362,9 +376,9 @@ export class ServicesService {
       fallbackIsActive: boolean;
       fallbackCategoryId: string | null;
       fallbackSortOrder?: number | null;
-      fallbackWorkerIds?: string[];
+      fallbackWorkerExternalIds?: string[];
     },
-  ): Promise<any> {
+  ): Promise<ServiceRecord> {
     const prismaAny = this.prisma as any;
     const categoryId =
       (await this.resolveCategoryIdByExternalId(salonId, data.categoryExternalId)) ?? fallback.fallbackCategoryId ?? null;
@@ -379,6 +393,10 @@ export class ServicesService {
         ? (data as any).price
         : fallback.fallbackPrice;
 
+    const workerExternalIds = this.normalizeWorkerExternalIds(
+      Array.isArray((data as any).workerExternalIds) ? (data as any).workerExternalIds : fallback.fallbackWorkerExternalIds,
+    );
+
     const recordData = {
       salonId,
       crmServiceId: data.externalId ?? null,
@@ -389,7 +407,6 @@ export class ServicesService {
       price: priceMinor,
       currency: (data.currency ?? fallback.fallbackCurrency).toUpperCase(),
       sortOrder: (data as any).sortOrder ?? fallback.fallbackSortOrder ?? null,
-      workerIds: fallback.fallbackWorkerIds ?? [],
       isActive: data.isActive ?? fallback.fallbackIsActive,
     };
     
@@ -398,17 +415,24 @@ export class ServicesService {
       existing = await prismaAny.service.findFirst({ where: { salonId, crmServiceId: data.externalId } });
     }
 
+    let targetId: string;
     if (existing) {
-      return prismaAny.service.update({ where: { id: existing.id }, data: recordData });
-    }
-    if (fallback.fallbackId) {
+      const updated = await prismaAny.service.update({ where: { id: existing.id }, data: recordData });
+      targetId = updated.id;
+    } else if (fallback.fallbackId) {
       try {
-        return prismaAny.service.update({ where: { id: fallback.fallbackId }, data: recordData });
+        const updatedFallback = await prismaAny.service.update({ where: { id: fallback.fallbackId }, data: recordData });
+        targetId = updatedFallback.id;
       } catch {
-        // fall through to create
+        const created = await prismaAny.service.create({ data: recordData });
+        targetId = created.id;
       }
+    } else {
+      const created = await prismaAny.service.create({ data: recordData });
+      targetId = created.id;
     }
-    return prismaAny.service.create({ data: recordData });
+
+    return this.syncServiceWorkers(salonId, targetId, workerExternalIds);
   }
 
   private async syncCategoryServiceLink(
@@ -475,12 +499,167 @@ export class ServicesService {
     });
   }
 
-  private toServiceResponse(record: any): ServiceResponseDto {
+  private normalizeWorkerExternalIds(input?: string[] | null): string[] {
+    if (!Array.isArray(input) || input.length === 0) {
+      return [];
+    }
+    const unique = new Set<string>();
+    for (const value of input) {
+      if (value === undefined || value === null) continue;
+      const str = String(value).trim();
+      if (str) {
+        unique.add(str);
+      }
+    }
+    return Array.from(unique);
+  }
+
+  private async syncServiceWorkers(
+    salonId: string,
+    serviceId: string,
+    remoteWorkerIds: string[],
+    workersByCrm?: Map<string, string>,
+  ): Promise<ServiceRecord> {
+    const workerServiceClient = (this.prisma as any).workerService;
+    if (!workerServiceClient?.findMany) {
+      const fallback = await this.servicesRepo.findById(serviceId);
+      if (!fallback) {
+        throw new NotFoundException('Service not found after syncing workers');
+      }
+      return fallback;
+    }
+
+    const workerLookup = workersByCrm ?? (await this.loadWorkersByCrmMap(salonId));
+    const normalizedRemoteIds = this.normalizeWorkerExternalIds(remoteWorkerIds);
+
+    const existingLinks = await workerServiceClient.findMany({
+      where: { serviceId },
+      select: { id: true, workerId: true, remoteWorkerId: true },
+    });
+
+    const linksByRemote = new Map<string, WorkerServiceLinkRecord>();
+    const linksByWorker = new Map<string, WorkerServiceLinkRecord>();
+    for (const link of existingLinks) {
+      if (link.remoteWorkerId) {
+        linksByRemote.set(link.remoteWorkerId, { ...link });
+      }
+      if (link.workerId) {
+        linksByWorker.set(link.workerId, { ...link });
+      }
+    }
+
+    const keepIds = new Set<string>();
+
+    for (const remoteId of normalizedRemoteIds) {
+      const workerId = workerLookup.get(remoteId) ?? null;
+      let link: WorkerServiceLinkRecord | null =
+        linksByRemote.get(remoteId) ??
+        (workerId ? linksByWorker.get(workerId) ?? null : null);
+
+      if (!link) {
+        const created = await workerServiceClient.create({
+          data: {
+            serviceId,
+            workerId,
+            remoteWorkerId: remoteId,
+          },
+          select: { id: true, workerId: true, remoteWorkerId: true },
+        });
+        keepIds.add(created.id);
+        if (created.remoteWorkerId) {
+          linksByRemote.set(created.remoteWorkerId, { ...created });
+        }
+        if (created.workerId) {
+          linksByWorker.set(created.workerId, { ...created });
+        }
+        if (workerId) {
+          workerLookup.set(remoteId, workerId);
+        }
+        continue;
+      }
+
+      const currentLink: WorkerServiceLinkRecord = link;
+
+      const updates: { workerId?: string | null; remoteWorkerId?: string | null } = {};
+      if ((currentLink.workerId ?? null) !== (workerId ?? null)) {
+        updates.workerId = workerId;
+      }
+      if ((currentLink.remoteWorkerId ?? null) !== remoteId) {
+        updates.remoteWorkerId = remoteId;
+      }
+      if (Object.keys(updates).length > 0) {
+        const updated = await workerServiceClient.update({
+          where: { id: currentLink.id },
+          data: updates,
+          select: { id: true, workerId: true, remoteWorkerId: true },
+        });
+        if (updated.remoteWorkerId) {
+          linksByRemote.set(updated.remoteWorkerId, { ...updated });
+        }
+        if (updated.workerId) {
+          linksByWorker.set(updated.workerId, { ...updated });
+        }
+        keepIds.add(updated.id);
+      } else {
+        keepIds.add(currentLink.id);
+      }
+      if (workerId) {
+        workerLookup.set(remoteId, workerId);
+      }
+    }
+
+    const removeIds = existingLinks
+      .filter((link) => !keepIds.has(link.id))
+      .map((link) => link.id);
+    if (removeIds.length) {
+      await workerServiceClient.deleteMany({ where: { id: { in: removeIds } } });
+    }
+
+    const refreshed = await this.servicesRepo.findById(serviceId);
+    if (!refreshed) {
+      throw new NotFoundException('Service not found after syncing workers');
+    }
+    return refreshed;
+  }
+
+  private async loadWorkersByCrmMap(salonId: string): Promise<Map<string, string>> {
+    const workerClient = (this.prisma as any).worker;
+    if (!workerClient?.findMany) {
+      return new Map<string, string>();
+    }
+    const rows = await workerClient.findMany({
+      where: { salonId },
+      select: { id: true, crmWorkerId: true },
+    });
+    const map = new Map<string, string>();
+    for (const row of rows) {
+      if (row.crmWorkerId) {
+        map.set(row.crmWorkerId, row.id);
+      }
+    }
+    return map;
+  }
+
+  private getWorkerExternalIds(service: ServiceRecord): string[] {
+    if (!service?.workerLinks?.length) {
+      return [];
+    }
+    const unique = new Set<string>();
+    for (const link of service.workerLinks) {
+      const value = link.remoteWorkerId ?? link.workerId;
+      if (value) {
+        unique.add(value);
+      }
+    }
+    return Array.from(unique);
+  }
+
+  private toServiceResponse(record: ServiceRecord): ServiceResponseDto {
     return {
       id: record.id,
       salonId: record.salonId,
       categoryId: record.categoryId ?? null,
-      crmServiceId: record.crmServiceId,
+      crmServiceId: record.crmServiceId ?? null,
       title: record.name,
       description: record.description ?? null,
       duration: record.duration,
@@ -489,8 +668,19 @@ export class ServicesService {
       sortOrder: record.sortOrder ?? null,
       workerIds: record.workerIds ?? [],
       isActive: record.isActive,
-      createdAt: record.createdAt,
-      updatedAt: record.updatedAt,
+      createdAt: this.toDate(record.createdAt),
+      updatedAt: this.toDate(record.updatedAt),
     };
+  }
+
+  private toDate(value: string | Date): Date {
+    if (value instanceof Date) {
+      return value;
+    }
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+      return new Date();
+    }
+    return date;
   }
 }

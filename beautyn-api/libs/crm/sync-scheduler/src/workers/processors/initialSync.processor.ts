@@ -2,6 +2,7 @@ import { SYNC_QUEUE, SyncJob, JOB_SYNC } from '../../types';
 import { ProviderFactory } from '@crm/provider-core';
 import { executeWithRetry } from '@crm/retry-handler';
 import { runWithRequestContext, createChildLogger } from '@shared/logger';
+import { deriveFirstName, deriveLastName, resolveNamePart } from '@crm/shared';
 
 const log = createChildLogger('worker.sync');
 
@@ -25,33 +26,70 @@ export function startInitialSyncWorker(container: { providerFactory: ProviderFac
       const p = pf.make(provider);
       await p.init({ salonId, provider });
 
-      // Trigger internal categories sync for DB upsert
-      try {
-        const base = process.env.INTERNAL_API_BASE_URL;
-        const key = process.env.INTERNAL_API_KEY;
-        if (base && key) {
+      const base = process.env.INTERNAL_API_BASE_URL;
+      const key = process.env.INTERNAL_API_KEY;
+
+      if (base && key) {
+        // Categories
+        try {
           const page = await executeWithRetry(() => p.pullCategories({ salonId, provider }));
-          const items = (page?.items ?? []).map((c: any) => ({
+          const categories = (page?.items ?? []).map((c: any) => ({
             crm_category_id: String(c.externalId),
             name: String(c.name ?? ''),
             color: c.color ?? undefined,
             sort_order: typeof c.sortOrder === 'number' ? c.sortOrder : undefined,
           }));
-          log.info('Pulled categories from CRM', { salonId, provider, jobId: job.id, categories: items });
+          log.info('Pulled categories from CRM', { salonId, provider, jobId: job.id, count: categories.length });
           await fetch(`${base}/api/v1/internal/categories/sync`, {
             method: 'POST',
             headers: { 'content-type': 'application/json', 'x-internal-key': key },
-            body: JSON.stringify({ salon_id: salonId, categories: items }),
+            body: JSON.stringify({ salon_id: salonId, categories }),
           });
-        } else {
-          log.warn('Skip internal categories sync: INTERNAL_API_BASE_URL or INTERNAL_API_KEY not set', { salonId, provider, jobId: job.id });
+        } catch (err) {
+          log.warn('Failed to call internal categories sync', { salonId, provider, jobId: job.id, error: (err as Error)?.message });
         }
-      } catch (err) {
-        log.warn('Failed to call internal categories sync', { salonId, provider, jobId: job.id, error: (err as Error)?.message });
+
+        // Services
+        try {
+          const page = await executeWithRetry(() => p.pullServices({ salonId, provider }));
+          const services = (page?.items ?? []).map((s: any) => ({
+            crm_service_id: String(s.externalId),
+            category_external_id: s.categoryExternalId ?? undefined,
+            name: String(s.name ?? ''),
+            description: s.description ?? undefined,
+            duration: s.duration ?? undefined,
+            price: s.price ?? undefined,
+            currency: s.currency ?? 'UAH',
+            is_active: s.isActive ?? undefined,
+            sort_order: typeof s.sortOrder === 'number' ? s.sortOrder : undefined,
+            worker_ids: Array.isArray(s.workerExternalIds) ? s.workerExternalIds.map((id: any) => String(id)) : [],
+          }));
+          log.info('Pulled services from CRM', { salonId, provider, jobId: job.id, count: services.length });
+          await fetch(`${base}/api/v1/internal/services/sync`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json', 'x-internal-key': key },
+            body: JSON.stringify({ salon_id: salonId, services }),
+          });
+        } catch (err) {
+          log.warn('Failed to call internal services sync', { salonId, provider, jobId: job.id, error: (err as Error)?.message });
+        }
+
+        // Workers
+        try {
+          const workers = await executeWithRetry(() => p.pullWorkers({ salonId, provider }));
+          const payload = (workers ?? []).map(toWorkerPayload);
+          log.info('Pulled workers from CRM', { salonId, provider, jobId: job.id, count: payload.length });
+          await fetch(`${base}/api/v1/internal/workers/sync`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json', 'x-internal-key': key },
+            body: JSON.stringify({ salonId, workers: payload }),
+          });
+        } catch (err) {
+          log.warn('Failed to call internal workers sync', { salonId, provider, jobId: job.id, error: (err as Error)?.message });
+        }
+      } else {
+        log.warn('Skip initial sync internal calls: INTERNAL_API_BASE_URL or INTERNAL_API_KEY not set', { salonId, provider, jobId: job.id });
       }
-      // await executeWithRetry(() => p.syncServices({ salonId, provider }));
-      // await executeWithRetry(() => p.syncWorkers({ salonId, provider }));
-      // await executeWithRetry(() => p.syncBookings({ salonId, provider }, { clientExternalId: undefined, withDeleted: true, startDate: undefined, endDate: undefined }));
 
       log.info('Initial sync completed', { salonId, provider, jobId: job.id });
     });
@@ -65,3 +103,20 @@ export function startInitialSyncWorker(container: { providerFactory: ProviderFac
   return worker;
 }
 
+function toWorkerPayload(worker: any) {
+  const firstName = resolveNamePart(worker?.firstName, deriveFirstName(worker?.name));
+  const lastName = resolveNamePart(worker?.lastName, deriveLastName(worker?.name));
+  return {
+    crmWorkerId: worker?.externalId ?? null,
+    firstName,
+    lastName,
+    position: worker?.position ?? null,
+    description: worker?.description ?? null,
+    email: worker?.email ?? null,
+    phone: worker?.phone ?? null,
+    photoUrl: worker?.photoUrl ?? null,
+    isActive: worker?.isActive ?? true,
+  };
+}
+
+// removed local helpers in favor of shared '@crm/shared' names helpers

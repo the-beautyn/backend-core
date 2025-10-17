@@ -11,7 +11,7 @@ export class ServiceResponseDto {
   categoryId!: string | null;
 
   @ApiProperty({ required: false, nullable: true })
-  crmServiceId!: string;
+  crmServiceId!: string | null;
 
   @ApiProperty()
   title!: string;

@@ -548,7 +548,7 @@ Idempotency
 ## Flow Map
 
 - Onboarding → `scheduleInitialSync` → Provider Core: `syncSalon` → `syncCategories` → `syncServices` → `syncStaff` → `syncSchedules` → ready for `createBooking`/`updateBooking`/`deleteBooking`.
-- Sync Scheduler: nightly diffs call the same pull methods with `maxBatch=200`.
+- Sync Scheduler: cron diffs call the same pull methods with `maxBatch=200`.
 
 
 ## Acceptance Checklist

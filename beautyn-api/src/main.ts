@@ -18,7 +18,6 @@ import { FinalizeEasyWeekResponseDto } from './onboarding/dto/finalize-easyweek-
 import { ServicesListResponseDto } from './services/dto/services-list.response.dto';
 import { CategoryListResponseDto, CategoryResponseDto } from './categories/dto/category-response.dto';
 import { ServiceDto } from './services/dto/service.dto';
-import { WorkerAvailabilityResponseDto } from './workers/dto/worker-availability-response.dto';
 import { WorkerDto } from './workers/dto/worker.dto';
 import { SalonDto } from './salon/dto/salon.dto';
 import { SalonListResponseDto } from './salon/dto/salon-list.response.dto';
@@ -68,7 +67,6 @@ async function bootstrap() {
       CategoryListResponseDto, 
       CategoryResponseDto,
       ServiceDto,
-      WorkerAvailabilityResponseDto,
       WorkerDto,
       SalonDto,
       SalonListResponseDto,

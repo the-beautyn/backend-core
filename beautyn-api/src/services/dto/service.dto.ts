@@ -10,9 +10,9 @@ export class ServiceDto {
   @Expose()
   salon_id!: string;
 
-  @ApiProperty({ required: true, nullable: false })
+  @ApiProperty({ required: false, nullable: true })
   @Expose()
-  crm_service_id!: string;
+  crm_service_id!: string | null;
 
   @ApiProperty({ required: false, nullable: true })
   @Expose()

@@ -9,7 +9,7 @@ Authoritative reference for how Beautyn integrates with EasyWeek for initial imp
 
 - Show exactly how Provider Core calls EasyWeek for:
   - Initial import (workspace, locations, categories, services, staff)
-  - Delta sync (nightly diffs via Sync Scheduler)
+  - Delta sync (cron diffs via Sync Scheduler)
   - Availability (time slots)
   - Booking lifecycle (create, complete, cancel)
 - Provide precise headers, params, and “Data we use” subsets to keep it concise.
@@ -23,7 +23,7 @@ Authoritative reference for how Beautyn integrates with EasyWeek for initial imp
 - Capability Registry: Declares provider feature flags (e.g., supportsWebhooks, supportsReschedule=false, maxBatch=100, timeGranularityMin=10, authFlow=oauth) and enforces them in the Adapter.
 - Retry Handler: Exponential backoff and 429 handling. Used by the Adapter when calling Provider Core.
 - Token Storage: Stores OAuth/secret tokens (and related metadata). Provider Core fetches secrets from here during `init`.
-- Sync Scheduler: Orchestrates initial import and recurring nightly diffs. Adapter enqueues jobs; Provider Core performs the pulls.
+- Sync Scheduler: Orchestrates initial import and recurring cron diffs. Adapter enqueues jobs; Provider Core performs the pulls.
 
 
 ## Auth & Headers
@@ -528,7 +528,7 @@ Error/edge cases
 Consequences
 
 - No vendor reschedule: CRM Adapter disables `rescheduleBooking` for EASYWEEK.
-- Webhooks: If vendor pushes changes, we still run nightly diffs as safety net.
+- Webhooks: If vendor pushes changes, we still run cron diffs as safety net.
 
 
 ## Error Handling & Retries
@@ -568,7 +568,7 @@ Idempotency
 Adapter wiring
 
 - CRM Adapter → Provider Core methods above; wrapped with Retry Handler and circuit breaker.
-- Sync Scheduler → triggers full import and nightly diffs; Provider Core executes pulls in batches of up to 100.
+- Sync Scheduler → triggers full import and cron diffs; Provider Core executes pulls in batches of up to 100.
 
 
 ## Acceptance Checklist

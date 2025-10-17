@@ -1,4 +1,4 @@
-import { ICrmProvider, ProviderContext, CreateBookingInput, RescheduleBookingInput, CancelBookingInput, CompleteBookingInput, GetAvailabilityInput, CategoryCreateInput, CategoryUpdateInput, ServiceCreateInput, ServiceUpdateInput } from './types';
+import { ICrmProvider, ProviderContext, CreateBookingInput, RescheduleBookingInput, CancelBookingInput, CompleteBookingInput, GetAvailabilityInput, CategoryCreateInput, CategoryUpdateInput, ServiceCreateInput, ServiceUpdateInput, WorkerCreateInput, WorkerUpdateInput } from './types';
 import { CategoryData, ServiceData, WorkerData, WorkerSchedule, SalonData, Page, BookingData } from './dtos';
 import { AltegioContext } from './altegio/context';
 import * as SalonBlock from './altegio/salon';
@@ -143,7 +143,7 @@ export class AltegioProvider implements ICrmProvider {
     return ServicesBlock.pullServices(this.ctx());
   }
 
-  private async pullWorkers(ctx: ProviderContext, cursor?: string): Promise<Page<WorkerData>> {
+  async pullWorkers(ctx: ProviderContext, cursor?: string): Promise<WorkerData[]> {
     return WorkersBlock.pullWorkers(this.ctx());
   }
 
@@ -227,9 +227,17 @@ export class AltegioProvider implements ICrmProvider {
     return ServicesBlock.deleteService(this.ctx(), externalId);
   }
 
-  // async createWorker(ctx: ProviderContext, data: Omit<WorkerData, 'externalId' | 'updatedAtIso'> & { clientId?: string }): Promise<{ externalId: string }> { this.notYet('createWorker'); }
-  // async updateWorker(ctx: ProviderContext, externalId: string, patch: Partial<Omit<WorkerData, 'externalId'>>): Promise<void> { this.notYet('updateWorker'); }
-  // async deleteWorker(ctx: ProviderContext, externalId: string): Promise<void> { this.notYet('deleteWorker'); }
+  async createWorker(ctx: ProviderContext, data: WorkerCreateInput): Promise<WorkerData> {
+    return WorkersBlock.createWorker(this.ctx(), data);
+  }
+
+  async updateWorker(ctx: ProviderContext, externalId: string, patch: WorkerUpdateInput): Promise<WorkerData> {
+    return WorkersBlock.updateWorker(this.ctx(), externalId, patch);
+  }
+
+  async deleteWorker(ctx: ProviderContext, externalId: string): Promise<void> {
+    return WorkersBlock.deleteWorker(this.ctx(), externalId);
+  }
   // async updateWorkerSchedule(ctx: ProviderContext, externalId: string, schedule: WorkerSchedule): Promise<void> { this.notYet('updateWorkerSchedule'); }
 
   private notYet(method: string): never {
