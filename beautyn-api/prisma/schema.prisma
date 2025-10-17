@@ -121,6 +121,7 @@ model Salon {
   images             SalonImage[]
   categories         Category[]
   services           Service[]
+  workers            Worker[]
   crmHashes          CrmSalonLastHash[]
   crmChangeProposals CrmSalonChangeProposal[]
   crmSnapshots       CrmSalonSnapshot[]
