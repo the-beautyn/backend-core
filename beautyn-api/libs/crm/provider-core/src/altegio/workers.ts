@@ -2,6 +2,7 @@ import { WorkerData } from '../dtos';
 import { WorkerCreateInput, WorkerUpdateInput } from '../types';
 import { CrmError, ErrorKind } from '@crm/shared';
 import { AltegioContext } from './context';
+import { splitName, buildFullName } from '@crm/shared';
 
 export async function pullWorkers(ctx: AltegioContext): Promise<WorkerData[]> {
   const externalSalonId = ctx.requireExternalSalonId();
@@ -17,7 +18,7 @@ export async function createWorker(ctx: AltegioContext, data: WorkerCreateInput)
 
 export async function updateWorker(ctx: AltegioContext, externalId: string, patch: WorkerUpdateInput): Promise<WorkerData> {
   const externalSalonId = ctx.requireExternalSalonId();
-  const name = buildName(patch);
+  const name = buildFullName(patch.firstName, patch.lastName);
   const body: any = {};
   if (name) body.name = name;
   if (patch.position !== undefined) body.specialization = patch.position ?? '';
@@ -61,22 +62,4 @@ function mapWorker(raw: any, ctx: AltegioContext): WorkerData {
     isActive: raw?.is_bookable ?? !(raw?.hidden || raw?.fired),
     updatedAtIso: raw?.updated_at ?? raw?.updatedAt ?? undefined,
   };
-}
-
-function splitName(name: string): { firstName: string; lastName: string } {
-  const parts = (name || '').split(/\s+/).filter(Boolean);
-  if (parts.length === 0) {
-    return { firstName: 'Unknown', lastName: 'Worker' };
-  }
-  if (parts.length === 1) {
-    return { firstName: parts[0], lastName: 'Worker' };
-  }
-  return { firstName: parts[0], lastName: parts.slice(1).join(' ') };
-}
-
-function buildName(patch: WorkerUpdateInput): string | null {
-  const first = patch.firstName?.trim();
-  const last = patch.lastName?.trim();
-  if (!first && !last) return null;
-  return [first, last].filter(Boolean).join(' ');
 }

@@ -10,7 +10,7 @@ import { WorkersRepository, WorkerEntityInput } from './repositories/workers.rep
 import { WorkerMapper } from './mappers/worker.mapper';
 import { CrmIntegrationService } from '../crm-integration/core/crm-integration.service';
 import { CapabilityRegistryService, Capability } from '@crm/capability-registry';
-import { CrmType } from '@crm/shared';
+import { CrmType, uuidV5FromStrings } from '@crm/shared';
 import { WorkerData } from '@crm/provider-core';
 import { createChildLogger } from '@shared/logger';
 
@@ -110,7 +110,7 @@ export class WorkersService {
 
   async rebaseFromCrm(ownerId: string): Promise<{ workers: WorkerDto[]; upserted: number; deleted: number }> {
     const { salonId, provider } = await this.requireOwnerSalon(ownerId);
-    this.ensureCapability(provider, 'supportsWorkersSync');
+    this.ensureCapability(provider, 'supportsWorkersPull');
     const crmWorkers = await this.crmIntegration.pullWorkers(salonId, provider);
     const mapped = crmWorkers.map((w) => this.mapCrmWorkerToEntity(w));
     const result = await this.category.rebase(salonId, mapped);
@@ -119,7 +119,7 @@ export class WorkersService {
 
   async rebaseFromCrmAsync(ownerId: string): Promise<{ jobId: string }> {
     const { salonId, provider } = await this.requireOwnerSalon(ownerId);
-    this.ensureCapability(provider, 'supportsWorkersSync');
+    this.ensureCapability(provider, 'supportsWorkersPull');
     return this.crmIntegration.enqueueWorkersSync(salonId, provider);
   }
 
@@ -224,7 +224,7 @@ export class WorkersService {
   private mapCrmWorkerToPreviewDto(worker: WorkerData, salonId: string): WorkerDto {
     const entity = this.mapCrmWorkerToEntity(worker);
     return {
-      id: entity.crmWorkerId ?? `crm:${worker.externalId ?? Math.random().toString(36).slice(2)}`,
+      id: entity.crmWorkerId ?? uuidV5FromStrings('workers-preview', salonId, worker.externalId ?? entity.firstName + ' ' + entity.lastName),
       crmWorkerId: entity.crmWorkerId ?? null,
       salonId,
       firstName: entity.firstName,

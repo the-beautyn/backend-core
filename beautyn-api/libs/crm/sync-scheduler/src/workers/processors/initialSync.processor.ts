@@ -2,6 +2,7 @@ import { SYNC_QUEUE, SyncJob, JOB_SYNC } from '../../types';
 import { ProviderFactory } from '@crm/provider-core';
 import { executeWithRetry } from '@crm/retry-handler';
 import { runWithRequestContext, createChildLogger } from '@shared/logger';
+import { deriveFirstName, deriveLastName, resolveNamePart } from '@crm/shared';
 
 const log = createChildLogger('worker.sync');
 
@@ -118,23 +119,4 @@ function toWorkerPayload(worker: any) {
   };
 }
 
-function resolveNamePart(primary: unknown, fallback: string): string {
-  if (typeof primary === 'string') {
-    const trimmed = primary.trim();
-    if (trimmed.length > 0) return trimmed;
-  }
-  return fallback;
-}
-
-function deriveFirstName(name?: string | null): string {
-  if (!name) return 'Unknown';
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  return parts[0] ?? 'Unknown';
-}
-
-function deriveLastName(name?: string | null): string {
-  if (!name) return 'Worker';
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (parts.length <= 1) return 'Worker';
-  return parts.slice(1).join(' ');
-}
+// removed local helpers in favor of shared '@crm/shared' names helpers

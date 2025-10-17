@@ -186,21 +186,19 @@ export class WorkersRepository {
   }
 
   private async syncWorkerServiceLinks(salonId: string, worker: Worker): Promise<void> {
-    if (!worker.crmWorkerId) {
-      return;
+    const orClauses: Array<Prisma.WorkerServiceWhereInput> = [{ workerId: worker.id }];
+    if (worker.crmWorkerId) {
+      orClauses.push({ remoteWorkerId: worker.crmWorkerId });
     }
 
     await this.prisma.workerService.updateMany({
       where: {
         service: { salonId },
-        OR: [
-          { remoteWorkerId: worker.crmWorkerId },
-          { workerId: worker.id },
-        ],
+        OR: orClauses,
       },
       data: {
         workerId: worker.id,
-        remoteWorkerId: worker.crmWorkerId,
+        remoteWorkerId: worker.crmWorkerId ?? null,
       },
     });
   }

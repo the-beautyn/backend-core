@@ -2,6 +2,7 @@ import { WORKERS_QUEUE, SyncJob } from '../../types';
 import { ProviderFactory, WorkerData } from '@crm/provider-core';
 import { executeWithRetry } from '@crm/retry-handler';
 import { runWithRequestContext, createChildLogger } from '@shared/logger';
+import { deriveFirstName, deriveLastName } from '@crm/shared';
 
 const log = createChildLogger('worker.workers-sync');
 
@@ -71,15 +72,4 @@ function mapWorkerForSync(worker: WorkerData) {
   };
 }
 
-function deriveFirstName(name?: string | null): string {
-  if (!name) return 'Unknown';
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  return parts[0] ?? 'Unknown';
-}
-
-function deriveLastName(name?: string | null): string {
-  if (!name) return 'Worker';
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (parts.length <= 1) return 'Worker';
-  return parts.slice(1).join(' ');
-}
+// removed local helpers in favor of shared '@crm/shared' names helpers

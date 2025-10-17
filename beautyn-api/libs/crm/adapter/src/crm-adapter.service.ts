@@ -232,7 +232,7 @@ export class CrmAdapterService implements ICrmAdapter {
 
   // ---- Workers operations ----
   async pullWorkers(salonId: string, provider: CrmType, cursor?: string): Promise<WorkerData[]> {
-    this.caps.assert(provider, 'supportsWorkersSync');
+    this.caps.assert(provider, 'supportsWorkersPull');
     return this.runOp('pull.workers', salonId, provider, async () => {
       const p = this.providers.make(provider);
       await p.init({ salonId, provider });
