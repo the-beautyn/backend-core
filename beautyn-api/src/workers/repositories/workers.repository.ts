@@ -165,8 +165,6 @@ export class WorkersRepository {
       phone: payload.phone ?? null,
       photoUrl: payload.photoUrl ?? null,
       isActive: payload.isActive ?? true,
-      createdAt: undefined as unknown as Date,
-      updatedAt: undefined as unknown as Date,
     };
   }
 
