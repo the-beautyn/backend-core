@@ -5,7 +5,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { LoginDto } from './dto/v1/login.dto';
-import { RegisterDto } from './dto/v1/register.dto';
+import { RegisterDto, REGISTERABLE_ROLES } from './dto/v1/register.dto';
 import { ForgotPasswordDto } from './dto/v1/forgot-password.dto';
 import { ResetPasswordDto } from './dto/v1/reset-password.dto';
 import { UserService } from '../user/user.service';
@@ -19,6 +19,10 @@ export class AuthService {
   ) {}
 
   async register({ email, password, role }: RegisterDto) {
+    if (!REGISTERABLE_ROLES.includes(role)) {
+      throw new BadRequestException('Invalid role');
+    }
+
     const { data, error } = await this.sb.auth.signUp({
       email,
       password,
