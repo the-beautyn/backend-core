@@ -116,7 +116,7 @@ describe('Auth (e2e)', () => {
   });
 
   beforeEach(async () => {
-    // No-op: in-memory state persists only within process; each test should create unique data
+    jest.clearAllMocks(); // reset Supabase/auth call history between tests
   });
 
   afterEach(async () => {
@@ -224,6 +224,26 @@ describe('Auth (e2e)', () => {
         .post('/api/v1/auth/register')
         .send(registerDto)
         .expect(400);
+    });
+
+    it('should reject attempts to self-assign admin role', async () => {
+      const registerDto = {
+        email: 'admin-attempt@example.com',
+        password: 'Password123!',
+        role: UserRole.admin,
+      };
+
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/register')
+        .send(registerDto)
+        .expect(400);
+
+      expect(supabaseClient.auth.signUp).not.toHaveBeenCalled();
+
+      const createdUser = await prisma.users.findUnique({
+        where: { email: registerDto.email },
+      });
+      expect(createdUser).toBeNull();
     });
 
     it('should return 400 for invalid input', async () => {
