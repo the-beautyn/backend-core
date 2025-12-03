@@ -5,9 +5,10 @@ import { CategoriesRepository } from './repositories/categories.repo';
 import { CategoryOwnerGuard } from './guards/category-owner.guard';
 import { CrmIntegrationModule } from '../crm-integration/core/crm-integration.module';
 import { CapabilityRegistryModule } from '@crm/capability-registry';
+import { AppCategoriesModule } from '../app-categories/app-categories.module';
 
 @Module({
-  imports: [SharedModule, CrmIntegrationModule, CapabilityRegistryModule],
+  imports: [SharedModule, CrmIntegrationModule, CapabilityRegistryModule, AppCategoriesModule],
   providers: [CategoriesService, CategoriesRepository, CategoryOwnerGuard],
   exports: [CategoriesService, CategoriesRepository, CategoryOwnerGuard],
 })

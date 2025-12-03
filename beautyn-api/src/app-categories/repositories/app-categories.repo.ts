@@ -21,6 +21,13 @@ export class AppCategoriesRepository {
     return (this.prisma as any).appCategory.count({ where: onlyActive ? { isActive: true } : undefined });
   }
 
+  async findActive(): Promise<AppCategory[]> {
+    return (this.prisma as any).appCategory.findMany({
+      where: { isActive: true },
+      orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
+    });
+  }
+
   async create(dto: CreateAppCategoryDto): Promise<AppCategory> {
     return (this.prisma as any).appCategory.create({
       data: {

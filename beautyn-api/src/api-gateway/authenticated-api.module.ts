@@ -17,6 +17,7 @@ import { WorkersModule } from '../workers/workers.module';
 import { WorkersAuthenticatedController } from './v1/authenticated/workers.controller';
 import { AppCategoriesModule } from '../app-categories/app-categories.module';
 import { AppCategoriesController } from './v1/authenticated/app-categories.controller';
+import { AppCategoryMappingsController } from './v1/authenticated/app-category-mappings.controller';
 
 
 @Module({
@@ -31,6 +32,7 @@ import { AppCategoriesController } from './v1/authenticated/app-categories.contr
     ServicesAuthenticatedController,
     WorkersAuthenticatedController,
     AppCategoriesController,
+    AppCategoryMappingsController,
   ],
 })
 export class AuthenticatedApiModule {}

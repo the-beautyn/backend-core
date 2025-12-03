@@ -3,12 +3,16 @@ import { CategoriesService } from '../../../src/categories/categories.service';
 import { CategoriesRepository } from '../../../src/categories/repositories/categories.repo';
 import { CrmIntegrationService } from '../../../src/crm-integration/core/crm-integration.service';
 import { PrismaService } from '../../../src/shared/database/prisma.service';
+import { AppCategoriesService } from '../../../src/app-categories/app-categories.service';
+import { SalonCategoryMappingsService } from '../../../src/app-categories/salon-category-mappings.service';
 
 describe('CategoriesService', () => {
   let service: CategoriesService;
   let repo: jest.Mocked<CategoriesRepository>;
   let prisma: jest.Mocked<PrismaService>;
   let integration: jest.Mocked<CrmIntegrationService>;
+  let appCategories: jest.Mocked<AppCategoriesService>;
+  let categoryMappings: jest.Mocked<SalonCategoryMappingsService>;
 
   beforeEach(() => {
     repo = {
@@ -36,7 +40,16 @@ describe('CategoriesService', () => {
       enqueueCategoriesSync: jest.fn(),
     } as unknown as jest.Mocked<CrmIntegrationService>;
 
-    service = new CategoriesService(repo, prisma, integration);
+    appCategories = {
+      findActiveForMatching: jest.fn().mockResolvedValue([]),
+      matchByName: jest.fn().mockReturnValue(null),
+    } as unknown as jest.Mocked<AppCategoriesService>;
+
+    categoryMappings = {
+      autoMatchAndUpsert: jest.fn(),
+    } as unknown as jest.Mocked<SalonCategoryMappingsService>;
+
+    service = new CategoriesService(repo, prisma, integration, appCategories, categoryMappings);
   });
 
   afterEach(() => {

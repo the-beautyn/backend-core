@@ -5,6 +5,7 @@ import { UpdateAppCategoryDto } from './dto/update-app-category.dto';
 import { AppCategoryResponseDto } from './dto/app-category-response.dto';
 import { toAppCategoryResponse } from './mappers/app-category.mapper';
 import { ListAppCategoriesQueryDto, APP_CATEGORY_MAX_LIMIT } from './dto/list-app-categories.dto';
+import { AppCategory } from '@prisma/client';
 
 @Injectable()
 export class AppCategoriesService {
@@ -34,6 +35,32 @@ export class AppCategoriesService {
     if (!existing) return false;
     await this.repo.delete(id);
     return true;
+  }
+
+  async findActiveForMatching(): Promise<AppCategory[]> {
+    return this.repo.findActive();
+  }
+
+  matchByName(name: string, candidates: AppCategory[]): { appCategoryId: string; confidence: number } | null {
+    const needle = (name ?? '').trim().toLowerCase();
+    if (!needle) return null;
+
+    let best: { appCategoryId: string; confidence: number } | null = null;
+    for (const cat of candidates) {
+      const catName = (cat.name ?? '').trim().toLowerCase();
+      if (catName === needle) {
+        best = { appCategoryId: cat.id, confidence: 1 };
+        break;
+      }
+      const keywords = (cat.keywords ?? []).map((k) => (k ?? '').trim().toLowerCase()).filter(Boolean);
+      if (keywords.includes(needle)) {
+        const conf = 0.9;
+        if (!best || conf > best.confidence) {
+          best = { appCategoryId: cat.id, confidence: conf };
+        }
+      }
+    }
+    return best;
   }
 
   private normalizePagination(page?: number, limit?: number): { page: number; limit: number; skip: number } {

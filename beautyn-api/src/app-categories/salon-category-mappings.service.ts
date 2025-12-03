@@ -3,10 +3,15 @@ import { SalonCategoryMappingsRepository } from './repositories/salon-category-m
 import { UpdateSalonCategoryMappingDto } from './dto/update-salon-category-mapping.dto';
 import { SalonCategoryMappingResponseDto } from './dto/salon-category-mapping-response.dto';
 import { toSalonCategoryMappingResponse } from './mappers/salon-category-mapping.mapper';
+import { AppCategoriesService } from './app-categories.service';
+import { AppCategory } from '@prisma/client';
 
 @Injectable()
 export class SalonCategoryMappingsService {
-  constructor(private readonly repo: SalonCategoryMappingsRepository) {}
+  constructor(
+    private readonly repo: SalonCategoryMappingsRepository,
+    private readonly appCategories: AppCategoriesService,
+  ) {}
 
   async upsert(
     salonCategoryId: string,
@@ -26,5 +31,24 @@ export class SalonCategoryMappingsService {
   async find(salonCategoryId: string): Promise<SalonCategoryMappingResponseDto | null> {
     const mapping = await this.repo.findBySalonCategoryId(salonCategoryId);
     return mapping ? toSalonCategoryMappingResponse(mapping) : null;
+  }
+
+  async autoMatchAndUpsert(
+    salonCategoryId: string,
+    categoryName: string,
+    activeAppCategories?: AppCategory[],
+  ): Promise<void> {
+    const existing = await this.repo.findBySalonCategoryId(salonCategoryId);
+    if (existing?.updatedBy === 'owner') return;
+
+    const pool = activeAppCategories ?? (await this.appCategories.findActiveForMatching());
+    const match = this.appCategories.matchByName(categoryName, pool);
+    await this.repo.upsert({
+      salonCategoryId,
+      appCategoryId: match?.appCategoryId ?? null,
+      autoMatched: Boolean(match),
+      confidence: match?.confidence ?? null,
+      updatedBy: 'system',
+    });
   }
 }

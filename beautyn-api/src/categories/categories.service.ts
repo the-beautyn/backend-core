@@ -11,6 +11,8 @@ import { CategoryData, CategoryUpdateInput, Page } from '@crm/provider-core';
 import { normalizeHexColor, toCategoryResponse } from './mappers/category.mapper';
 import { createChildLogger } from '@shared/logger';
 import { CategoriesSyncDto } from './dto/categories-sync.dto';
+import { AppCategoriesService } from '../app-categories/app-categories.service';
+import { SalonCategoryMappingsService } from '../app-categories/salon-category-mappings.service';
 
 @Injectable()
 export class CategoriesService {
@@ -20,6 +22,8 @@ export class CategoriesService {
     private readonly repo: CategoriesRepository,
     private readonly prisma: PrismaService,
     private readonly crmIntegration: CrmIntegrationService,
+    private readonly appCategories: AppCategoriesService,
+    private readonly categoryMappings: SalonCategoryMappingsService,
   ) {}
 
   async listPublic(query: ListQueryDto): Promise<CategoryListResponseDto> {
@@ -169,6 +173,7 @@ export class CategoriesService {
     const prismaAny = this.prisma as any;
     this.log.info('Syncing categories from CRM', { salon_id, categories });
 
+    const activeAppCategories = await this.appCategories.findActiveForMatching();
     const existing = await prismaAny.category.findMany({ where: { salonId: salon_id } });
     const categoriesByCrm = new Map<string, { id: string; name: string }>();
     const categoriesByName = new Map<string, { id: string; name: string }>();
@@ -201,6 +206,7 @@ export class CategoriesService {
         keepIds.add(updated.id);
         categoriesByName.set(updated.name.toLowerCase(), { id: updated.id, name: updated.name });
         if (updated.crmCategoryId) categoriesByCrm.set(updated.crmCategoryId, { id: updated.id, name: updated.name });
+        await this.categoryMappings.autoMatchAndUpsert(updated.id, updated.name, activeAppCategories);
       } else {
         const created = await prismaAny.category.create({
           data: {
@@ -214,6 +220,7 @@ export class CategoriesService {
         keepIds.add(created.id);
         categoriesByName.set(created.name.toLowerCase(), { id: created.id, name: created.name });
         if (created.crmCategoryId) categoriesByCrm.set(created.crmCategoryId, { id: created.id, name: created.name });
+        await this.categoryMappings.autoMatchAndUpsert(created.id, created.name, activeAppCategories);
       }
       upserted++;
     }
