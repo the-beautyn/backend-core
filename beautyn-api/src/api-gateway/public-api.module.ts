@@ -16,10 +16,21 @@ import { AltegioWebhookService } from '../crm-integration/webhooks/altegio-webho
 import { AltegioPartnerClient } from '../crm-integration/clients/altegio-partner.client';
 import { OnboardingModule } from '../onboarding/onboarding.module';
 import { SyncTriggerService } from '../crm-integration/core/sync-trigger.service';
+import { AppCategoriesModule } from '../app-categories/app-categories.module';
+import { AppCategoriesPublicController } from './v1/public/app-categories.public.controller';
 
 @Module({
-  imports: [SharedModule, AuthModule, ServicesModule, WorkersModule, SalonModule, OnboardingModule, CategoriesModule],
-  controllers: [AuthPublicController, HealthController, ServicesController, WorkersController, SalonsController, AltegioWebhookController, CategoriesPublicController],
+  imports: [SharedModule, AuthModule, ServicesModule, WorkersModule, SalonModule, OnboardingModule, CategoriesModule, AppCategoriesModule],
+  controllers: [
+    AuthPublicController,
+    HealthController,
+    ServicesController,
+    WorkersController,
+    SalonsController,
+    AltegioWebhookController,
+    CategoriesPublicController,
+    AppCategoriesPublicController,
+  ],
   providers: [AltegioWebhookService, SyncTriggerService, AltegioPartnerClient],
 })
 export class PublicApiModule {}

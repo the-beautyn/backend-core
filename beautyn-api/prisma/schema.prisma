@@ -158,11 +158,51 @@ model Category {
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
 
-  salon    Salon     @relation(fields: [salonId], references: [id], onDelete: Cascade)
+  salon    Salon                   @relation(fields: [salonId], references: [id], onDelete: Cascade)
   services Service[]
+  mapping  SalonCategoryMapping? @relation("SalonCategoryMappingCategory")
 
   @@index([salonId, sortOrder], map: "idx_category_salon_sort")
   @@map("categories")
+}
+
+model AppCategory {
+  id         String   @id @default(uuid()) @db.Uuid
+  slug       String   @unique @db.VarChar(120)
+  name       String   @db.VarChar(160)
+  keywords   String[] @default([]) @db.VarChar(160)
+  sortOrder  Int?     @map("sort_order")
+  isActive   Boolean  @default(true) @map("is_active")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  mappings SalonCategoryMapping[]
+
+  @@index([isActive, sortOrder])
+  @@map("app_categories")
+}
+
+enum SalonCategoryMappingUpdatedBy {
+  system
+  owner
+}
+
+model SalonCategoryMapping {
+  id               String                        @id @default(uuid()) @db.Uuid
+  salonCategoryId  String                        @map("salon_category_id") @db.Uuid
+  appCategoryId    String?                       @map("app_category_id") @db.Uuid
+  autoMatched      Boolean                       @default(false) @map("auto_matched")
+  confidence       Float?                        @map("confidence")
+  updatedBy        SalonCategoryMappingUpdatedBy @default(system) @map("updated_by")
+  createdAt        DateTime                      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime                      @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  salonCategory Category     @relation("SalonCategoryMappingCategory", fields: [salonCategoryId], references: [id], onDelete: Cascade)
+  appCategory   AppCategory? @relation(fields: [appCategoryId], references: [id], onDelete: SetNull)
+
+  @@unique([salonCategoryId])
+  @@index([appCategoryId])
+  @@map("salon_category_mappings")
 }
 
 model Service {

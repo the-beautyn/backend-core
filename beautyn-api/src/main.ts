@@ -26,6 +26,9 @@ import { CrmSalonPreviewDto } from './onboarding/dto/crm-salon-preview.dto';
 import { CrmSalonChangeDto } from './crm-salon-changes/dto/crm-salon-change.dto';
 import { BookingDto } from './bookings/dto/booking.dto';
 import { CrmCategoryDto, CrmCategoryPageDto } from './categories/dto/categories-sync-result.dto';
+import { AppCategoryResponseDto } from './app-categories/dto/app-category-response.dto';
+import { AppCategoryListResponseDto } from './app-categories/dto/app-category-list-response.dto';
+import { SalonCategoryMappingResponseDto } from './app-categories/dto/salon-category-mapping-response.dto';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -76,6 +79,9 @@ async function bootstrap() {
       BookingDto,
       CrmCategoryDto,
       CrmCategoryPageDto,
+      AppCategoryResponseDto,
+      AppCategoryListResponseDto,
+      SalonCategoryMappingResponseDto,
     ],
   });
   SwaggerModule.setup('api/docs', app, doc);
