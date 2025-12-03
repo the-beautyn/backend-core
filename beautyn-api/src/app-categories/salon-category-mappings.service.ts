@@ -22,7 +22,7 @@ export class SalonCategoryMappingsService {
       salonCategoryId,
       appCategoryId: dto.appCategoryId ?? null,
       autoMatched: dto.autoMatched ?? false,
-      confidence: undefined,
+      confidence: null,
       updatedBy,
     });
     return toSalonCategoryMappingResponse(mapping);
