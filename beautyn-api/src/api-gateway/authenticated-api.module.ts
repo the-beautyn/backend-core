@@ -15,10 +15,12 @@ import { ServicesModule } from '../services/services.module';
 import { ServicesAuthenticatedController } from './v1/authenticated/services.controller';
 import { WorkersModule } from '../workers/workers.module';
 import { WorkersAuthenticatedController } from './v1/authenticated/workers.controller';
+import { AppCategoriesModule } from '../app-categories/app-categories.module';
+import { AppCategoriesController } from './v1/authenticated/app-categories.controller';
 
 
 @Module({
-  imports: [UserModule, OnboardingModule, CrmSalonChangesModule, SalonModule, BookingsModule, CategoriesModule, ServicesModule, WorkersModule],
+  imports: [UserModule, OnboardingModule, CrmSalonChangesModule, SalonModule, BookingsModule, CategoriesModule, ServicesModule, WorkersModule, AppCategoriesModule],
   controllers: [
     UserAuthenticatedController,
     OnboardingController,
@@ -28,6 +30,7 @@ import { WorkersAuthenticatedController } from './v1/authenticated/workers.contr
     CategoriesAuthenticatedController,
     ServicesAuthenticatedController,
     WorkersAuthenticatedController,
+    AppCategoriesController,
   ],
 })
 export class AuthenticatedApiModule {}
