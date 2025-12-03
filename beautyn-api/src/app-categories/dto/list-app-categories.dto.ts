@@ -1,6 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { IsBoolean, IsInt, IsOptional, Max, Min } from 'class-validator';
+import { ToBoolean } from '../../shared/decorators/to-boolean.decorator';
 
 const MAX_LIMIT = 100;
 
@@ -22,7 +23,7 @@ export class ListAppCategoriesQueryDto {
 
   @ApiProperty({ required: false, default: false })
   @IsOptional()
-  @Type(() => Boolean)
+  @ToBoolean()
   @IsBoolean()
   onlyActive?: boolean;
 }

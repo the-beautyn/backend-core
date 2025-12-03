@@ -3,7 +3,7 @@ CREATE TYPE "SalonCategoryMappingUpdatedBy" AS ENUM ('system', 'owner');
 
 -- CreateTable
 CREATE TABLE "app_categories" (
-    "id" UUID NOT NULL,
+    "id" UUID NOT NULL DEFAULT gen_random_uuid(),
     "slug" VARCHAR(120) NOT NULL,
     "name" VARCHAR(160) NOT NULL,
     "keywords" VARCHAR(160)[] DEFAULT ARRAY[]::VARCHAR(160)[],
@@ -17,7 +17,7 @@ CREATE TABLE "app_categories" (
 
 -- CreateTable
 CREATE TABLE "salon_category_mappings" (
-    "id" UUID NOT NULL,
+    "id" UUID NOT NULL DEFAULT gen_random_uuid(),
     "salon_category_id" UUID NOT NULL,
     "app_category_id" UUID,
     "auto_matched" BOOLEAN NOT NULL DEFAULT false,
