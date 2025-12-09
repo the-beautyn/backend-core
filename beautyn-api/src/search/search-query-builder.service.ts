@@ -207,9 +207,6 @@ export class SearchQueryBuilderService {
     }
 
     order.push(Prisma.sql`s.created_at DESC`);
-    if (!order.length) {
-      order.push(Prisma.sql`s.id ASC`);
-    }
     return order;
   }
 
