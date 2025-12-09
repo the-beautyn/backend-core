@@ -30,11 +30,11 @@ import { createChildLogger } from '@shared/logger';
 @UseGuards(JwtAuthGuard)
 @Controller('api/v1/search')
 export class SearchAuthenticatedController {
+  private readonly log = createChildLogger('search.authenticated.controller');
   constructor(
     private readonly suggestionsService: SearchSuggestionsService,
     private readonly historyService: SearchHistoryService,
   ) {}
-  private readonly log = createChildLogger('search.authenticated.controller');
 
   @Get('suggestions')
   @ApiOperation({ summary: 'Suggest salons based on history and name match' })
