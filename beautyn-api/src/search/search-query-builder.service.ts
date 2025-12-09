@@ -48,6 +48,18 @@ export class SearchQueryBuilderService {
     const distanceExpr = this.buildDistanceExpression(geoContext);
     if (distanceExpr && (geoContext.mode === 'center' || geoContext.mode === 'geoip')) {
       filters.push(Prisma.sql`s.latitude IS NOT NULL AND s.longitude IS NOT NULL`);
+      // Apply a coarse bounding box first to reduce rows before expensive trig distance calc
+      if (params.radiusKm !== undefined) {
+        const bbox = this.computeBoundingBox(geoContext.centerLat, geoContext.centerLng, params.radiusKm);
+        filters.push(Prisma.sql`s.latitude BETWEEN ${bbox.minLat} AND ${bbox.maxLat}`);
+        if (!bbox.wrapsLongitude) {
+          filters.push(Prisma.sql`s.longitude BETWEEN ${bbox.minLng} AND ${bbox.maxLng}`);
+        } else {
+          filters.push(
+            Prisma.sql`(s.longitude >= ${bbox.minLng} OR s.longitude <= ${bbox.maxLng})`,
+          );
+        }
+      }
       if (radiusKm !== undefined) {
         filters.push(Prisma.sql`${distanceExpr} <= ${radiusKm}`);
       }
@@ -80,14 +92,15 @@ export class SearchQueryBuilderService {
       );
     }
 
-    if (dto.appCategoryIds?.length) {
+    const hasCategoryFilter = Boolean(dto.appCategoryIds?.length);
+    if (hasCategoryFilter) {
       joins.push(
         Prisma.sql`JOIN categories c ON c.salon_id = s.id`,
       );
       joins.push(
         Prisma.sql`JOIN salon_category_mappings scm ON scm.salon_category_id = c.id AND scm.app_category_id IS NOT NULL`,
       );
-      const ids = dto.appCategoryIds
+      const ids = (dto.appCategoryIds ?? [])
         .map((id) => id?.trim())
         .filter((id): id is string => Boolean(id));
       if (ids.length) {
@@ -112,25 +125,39 @@ export class SearchQueryBuilderService {
         : Prisma.sql``;
 
     const withSql = withClauses.length ? Prisma.sql`WITH ${Prisma.join(withClauses, ', ')}` : Prisma.sql``;
+    const distinctSql = hasCategoryFilter ? Prisma.sql`DISTINCT ON (s.id)` : Prisma.sql``;
     const joinsSql = joins.length ? Prisma.sql`${Prisma.join(joins, ' ')}` : Prisma.sql``;
+    const selectColumns: Prisma.Sql[] = [
+      Prisma.sql`s.id`,
+      Prisma.sql`s.name`,
+      Prisma.sql`s.address_line`,
+      Prisma.sql`s.city`,
+      Prisma.sql`s.latitude`,
+      Prisma.sql`s.longitude`,
+      Prisma.sql`s.cover_image_url`,
+      Prisma.sql`s.images_count`,
+      Prisma.sql`s.rating_avg`,
+      Prisma.sql`s.rating_count`,
+      Prisma.sql`s.min_price_cents`,
+      Prisma.sql`s.max_price_cents`,
+    ];
+
+    if (distanceExpr) {
+      selectColumns.push(Prisma.sql`${distanceExpr} AS distance_km`);
+    }
+
+    selectColumns.push(Prisma.sql`s.open_hours_json`);
+    selectColumns.push(
+      Prisma.sql`COUNT(${hasCategoryFilter ? Prisma.sql`DISTINCT s.id` : Prisma.sql`*`}) OVER() AS total_count`,
+    );
+
+    const selectSql = Prisma.join(selectColumns, ', ');
+
     const query = Prisma.sql`
       ${withSql}
       SELECT
-        s.id,
-        s.name,
-        s.address_line,
-        s.city,
-        s.latitude,
-        s.longitude,
-        s.cover_image_url,
-        s.images_count,
-        s.rating_avg,
-        s.rating_count,
-        s.min_price_cents,
-        s.max_price_cents
-        ${distanceExpr ? Prisma.sql`, ${distanceExpr} AS distance_km` : Prisma.sql``},
-        s.open_hours_json,
-        COUNT(*) OVER() AS total_count
+        ${distinctSql}
+        ${selectSql}
       FROM salons s
       ${joinsSql}
       ${whereSql}
@@ -178,6 +205,37 @@ export class SearchQueryBuilderService {
     return null;
   }
 
+  private computeBoundingBox(
+    centerLat: number,
+    centerLng: number,
+    radiusKm: number,
+  ): { minLat: number; maxLat: number; minLng: number; maxLng: number; wrapsLongitude: boolean } {
+    const kmPerDegreeLat = 111.32;
+    const latDelta = radiusKm / kmPerDegreeLat;
+    const latRad = (centerLat * Math.PI) / 180;
+    const kmPerDegreeLng = Math.max(Math.cos(latRad) * kmPerDegreeLat, 0);
+    const lngDelta = kmPerDegreeLng > 0 ? radiusKm / kmPerDegreeLng : 180;
+
+    let minLat = Math.max(centerLat - latDelta, -90);
+    let maxLat = Math.min(centerLat + latDelta, 90);
+
+    let minLngRaw = centerLng - lngDelta;
+    let maxLngRaw = centerLng + lngDelta;
+
+    const normalizeLng = (lng: number): number => {
+      let x = lng;
+      while (x < -180) x += 360;
+      while (x > 180) x -= 360;
+      return x;
+    };
+
+    const wrapsLongitude = minLngRaw < -180 || maxLngRaw > 180;
+    const minLng = normalizeLng(minLngRaw);
+    const maxLng = normalizeLng(maxLngRaw);
+
+    return { minLat, maxLat, minLng, maxLng, wrapsLongitude };
+  }
+
   private buildSort(sortBy: SortOptionEnum | undefined, hasDistance: boolean): Prisma.Sql[] {
     const order: Prisma.Sql[] = [];
     const key = sortBy ?? (hasDistance ? SortOptionEnum.DISTANCE : SortOptionEnum.RATING_DESC);
@@ -206,10 +264,8 @@ export class SearchQueryBuilderService {
         break;
     }
 
+    order.push(Prisma.sql`s.id ASC`);
     order.push(Prisma.sql`s.created_at DESC`);
-    if (!order.length) {
-      order.push(Prisma.sql`s.id ASC`);
-    }
     return order;
   }
 
@@ -217,6 +273,8 @@ export class SearchQueryBuilderService {
     if (!date || !time) return null;
     const parsedDate = new Date(date);
     if (Number.isNaN(parsedDate.getTime())) return null;
+    const normalizedTime = this.normalizeTime(time);
+    if (!normalizedTime) return null;
     const weekday = parsedDate.getUTCDay();
     return Prisma.sql`
       (
@@ -230,11 +288,24 @@ export class SearchQueryBuilderService {
               AND EXISTS (
                 SELECT 1
                 FROM jsonb_array_elements(COALESCE(elem->'periods', '[]'::jsonb)) AS period
-                WHERE ${time} >= (period->>'start') AND ${time} <= (period->>'end')
+                WHERE ${normalizedTime} >= LPAD(period->>'start', 5, '0') AND ${normalizedTime} <= LPAD(period->>'end', 5, '0')
               )
           )
         )
       )
     `;
+  }
+
+  private normalizeTime(value: string): string | null {
+    const parts = value.split(':');
+    if (parts.length !== 2) return null;
+    const [h, m] = parts;
+    const hour = Number(h);
+    const minute = Number(m);
+    if (!Number.isInteger(hour) || !Number.isInteger(minute)) return null;
+    if (hour < 0 || hour > 23 || minute < 0 || minute > 59) return null;
+    const hh = hour.toString().padStart(2, '0');
+    const mm = minute.toString().padStart(2, '0');
+    return `${hh}:${mm}`;
   }
 }
