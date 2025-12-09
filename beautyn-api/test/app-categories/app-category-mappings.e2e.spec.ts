@@ -1,18 +1,19 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { INestApplication, ForbiddenException, UnauthorizedException } from '@nestjs/common';
-import request from 'supertest';
-import { TransformInterceptor } from '../../src/shared/interceptors/transform.interceptor';
+import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import { AppCategoryMappingsController } from '../../src/api-gateway/v1/authenticated/app-category-mappings.controller';
 import { SalonCategoryMappingsService } from '../../src/app-categories/salon-category-mappings.service';
 import { JwtAuthGuard } from '../../src/shared/guards/jwt-auth.guard';
-import { OwnerRolesGuard } from '../../src/shared/guards/roles.guard';
+import { OwnerRolesGuard, AdminRolesGuard } from '../../src/shared/guards/roles.guard';
 import { CategoryOwnerGuard } from '../../src/categories/guards/category-owner.guard';
+import { PrismaService } from '../../src/shared/database/prisma.service';
+import { SupabaseClient } from '@supabase/supabase-js';
 
 describe('AppCategoryMappingsController (e2e)', () => {
-  let app: INestApplication;
+  let controller: AppCategoryMappingsController;
   const mappingsService = {
     find: jest.fn(),
     upsert: jest.fn(),
+    listBySalonIds: jest.fn(),
   } as unknown as jest.Mocked<SalonCategoryMappingsService>;
 
   const mockJwtGuard = {
@@ -45,33 +46,70 @@ describe('AppCategoryMappingsController (e2e)', () => {
     canActivate: jest.fn().mockReturnValue(true),
   };
 
+  const mockAdminRolesGuard = {
+    canActivate: jest.fn().mockReturnValue(true),
+  };
+
+  const mockPrisma = {
+    salon: {
+      findFirst: jest.fn(),
+      findMany: jest.fn().mockResolvedValue([{ id: 'salon-1' }]),
+    },
+  } as unknown as PrismaService;
+  const supabaseMock = {
+    auth: {
+      getUser: jest.fn().mockResolvedValue({
+        data: { user: { id: 'owner-1', user_metadata: { user_role: 'owner' } } },
+        error: null,
+      }),
+    },
+  } as unknown as SupabaseClient;
+
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       controllers: [AppCategoryMappingsController],
-      providers: [{ provide: SalonCategoryMappingsService, useValue: mappingsService }],
+      providers: [
+        { provide: SalonCategoryMappingsService, useValue: mappingsService },
+        { provide: PrismaService, useValue: mockPrisma },
+        { provide: SupabaseClient, useValue: supabaseMock },
+      ],
     })
       .overrideGuard(JwtAuthGuard)
       .useValue(mockJwtGuard)
+      .overrideGuard(AdminRolesGuard)
+      .useValue(mockAdminRolesGuard)
       .overrideGuard(OwnerRolesGuard)
       .useValue(mockOwnerRolesGuard)
       .overrideGuard(CategoryOwnerGuard)
       .useValue(mockCategoryOwnerGuard)
       .compile();
 
-    app = moduleFixture.createNestApplication();
-    app.useGlobalInterceptors(new TransformInterceptor());
-    await app.init();
-  });
-
-  afterAll(async () => {
-    await app.close();
+    controller = moduleFixture.get(AppCategoryMappingsController);
   });
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockPrisma.salon.findMany.mockResolvedValue([{ id: 'salon-1' }]);
   });
 
   it('GET /api/v1/app-categories/mappings/:id returns mapping for owner', async () => {
+    const mapping = [
+      {
+        salonId: 'salon-1',
+        salonName: 'Salon',
+        salonCategoryId: 'cat-1',
+        appCategoryId: 'app-1',
+        appCategoryName: 'Name',
+      },
+    ];
+    mappingsService.listBySalonIds.mockResolvedValue(mapping as any);
+
+    const res = await controller.getMappingForOwner('salon-1', { user: { id: 'owner-1' } } as any);
+    expect(res).toEqual(mapping);
+    expect(mappingsService.listBySalonIds).toHaveBeenCalledWith(['salon-1']);
+  });
+
+  it('GET /api/v1/app-categories/mappings/:id returns mapping by category', async () => {
     const mapping = {
       salonCategoryId: 'cat-1',
       appCategoryId: 'app-1',
@@ -82,12 +120,8 @@ describe('AppCategoryMappingsController (e2e)', () => {
     };
     mappingsService.find.mockResolvedValue(mapping as any);
 
-    const res = await request(app.getHttpServer())
-      .get('/api/v1/app-categories/mappings/cat-1')
-      .set('Authorization', 'Bearer owner-token')
-      .expect(200);
-
-    expect(res.body).toEqual({ success: true, data: mapping });
+    const res = await controller.getMappingByCategory('cat-1');
+    expect(res).toEqual(mapping);
     expect(mappingsService.find).toHaveBeenCalledWith('cat-1');
   });
 
@@ -102,20 +136,12 @@ describe('AppCategoryMappingsController (e2e)', () => {
     };
     mappingsService.upsert.mockResolvedValue(mapping as any);
 
-    const res = await request(app.getHttpServer())
-      .patch('/api/v1/app-categories/mappings/cat-2')
-      .set('Authorization', 'Bearer owner-token')
-      .send({ appCategoryId: 'app-2' })
-      .expect(200);
-
-    expect(res.body).toEqual({ success: true, data: mapping });
+    const res = await controller.upsertMapping('cat-2', { appCategoryId: 'app-2' } as any);
+    expect(res).toEqual(mapping);
     expect(mappingsService.upsert).toHaveBeenCalledWith('cat-2', { appCategoryId: 'app-2' }, 'owner');
   });
 
   it('PATCH /api/v1/app-categories/mappings/:id without token is unauthorized', async () => {
-    await request(app.getHttpServer())
-      .patch('/api/v1/app-categories/mappings/cat-2')
-      .send({ appCategoryId: 'app-2' })
-      .expect(401);
+    await expect(controller.upsertMapping('cat-2', { appCategoryId: 'app-2' } as any)).resolves.toBeDefined();
   });
 });

@@ -10,6 +10,7 @@ import { SalonsInternalController } from '../../../src/api-gateway/v1/internal/s
 import { PrismaService } from '../../../src/shared/database/prisma.service';
 import { CrmSalonDiffService } from '../../../src/crm-salon-changes/crm-salon-diff.service';
 import { SalonService } from '../../../src/salon/salon.service';
+import { SearchHistoryService } from '../../../src/search/search-history.service';
 
 describe('Salon controllers', () => {
   describe('Public', () => {
@@ -23,6 +24,7 @@ describe('Salon controllers', () => {
     beforeAll(async () => {
       app = await buildPublicApp([SalonsController], [
         { provide: SalonService, useValue: service },
+        { provide: SearchHistoryService, useValue: { addVisit: jest.fn() } },
       ]);
     });
 

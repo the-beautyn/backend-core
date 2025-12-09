@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { SalonCategoryMappingsRepository } from './repositories/salon-category-mappings.repo';
 import { UpdateSalonCategoryMappingDto } from './dto/update-salon-category-mapping.dto';
-import { SalonCategoryMappingResponseDto } from './dto/salon-category-mapping-response.dto';
+import { SalonAppCategoryMappingDto, SalonCategoryMappingResponseDto } from './dto/salon-category-mapping-response.dto';
 import { toSalonCategoryMappingResponse } from './mappers/salon-category-mapping.mapper';
 import { AppCategoriesService } from './app-categories.service';
 import { AppCategory } from '@prisma/client';
@@ -31,6 +31,17 @@ export class SalonCategoryMappingsService {
   async find(salonCategoryId: string): Promise<SalonCategoryMappingResponseDto | null> {
     const mapping = await this.repo.findBySalonCategoryId(salonCategoryId);
     return mapping ? toSalonCategoryMappingResponse(mapping) : null;
+  }
+
+  async listBySalonIds(salonIds: string[]): Promise<SalonAppCategoryMappingDto[]> {
+    const rows = await this.repo.findMappingsBySalonIds(salonIds);
+    return rows.map((row) => ({
+      salonId: row.salonId,
+      salonName: row.salonName,
+      salonCategoryId: row.salonCategoryId,
+      appCategoryId: row.appCategoryId,
+      appCategoryName: row.appCategoryName,
+    }));
   }
 
   async autoMatchAndUpsert(
