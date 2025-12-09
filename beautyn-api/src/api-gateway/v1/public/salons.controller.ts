@@ -6,11 +6,18 @@ import { SalonListResponseDto } from '../../../salon/dto/salon-list.response.dto
 import { SalonDto } from '../../../salon/dto/salon.dto';
 import { SalonImageDto } from '../../../salon/dto/salon-image.dto';
 import { envelopeErrorSchema, envelopeArrayRef, envelopeRef } from '../../../shared/utils/swagger-envelope.util';
+import { SearchHistoryService } from '../../../search/search-history.service';
+import { createChildLogger } from '@shared/logger';
 
 @ApiTags('Salons')
 @Controller('api/v1/salons')
 export class SalonsController {
-  constructor(private readonly salonService: SalonService) {}
+  private readonly log = createChildLogger('salons.controller');
+
+  constructor(
+    private readonly salonService: SalonService,
+    private readonly searchHistoryService: SearchHistoryService,
+  ) {}
 
   @Get()
   @ApiOperation({ summary: 'List salons with filters and pagination' })

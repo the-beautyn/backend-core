@@ -18,10 +18,12 @@ import { WorkersAuthenticatedController } from './v1/authenticated/workers.contr
 import { AppCategoriesModule } from '../app-categories/app-categories.module';
 import { AppCategoriesController } from './v1/authenticated/app-categories.controller';
 import { AppCategoryMappingsController } from './v1/authenticated/app-category-mappings.controller';
+import { SearchAuthenticatedController } from './v1/authenticated/search.authenticated.controller';
+import { SearchModule } from '../search/search.module';
 
 
 @Module({
-  imports: [UserModule, OnboardingModule, CrmSalonChangesModule, SalonModule, BookingsModule, CategoriesModule, ServicesModule, WorkersModule, AppCategoriesModule],
+  imports: [UserModule, OnboardingModule, CrmSalonChangesModule, SalonModule, BookingsModule, CategoriesModule, ServicesModule, WorkersModule, AppCategoriesModule, SearchModule],
   controllers: [
     UserAuthenticatedController,
     OnboardingController,
@@ -33,6 +35,7 @@ import { AppCategoryMappingsController } from './v1/authenticated/app-category-m
     WorkersAuthenticatedController,
     AppCategoriesController,
     AppCategoryMappingsController,
+    SearchAuthenticatedController,
   ],
 })
 export class AuthenticatedApiModule {}

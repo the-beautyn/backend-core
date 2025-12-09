@@ -113,6 +113,7 @@ export class ServicesService {
     });
 
     await this.syncCategoryServiceLink(saved);
+    await this.updateSalonPriceStats(salonId);
 
     return this.toServiceResponse(saved);
   }
@@ -189,6 +190,7 @@ export class ServicesService {
     });
 
     await this.syncCategoryServiceLink(saved, service.categoryId ?? null);
+    await this.updateSalonPriceStats(salonId);
 
     return this.toServiceResponse(saved);
   }
@@ -210,6 +212,7 @@ export class ServicesService {
       await this.removeServiceFromCategory(service.categoryId, service.id);
     }
     await this.servicesRepo.delete(serviceId);
+    await this.updateSalonPriceStats(salonId);
   }
 
   async syncFromCrm(payload: ServicesSyncDto): Promise<{ upserted: number; deleted: number; services: ServiceDto[] }> {
@@ -299,6 +302,7 @@ export class ServicesService {
     }
 
     const finalServices = await this.servicesRepo.findBySalon(salon_id);
+    await this.updateSalonPriceStats(salon_id);
 
     return {
       upserted,
@@ -495,6 +499,25 @@ export class ServicesService {
         serviceIds: {
           set: filtered,
         },
+      },
+    });
+  }
+
+  private async updateSalonPriceStats(salonId: string): Promise<void> {
+    const prismaAny = this.prisma as any;
+    if (!prismaAny?.service?.aggregate) {
+      return;
+    }
+    const agg = await prismaAny.service.aggregate({
+      where: { salonId, isActive: true },
+      _min: { price: true },
+      _max: { price: true },
+    });
+    await prismaAny.salon.update({
+      where: { id: salonId },
+      data: {
+        minPriceCents: agg._min.price ?? null,
+        maxPriceCents: agg._max.price ?? null,
       },
     });
   }
