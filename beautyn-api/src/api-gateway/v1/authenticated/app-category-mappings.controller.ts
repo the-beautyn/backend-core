@@ -44,9 +44,8 @@ export class AppCategoryMappingsController {
     const ids = owned.map((s: any) => s.id);
     if (!ids.includes(id)) {
       throw new ForbiddenException('You do not own this salon');
-    } else {
-      return this.mappings.listBySalonIds([id]);
     }
+    return this.mappings.listBySalonIds([id]);
   }
 
   @Get(':id')
