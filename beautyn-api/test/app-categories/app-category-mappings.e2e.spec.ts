@@ -109,6 +109,22 @@ describe('AppCategoryMappingsController (e2e)', () => {
     expect(mappingsService.listBySalonIds).toHaveBeenCalledWith(['salon-1']);
   });
 
+  it('GET /api/v1/app-categories/mappings/:id returns mapping by category', async () => {
+    const mapping = {
+      salonCategoryId: 'cat-1',
+      appCategoryId: 'app-1',
+      autoMatched: false,
+      confidence: 0.9,
+      updatedBy: 'owner',
+      updatedAt: new Date().toISOString(),
+    };
+    mappingsService.find.mockResolvedValue(mapping as any);
+
+    const res = await controller.getMappingByCategory('cat-1');
+    expect(res).toEqual(mapping);
+    expect(mappingsService.find).toHaveBeenCalledWith('cat-1');
+  });
+
   it('PATCH /api/v1/app-categories/mappings/:id assigns app category for owner', async () => {
     const mapping = {
       salonCategoryId: 'cat-2',

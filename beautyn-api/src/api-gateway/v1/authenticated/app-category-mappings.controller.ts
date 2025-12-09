@@ -20,7 +20,7 @@ export class AppCategoryMappingsController {
 
   log = createChildLogger('AppCategoryMappingsController');
 
-  @Get('admin/:id')
+  @Get('by-salon/admin/:id')
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, AdminRolesGuard)
   @ApiOperation({ summary: 'Get mapping for a salon (admin only)' })
@@ -30,7 +30,7 @@ export class AppCategoryMappingsController {
     return this.mappings.listBySalonIds([id]);
   }
 
-  @Get(':id')
+  @Get('by-salon/:id')
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, OwnerRolesGuard)
   @ApiOperation({ summary: 'Get mapping for an owner (only their salons)' })
@@ -47,6 +47,15 @@ export class AppCategoryMappingsController {
     } else {
       return this.mappings.listBySalonIds([id]);
     }
+  }
+
+  @Get(':id')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, OwnerRolesGuard, CategoryOwnerGuard)
+  @ApiOperation({ summary: 'Get mapping by category (owner)' })
+  @ApiOkResponse(envelopeRef(SalonCategoryMappingResponseDto))
+  async getMappingByCategory(@Param('id') id: string) {
+    return this.mappings.find(id);
   }
 
   @Patch(':id')

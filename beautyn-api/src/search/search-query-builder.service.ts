@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../shared/database/prisma.service';
-import { SearchRequestDto } from './dto/search-request.dto';
+import { SearchRequestDto, SearchViewportDto } from './dto/search-request.dto';
 import { SortOptionEnum } from './enums/sort-option.enum';
 import { ResolvedGeoContext } from './geo-location.service';
 
@@ -66,6 +66,14 @@ export class SearchQueryBuilderService {
     }
 
     if (geoContext.mode === 'viewport') {
+      const radiusForBBox = this.estimateViewportRadiusKm(geoContext.viewport);
+      const bbox = this.computeBoundingBox(geoContext.centerLat, geoContext.centerLng, radiusForBBox);
+      filters.push(Prisma.sql`s.latitude BETWEEN ${bbox.minLat} AND ${bbox.maxLat}`);
+      if (!bbox.wrapsLongitude) {
+        filters.push(Prisma.sql`s.longitude BETWEEN ${bbox.minLng} AND ${bbox.maxLng}`);
+      } else {
+        filters.push(Prisma.sql`(s.longitude >= ${bbox.minLng} OR s.longitude <= ${bbox.maxLng})`);
+      }
       filters.push(
         Prisma.sql`s.latitude BETWEEN ${geoContext.viewport.swLat} AND ${geoContext.viewport.neLat}`,
       );
@@ -144,7 +152,7 @@ export class SearchQueryBuilderService {
     let query: Prisma.Sql;
 
     if (hasCategoryFilter) {
-      const orderByInner = this.buildSort(params.sortBy, Boolean(distanceExpr), false, 's');
+      const orderByInner = this.buildSort(params.sortBy, Boolean(distanceExpr), false, 's', distanceExpr ?? undefined);
       const orderByOuter = this.buildSort(params.sortBy, Boolean(distanceExpr), false, 'f');
       const windowOrder =
         orderByInner.length > 0 ? Prisma.join(orderByInner, ', ') : Prisma.sql`s.id ASC`;
@@ -275,6 +283,7 @@ export class SearchQueryBuilderService {
     hasDistance: boolean,
     hasDistinct: boolean,
     alias: string = 's',
+    distanceExprOverride?: Prisma.Sql,
   ): Prisma.Sql[] {
     const order: Prisma.Sql[] = [];
     const col = (name: string) => Prisma.raw(`${alias ? `${alias}.` : ''}${name}`);
@@ -287,7 +296,12 @@ export class SearchQueryBuilderService {
     switch (key) {
       case SortOptionEnum.DISTANCE:
         if (hasDistance) {
-          order.push(Prisma.sql`${col('distance_km')} ASC`);
+          if (distanceExprOverride) {
+            order.push(Prisma.sql`${distanceExprOverride} ASC`);
+          } else {
+            // distance_km is a select alias; do not prefix with table alias
+            order.push(Prisma.sql`distance_km ASC`);
+          }
         }
         order.push(
           Prisma.sql`${col('rating_avg')} DESC NULLS LAST`,
@@ -365,5 +379,32 @@ export class SearchQueryBuilderService {
     const hh = hour.toString().padStart(2, '0');
     const mm = minute.toString().padStart(2, '0');
     return `${hh}:${mm}`;
+  }
+
+  private estimateViewportRadiusKm(viewport: SearchViewportDto): number {
+    const centerLat = (viewport.neLat + viewport.swLat) / 2;
+    const centerLng = (viewport.neLng + viewport.swLng) / 2;
+    const corners = [
+      { lat: viewport.neLat, lng: viewport.neLng },
+      { lat: viewport.neLat, lng: viewport.swLng },
+      { lat: viewport.swLat, lng: viewport.neLng },
+      { lat: viewport.swLat, lng: viewport.swLng },
+    ];
+    const distances = corners.map((c) => this.haversineKm(centerLat, centerLng, c.lat, c.lng));
+    const maxCorner = Math.max(...distances);
+    // Use the furthest corner plus a small buffer
+    return Math.max(maxCorner, 0.1);
+  }
+
+  private haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
+    const toRad = (d: number) => (d * Math.PI) / 180;
+    const R = 6371; // km
+    const dLat = toRad(lat2 - lat1);
+    const dLng = toRad(lng2 - lng1);
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
   }
 }
