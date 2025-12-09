@@ -47,6 +47,7 @@ export class SearchService {
     if (geoContext.mode === 'center' || geoContext.mode === 'geoip') {
       const minResults = this.geo.getMinResults();
       const maxRadius = this.geo.getMaxRadius();
+      // Explicitly passing undefined to getBaseRadius if both geoContext.locationType and dto.locationType are undefined.
       let radiusKm = this.geo.getBaseRadius(geoContext.locationType ?? dto.locationType);
       let result = await this.queryBuilder.runSearch({
         dto,
