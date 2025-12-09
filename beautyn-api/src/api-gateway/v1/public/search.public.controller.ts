@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Query, Body, Req, ValidationPipe, UsePipes, HttpCode, HttpStatus } from '@nestjs/common';
+import { Controller, Post, Body, Req, HttpCode, HttpStatus } from '@nestjs/common';
 import { ApiBadRequestResponse, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Request } from 'express';
 import { SearchService } from '../../../search/search.service';
