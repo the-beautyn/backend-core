@@ -118,14 +118,6 @@ export class SearchQueryBuilderService {
     }
 
     const whereSql = filters.length ? Prisma.sql`WHERE ${Prisma.join(filters, ' AND ')}` : Prisma.sql``;
-    const orderByParts = this.buildSort(params.sortBy, Boolean(distanceExpr));
-    const orderBySql =
-      orderByParts.length > 0
-        ? Prisma.sql`ORDER BY ${Prisma.join(orderByParts, ', ')}`
-        : Prisma.sql``;
-
-    const withSql = withClauses.length ? Prisma.sql`WITH ${Prisma.join(withClauses, ', ')}` : Prisma.sql``;
-    const distinctSql = hasCategoryFilter ? Prisma.sql`DISTINCT ON (s.id)` : Prisma.sql``;
     const joinsSql = joins.length ? Prisma.sql`${Prisma.join(joins, ' ')}` : Prisma.sql``;
     const selectColumns: Prisma.Sql[] = [
       Prisma.sql`s.id`,
@@ -140,6 +132,7 @@ export class SearchQueryBuilderService {
       Prisma.sql`s.rating_count`,
       Prisma.sql`s.min_price_cents`,
       Prisma.sql`s.max_price_cents`,
+      Prisma.sql`s.created_at`,
     ];
 
     if (distanceExpr) {
@@ -147,23 +140,64 @@ export class SearchQueryBuilderService {
     }
 
     selectColumns.push(Prisma.sql`s.open_hours_json`);
-    selectColumns.push(
-      Prisma.sql`COUNT(${hasCategoryFilter ? Prisma.sql`DISTINCT s.id` : Prisma.sql`*`}) OVER() AS total_count`,
-    );
 
-    const selectSql = Prisma.join(selectColumns, ', ');
+    let query: Prisma.Sql;
 
-    const query = Prisma.sql`
-      ${withSql}
-      SELECT
-        ${distinctSql}
-        ${selectSql}
-      FROM salons s
-      ${joinsSql}
-      ${whereSql}
-      ${orderBySql}
-      LIMIT ${limit} OFFSET ${offset}
-    `;
+    if (hasCategoryFilter) {
+      const orderByInner = this.buildSort(params.sortBy, Boolean(distanceExpr), false, 's');
+      const orderByOuter = this.buildSort(params.sortBy, Boolean(distanceExpr), false, 'f');
+      const windowOrder =
+        orderByInner.length > 0 ? Prisma.join(orderByInner, ', ') : Prisma.sql`s.id ASC`;
+
+      const selectWithRowNumber = Prisma.join(
+        [...selectColumns, Prisma.sql`ROW_NUMBER() OVER (PARTITION BY s.id ORDER BY ${windowOrder}) AS rn`],
+        ', ',
+      );
+
+      const baseSelect = Prisma.sql`
+        SELECT ${selectWithRowNumber}
+        FROM salons s
+        ${joinsSql}
+        ${whereSql}
+      `;
+
+      const ctes = [
+        ...withClauses,
+        Prisma.sql`filtered AS (SELECT * FROM (${baseSelect}) AS base WHERE base.rn = 1)`,
+        Prisma.sql`total AS (SELECT COUNT(*) AS total_count FROM filtered)`,
+      ];
+      const withSql = Prisma.sql`WITH ${Prisma.join(ctes, ', ')}`;
+
+      const orderBySqlOuter =
+        orderByOuter.length > 0 ? Prisma.sql`ORDER BY ${Prisma.join(orderByOuter, ', ')}` : Prisma.sql``;
+
+      query = Prisma.sql`
+        ${withSql}
+        SELECT f.*, t.total_count
+        FROM filtered f CROSS JOIN total t
+        ${orderBySqlOuter}
+        LIMIT ${limit} OFFSET ${offset}
+      `;
+    } else {
+      const orderByInner = this.buildSort(params.sortBy, Boolean(distanceExpr), false, 's');
+      const orderBySqlInner =
+        orderByInner.length > 0 ? Prisma.sql`ORDER BY ${Prisma.join(orderByInner, ', ')}` : Prisma.sql``;
+      const withSql = withClauses.length ? Prisma.sql`WITH ${Prisma.join(withClauses, ', ')}` : Prisma.sql``;
+
+      selectColumns.push(Prisma.sql`COUNT(*) OVER() AS total_count`);
+      const selectSql = Prisma.join(selectColumns, ', ');
+
+      query = Prisma.sql`
+        ${withSql}
+        SELECT
+          ${selectSql}
+        FROM salons s
+        ${joinsSql}
+        ${whereSql}
+        ${orderBySqlInner}
+        LIMIT ${limit} OFFSET ${offset}
+      `;
+    }
 
     const rows = await this.prisma.$queryRaw<RawSearchRow[]>(query);
     const total = rows[0]?.total_count ? Number(rows[0].total_count) : 0;
@@ -236,36 +270,60 @@ export class SearchQueryBuilderService {
     return { minLat, maxLat, minLng, maxLng, wrapsLongitude };
   }
 
-  private buildSort(sortBy: SortOptionEnum | undefined, hasDistance: boolean): Prisma.Sql[] {
+  private buildSort(
+    sortBy: SortOptionEnum | undefined,
+    hasDistance: boolean,
+    hasDistinct: boolean,
+    alias: string = 's',
+  ): Prisma.Sql[] {
     const order: Prisma.Sql[] = [];
+    const col = (name: string) => Prisma.raw(`${alias ? `${alias}.` : ''}${name}`);
+
+    if (hasDistinct) {
+      order.push(Prisma.sql`${col('id')} ASC`);
+    }
     const key = sortBy ?? (hasDistance ? SortOptionEnum.DISTANCE : SortOptionEnum.RATING_DESC);
 
     switch (key) {
       case SortOptionEnum.DISTANCE:
         if (hasDistance) {
-          order.push(Prisma.sql`distance_km ASC`);
+          order.push(Prisma.sql`${col('distance_km')} ASC`);
         }
-        order.push(Prisma.sql`s.rating_avg DESC NULLS LAST`, Prisma.sql`s.rating_count DESC NULLS LAST`);
+        order.push(
+          Prisma.sql`${col('rating_avg')} DESC NULLS LAST`,
+          Prisma.sql`${col('rating_count')} DESC NULLS LAST`,
+        );
         break;
       case SortOptionEnum.RATING_DESC:
-        order.push(Prisma.sql`s.rating_avg DESC NULLS LAST`, Prisma.sql`s.rating_count DESC NULLS LAST`);
+        order.push(
+          Prisma.sql`${col('rating_avg')} DESC NULLS LAST`,
+          Prisma.sql`${col('rating_count')} DESC NULLS LAST`,
+        );
         break;
       case SortOptionEnum.PRICE_ASC:
-        order.push(Prisma.sql`s.min_price_cents ASC NULLS LAST`);
+        order.push(Prisma.sql`${col('min_price_cents')} ASC NULLS LAST`);
         break;
       case SortOptionEnum.PRICE_DESC:
-        order.push(Prisma.sql`s.min_price_cents DESC NULLS LAST`);
+        order.push(Prisma.sql`${col('min_price_cents')} DESC NULLS LAST`);
         break;
       case SortOptionEnum.POPULAR:
-        order.push(Prisma.sql`s.rating_count DESC NULLS LAST`, Prisma.sql`s.rating_avg DESC NULLS LAST`);
+        order.push(
+          Prisma.sql`${col('rating_count')} DESC NULLS LAST`,
+          Prisma.sql`${col('rating_avg')} DESC NULLS LAST`,
+        );
         break;
       default:
-        order.push(Prisma.sql`s.rating_avg DESC NULLS LAST`, Prisma.sql`s.rating_count DESC NULLS LAST`);
+        order.push(
+          Prisma.sql`${col('rating_avg')} DESC NULLS LAST`,
+          Prisma.sql`${col('rating_count')} DESC NULLS LAST`,
+        );
         break;
     }
 
-    order.push(Prisma.sql`s.id ASC`);
-    order.push(Prisma.sql`s.created_at DESC`);
+    if (!hasDistinct) {
+      order.push(Prisma.sql`${col('id')} ASC`);
+    }
+    order.push(Prisma.sql`${col('created_at')} DESC`);
     return order;
   }
 

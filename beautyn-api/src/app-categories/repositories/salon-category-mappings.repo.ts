@@ -37,4 +37,32 @@ export class SalonCategoryMappingsRepository {
       },
     });
   }
+
+  async findMappingsBySalonIds(salonIds: string[]): Promise<
+    {
+      salonId: string;
+      salonName: string;
+      salonCategoryId: string;
+      appCategoryId: string | null;
+      appCategoryName: string | null;
+    }[]
+  > {
+    if (salonIds.length === 0) {
+      return [];
+    }
+    const prismaAny = this.prisma as any;
+    return prismaAny.$queryRaw`
+      SELECT
+        c.salon_id AS "salonId",
+        s.name AS "salonName",
+        scm.salon_category_id AS "salonCategoryId",
+        scm.app_category_id AS "appCategoryId",
+        ac.name AS "appCategoryName"
+      FROM salon_category_mappings scm
+      JOIN categories c ON c.id = scm.salon_category_id
+      JOIN salons s ON s.id = c.salon_id
+      LEFT JOIN app_categories ac ON ac.id = scm.app_category_id
+      WHERE c.salon_id = ANY(${salonIds}::uuid[])
+    `;
+  }
 }

@@ -19,3 +19,20 @@ export class SalonCategoryMappingResponseDto {
   @ApiProperty()
   updatedAt!: Date;
 }
+
+export class SalonAppCategoryMappingDto {
+  @ApiProperty()
+  salonId!: string;
+
+  @ApiProperty()
+  salonName!: string;
+
+  @ApiProperty()
+  salonCategoryId!: string;
+
+  @ApiProperty({ required: false, nullable: true })
+  appCategoryId!: string | null;
+
+  @ApiProperty({ required: false, nullable: true })
+  appCategoryName!: string | null;
+}

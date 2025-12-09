@@ -242,6 +242,47 @@ describe('Search API (e2e)', () => {
     expect(res.body.data.meta.geoSource).toBe('viewport');
   });
 
+  describe('accepts various request bodies', () => {
+    const cases: { name: string; body: any }[] = [
+      { name: 'query only', body: { query: 'Salon' } },
+      { name: 'center with locationType', body: { centerLat: 30.05, centerLng: 50.02, locationType: 'city' } },
+      { name: 'centerLat only', body: { centerLat: 30.05 } },
+      { name: 'centerLng only', body: { centerLng: 50.02 } },
+      { name: 'locationType only', body: { locationType: 'neighborhood' } },
+      { name: 'centerLng with locationType', body: { centerLng: 50.02, locationType: 'neighborhood' } },
+      { name: 'centerLat with locationType', body: { centerLat: 30.04, locationType: 'neighborhood' } },
+      {
+        name: 'viewport only',
+        body: { viewport: { neLat: 50.45, neLng: 30.6, swLat: 50.4, swLng: 30.4 } },
+      },
+      {
+        name: 'center with viewport provided',
+        body: {
+          centerLat: 30.05,
+          centerLng: 50.02,
+          locationType: 'city',
+          viewport: { neLat: 50.45, neLng: 30.6, swLat: 50.4, swLng: 30.4 },
+        },
+      },
+      { name: 'date and time', body: { date: '2025-12-07', time: '20:00' } },
+      { name: 'date only', body: { date: '2025-12-07' } },
+      { name: 'time only', body: { time: '20:00' } },
+      { name: 'priceMin only', body: { priceMin: 10 } },
+      { name: 'priceMax only', body: { priceMax: 100 } },
+      { name: 'appCategoryIds', body: { appCategoryIds: ['cat-1'] } },
+      { name: 'sort rating_desc', body: { sortBy: 'rating_desc' } },
+      { name: 'sort distance', body: { sortBy: 'distance' } },
+      { name: 'sort price_asc', body: { sortBy: 'price_asc' } },
+      { name: 'sort price_desc', body: { sortBy: 'price_desc' } },
+      { name: 'sort popular', body: { sortBy: 'popular' } },
+    ];
+
+    it.each(cases)('responds 200 for %s', async ({ body }) => {
+      await request(app.getHttpServer()).post('/api/v1/search').send(body).expect(200);
+      expect(mockQueryBuilder.runSearch).toHaveBeenCalled();
+    });
+  });
+
   it('GET /api/v1/search/suggestions merges history and name matches', async () => {
     const res = await request(app.getHttpServer())
       .get('/api/v1/search/suggestions?query=sal')
