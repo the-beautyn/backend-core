@@ -18,7 +18,7 @@ export class AppCategoryMappingsController {
     private readonly prisma: PrismaService,
   ) {}
 
-  log = createChildLogger('AppCategoryMappingsController');
+  private readonly log = createChildLogger('AppCategoryMappingsController');
 
   @Get('by-salon/admin/:id')
   @ApiBearerAuth()
