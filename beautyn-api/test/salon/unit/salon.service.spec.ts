@@ -19,9 +19,9 @@ describe('SalonService', () => {
     service = module.get(SalonService);
   });
 
-  it('upsertFromCrm is idempotent by crm_id', async () => {
-    await service.upsertFromCrm({ crm_id: 'crm1', name: 'First' });
-    await service.upsertFromCrm({ crm_id: 'crm1', name: 'Updated' });
+  it('upsertFromCrm updates when id matches', async () => {
+    await service.upsertFromCrm({ id: 's1', name: 'First' });
+    await service.upsertFromCrm({ id: 's1', name: 'Updated' });
 
     const list = await prisma.salon.findMany({});
     expect(list).toHaveLength(1);

@@ -24,7 +24,6 @@ import { SalonListResponseDto } from './salon/dto/salon-list.response.dto';
 import { SalonImageDto } from './salon/dto/salon-image.dto';
 import { CrmSalonPreviewDto } from './onboarding/dto/crm-salon-preview.dto';
 import { CrmSalonChangeDto } from './crm-salon-changes/dto/crm-salon-change.dto';
-import { BookingDto } from './bookings/dto/booking.dto';
 import { CrmCategoryDto, CrmCategoryPageDto } from './categories/dto/categories-sync-result.dto';
 import { AppCategoryResponseDto } from './app-categories/dto/app-category-response.dto';
 import { AppCategoryListResponseDto } from './app-categories/dto/app-category-list-response.dto';
@@ -76,7 +75,6 @@ async function bootstrap() {
       SalonImageDto,
       CrmSalonPreviewDto,
       CrmSalonChangeDto,
-      BookingDto,
       CrmCategoryDto,
       CrmCategoryPageDto,
       AppCategoryResponseDto,

@@ -39,6 +39,13 @@ export interface Capability {
   supportsWorkersDelete: boolean;
   supportsWorkerScheduleUpdate: boolean;
 
+  // Booking availability/create surfaces
+  supportsBookingServicesPull: boolean;
+  supportsBookingWorkersPull: boolean;
+  supportsBookingDatesPull: boolean;
+  supportsBookingTimeslotsPull: boolean;
+  supportsBookingCreate: boolean;
+
   /** Optional metadata */
   timeGranularityMin?: number;
   authFlow?: 'oauth' | 'apiKey' | 'dual' | 'custom';

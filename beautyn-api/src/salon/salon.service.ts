@@ -56,14 +56,6 @@ export class SalonService {
     const data = this.mapSyncDto(input);
     let salon: SalonModel;
 
-    if (input.crm_id) {
-      const existing = await this.prisma.salon.findFirst({ where: { crmId: input.crm_id } });
-      if (existing) {
-        salon = await this.prisma.salon.update({ where: { id: existing.id }, data });
-        return SalonMapper.toDto(salon);
-      }
-    }
-
     if (input.id) {
       salon = await this.prisma.salon.upsert({
         where: { id: input.id },
@@ -104,9 +96,8 @@ export class SalonService {
     return images.map(SalonMapper.toImageDto);
   }
 
-  private mapSyncDto(input: SalonSyncDto & { crm_id?: string }): Prisma.SalonUncheckedCreateInput {
+  private mapSyncDto(input: SalonSyncDto): Prisma.SalonUncheckedCreateInput {
     return {
-      crmId: input.crm_id,
       name: input.name,
       addressLine: input.address_line,
       city: input.city,

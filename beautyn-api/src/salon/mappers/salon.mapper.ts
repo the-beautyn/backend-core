@@ -5,7 +5,6 @@ export class SalonMapper {
   static toDto(entity: Salon): SalonDto {
     return {
       id: entity.id,
-      crm_id: entity.crmId ?? undefined,
       name: entity.name ?? '',
       address_line: entity.addressLine ?? undefined,
       city: entity.city ?? undefined,

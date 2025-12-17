@@ -12,10 +12,6 @@ export class SalonSyncDto {
   @IsString()
   id?: string;
 
-  @IsOptional()
-  @IsString()
-  crm_id?: string;
-
   @IsString()
   name!: string;
 

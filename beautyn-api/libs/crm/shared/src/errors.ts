@@ -5,8 +5,9 @@ export class CrmError extends Error {
   readonly kind: ErrorKind;
   readonly retryable: boolean;
   readonly cause?: unknown;
+  readonly vendorMessage?: string;
 
-  constructor(message: string, opts: { kind: ErrorKind; retryable?: boolean; cause?: unknown }) {
+  constructor(message: string, opts: { kind: ErrorKind; retryable?: boolean; cause?: unknown; vendorMessage?: string }) {
     super(message);
     this.name = 'CrmError';
     this.kind = opts.kind;
@@ -17,6 +18,7 @@ export class CrmError extends Error {
         opts.kind === ErrorKind.NETWORK ||
         opts.kind === ErrorKind.AUTH);
     this.cause = opts.cause;
+    this.vendorMessage = opts.vendorMessage;
     // Clean stack
     if (Error.captureStackTrace) Error.captureStackTrace(this, CrmError);
   }
@@ -27,6 +29,7 @@ export class CrmError extends Error {
       message: this.message,
       kind: this.kind,
       retryable: this.retryable,
+      vendorMessage: this.vendorMessage,
     } as const;
   }
 }
