@@ -30,6 +30,12 @@
     "supportsWorkersDelete": true,
     "supportsWorkerScheduleUpdate": false,
 
+    "supportsBookingServicesPull": true,
+    "supportsBookingWorkersPull": true,
+    "supportsBookingDatesPull": true,
+    "supportsBookingTimeslotsPull": true,
+    "supportsBookingCreate": true,
+
     "timeGranularityMin": 5,
     "authFlow": "dual"
   },
@@ -63,6 +69,12 @@
     "supportsWorkersUpdate": false,
     "supportsWorkersDelete": false,
     "supportsWorkerScheduleUpdate": false,
+
+    "supportsBookingServicesPull": false,
+    "supportsBookingWorkersPull": false,
+    "supportsBookingDatesPull": false,
+    "supportsBookingTimeslotsPull": false,
+    "supportsBookingCreate": false,
 
     "timeGranularityMin": 10,
     "authFlow": "oauth"

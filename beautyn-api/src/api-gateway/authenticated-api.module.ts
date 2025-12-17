@@ -7,8 +7,6 @@ import { OnboardingController } from './v1/authenticated/onboarding.controller';
 import { CrmSalonChangesController } from './v1/authenticated/crm-salon-changes.controller';
 import { SalonsAuthenticatedController } from './v1/authenticated/salons.authenticated.controller';
 import { SalonModule } from '../salon/salon.module';
-import { BookingsModule } from '../bookings/bookings.module';
-import { BookingsController } from './v1/public/bookings.controller';
 import { CategoriesModule } from '../categories/categories.module';
 import { CategoriesAuthenticatedController } from './v1/authenticated/categories.controller';
 import { ServicesModule } from '../services/services.module';
@@ -20,22 +18,24 @@ import { AppCategoriesController } from './v1/authenticated/app-categories.contr
 import { AppCategoryMappingsController } from './v1/authenticated/app-category-mappings.controller';
 import { SearchAuthenticatedController } from './v1/authenticated/search.authenticated.controller';
 import { SearchModule } from '../search/search.module';
+import { AltegioBookingModule } from '../booking/altegio-booking/altegio-booking.module';
+import { AltegioBookingAuthenticatedController } from './v1/authenticated/altegio-booking.authenticated.controller';
 
 
 @Module({
-  imports: [UserModule, OnboardingModule, CrmSalonChangesModule, SalonModule, BookingsModule, CategoriesModule, ServicesModule, WorkersModule, AppCategoriesModule, SearchModule],
+  imports: [UserModule, OnboardingModule, CrmSalonChangesModule, SalonModule, CategoriesModule, ServicesModule, WorkersModule, AppCategoriesModule, SearchModule, AltegioBookingModule],
   controllers: [
     UserAuthenticatedController,
     OnboardingController,
     CrmSalonChangesController,
     SalonsAuthenticatedController,
-    BookingsController,
     CategoriesAuthenticatedController,
     ServicesAuthenticatedController,
     WorkersAuthenticatedController,
     AppCategoriesController,
     AppCategoryMappingsController,
     SearchAuthenticatedController,
+    AltegioBookingAuthenticatedController,
   ],
 })
 export class AuthenticatedApiModule {}

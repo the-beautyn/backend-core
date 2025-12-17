@@ -153,6 +153,35 @@ export class CrmIntegrationService {
     return remote;
   }
 
+  // --- Booking flow passthrough ---
+  async bookServices(salonId: string, provider: CrmType, args?: { serviceIds?: number[]; staffId?: number }) {
+    return this.adapter.bookServices(salonId, provider, args);
+  }
+
+  async bookStaff(salonId: string, provider: CrmType, args?: { serviceIds?: number[]; datetime?: string }) {
+    return this.adapter.bookStaff(salonId, provider, args);
+  }
+
+  async bookDates(
+    salonId: string,
+    provider: CrmType,
+    args?: { serviceIds?: number[]; staffId?: number; dateFrom?: string; dateTo?: string },
+  ) {
+    return this.adapter.bookDates(salonId, provider, args);
+  }
+
+  async bookTimes(
+    salonId: string,
+    provider: CrmType,
+    args: { staffId: number; date: string; serviceIds?: number[] },
+  ) {
+    return this.adapter.bookTimes(salonId, provider, args);
+  }
+
+  async createRecord(salonId: string, provider: CrmType, payload: any) {
+    return this.adapter.createRecord(salonId, provider, payload);
+  }
+
   //*** Services Sync ***//
 
   async enqueueServicesSync(salonId: string, provider: CrmType): Promise<{ jobId: string }> {

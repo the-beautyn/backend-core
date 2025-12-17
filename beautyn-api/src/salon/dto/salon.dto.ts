@@ -6,10 +6,6 @@ export class SalonDto {
   @Expose()
   id!: string;
 
-  @ApiProperty({ required: false })
-  @Expose()
-  crm_id?: string;
-
   @ApiProperty()
   @Expose()
   name!: string;

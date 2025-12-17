@@ -24,3 +24,6 @@ export class OwnerRolesGuard extends (RolesGuard('owner') as unknown as Type<Can
 
 @Injectable()
 export class AdminRolesGuard extends (RolesGuard('admin') as unknown as Type<CanActivate>) {}
+
+@Injectable()
+export class ClientRolesGuard extends (RolesGuard('client') as unknown as Type<CanActivate>) {}

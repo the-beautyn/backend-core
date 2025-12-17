@@ -6,6 +6,7 @@ import * as CategoriesBlock from './altegio/categories';
 import * as ServicesBlock from './altegio/services';
 import * as WorkersBlock from './altegio/workers';
 import * as BookingsBlock from './altegio/bookings';
+import * as BookingFlow from './altegio/booking-flow';
 import { AccountRegistryService } from '@crm/account-registry';
 import { TokenStorageService } from '@crm/token-storage';
 import { CrmType } from '@crm/shared';
@@ -61,7 +62,14 @@ export class AltegioProvider implements ICrmProvider {
     if (opts?.query) {
       for (const [k, v] of Object.entries(opts.query)) {
         if (v === undefined || v === null) continue;
-        url.searchParams.set(k, String(v));
+        if (Array.isArray(v)) {
+          for (const item of v) {
+            if (item === undefined || item === null) continue;
+            url.searchParams.append(k, String(item));
+          }
+        } else {
+          url.searchParams.set(k, String(v));
+        }
       }
     }
     const startedAt = Date.now();
@@ -99,11 +107,12 @@ export class AltegioProvider implements ICrmProvider {
 
     if (!res.ok) {
       const retryAfter = res.headers.get('retry-after') ?? undefined;
-      const base = { status: res.status, path: url.pathname, retryAfter };
-      if (res.status === 401 || res.status === 403) throw new CrmError('Altegio auth error', { kind: ErrorKind.AUTH, retryable: false, cause: base });
-      if (res.status === 429) throw new CrmError('Altegio rate limit', { kind: ErrorKind.RATE_LIMIT, retryable: true, cause: base });
-      if (res.status >= 500) throw new CrmError('Altegio server/network error', { kind: ErrorKind.NETWORK, retryable: true, cause: base });
-      throw new CrmError(`Altegio request failed (${res.status})`, { kind: ErrorKind.VALIDATION, retryable: false, cause: { ...base, body: json ?? text } });
+      const base = { status: res.status, path: url.pathname, retryAfter, body: json ?? text };
+      const vendorMessage = (json as any)?.meta?.message ?? (json as any)?.message ?? undefined;
+      if (res.status === 401 || res.status === 403) throw new CrmError('Altegio auth error', { kind: ErrorKind.AUTH, retryable: false, cause: base, vendorMessage });
+      if (res.status === 429) throw new CrmError('Altegio rate limit', { kind: ErrorKind.RATE_LIMIT, retryable: true, cause: base, vendorMessage });
+      if (res.status >= 500) throw new CrmError('Altegio server/network error', { kind: ErrorKind.NETWORK, retryable: true, cause: base, vendorMessage });
+      throw new CrmError(`Altegio request failed (${res.status})`, { kind: ErrorKind.VALIDATION, retryable: false, cause: base, vendorMessage });
     }
     return (json?.data ?? json) as T;
   }
@@ -239,6 +248,27 @@ export class AltegioProvider implements ICrmProvider {
     return WorkersBlock.deleteWorker(this.ctx(), externalId);
   }
   // async updateWorkerSchedule(ctx: ProviderContext, externalId: string, schedule: WorkerSchedule): Promise<void> { this.notYet('updateWorkerSchedule'); }
+
+  // ---- Booking flow (Altegio-specific) ----
+  async getBookServices(args?: { serviceIds?: number[]; staffId?: number }) {
+    return BookingFlow.getBookServices(this.ctx(), args);
+  }
+
+  async getBookStaff(args?: { serviceIds?: number[]; datetime?: string }) {
+    return BookingFlow.getBookStaff(this.ctx(), args);
+  }
+
+  async getBookDates(args?: { serviceIds?: number[]; staffId?: number; dateFrom?: string; dateTo?: string }) {
+    return BookingFlow.getBookDates(this.ctx(), args);
+  }
+
+  async getBookTimes(args: { staffId: number; date: string; serviceIds?: number[] }) {
+    return BookingFlow.getBookTimes(this.ctx(), args);
+  }
+
+  async createRecord(payload: BookingFlow.AltegioCreateRecordPayload) {
+    return BookingFlow.createRecord(this.ctx(), payload);
+  }
 
   private notYet(method: string): never {
     this.log.warn('Stub method called', { method, externalSalonId: this.externalSalonId });
