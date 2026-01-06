@@ -1,6 +1,6 @@
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import { BadGatewayException, BadRequestException, HttpException, HttpStatus, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../shared/database/prisma.service';
-import { CrmType } from '@crm/shared';
+import { CrmError, CrmType, ErrorKind } from '@crm/shared';
 import { AccountRegistryService } from '@crm/account-registry';
 import { TokenStorageService } from '@crm/token-storage';
 import { CrmAdapterService } from '@crm/adapter';
@@ -20,6 +20,7 @@ import {
   SalonData,
 } from '@crm/provider-core';
 import { SyncSchedulerService } from '@crm/sync-scheduler';
+import { EasyweekBookingDtoNormalized } from './dto/easyweek-booking.dto';
 
 @Injectable()
 export class CrmIntegrationService {
@@ -182,6 +183,49 @@ export class CrmIntegrationService {
     return this.adapter.createRecord(salonId, provider, payload);
   }
 
+  async fetchEasyweekBookingDetails(params: { bookingUuid: string; salonId: string }): Promise<EasyweekBookingDtoNormalized> {
+    const { bookingUuid, salonId } = params;
+    if (!bookingUuid || !salonId) {
+      throw new BadRequestException('bookingUuid and salonId are required');
+    }
+    const salon = await this.prisma.salon.findUnique({ where: { id: salonId }, select: { provider: true } });
+    if (!salon || salon.provider !== CrmType.EASYWEEK) {
+      throw new BadRequestException('Salon is not linked to EasyWeek');
+    }
+
+    try {
+      const res = await this.adapter.fetchEasyWeekBookingDetails(salonId, bookingUuid);
+      return {
+        bookingUuid: res.uuid,
+        locationUuid: res.locationUuid ?? null,
+        startTime: res.startTime ?? null,
+        endTime: res.endTime ?? null,
+        timezone: res.timezone ?? null,
+        isCanceled: res.isCanceled ?? undefined,
+        isCompleted: res.isCompleted ?? undefined,
+        statusName: res.statusName ?? null,
+        orderedServices: res.orderedServices,
+        order: res.order,
+        duration: res.duration,
+        policy: res.policy,
+        links: res.links,
+        raw: res.raw,
+      };
+    } catch (e) {
+      this.mapCrmErrorToHttpException(e);
+      throw e;
+    }
+  }
+
+  async getEasyweekWorkspaceSlug(salonId: string): Promise<string> {
+    const acc = await this.accounts.get(salonId, CrmType.EASYWEEK);
+    const slug = (acc?.data as any)?.workspaceSlug;
+    if (!slug) {
+      throw new BadRequestException('EasyWeek workspace slug is missing');
+    }
+    return String(slug);
+  }
+
   //*** Services Sync ***//
 
   async enqueueServicesSync(salonId: string, provider: CrmType): Promise<{ jobId: string }> {
@@ -312,6 +356,25 @@ export class CrmIntegrationService {
   }
 
   //*** Private Helpers ***//
+
+  private mapCrmErrorToHttpException(e: unknown): never {
+    if (e instanceof CrmError) {
+      const message = e.vendorMessage || e.message;
+      switch (e.kind) {
+        case ErrorKind.AUTH:
+          throw new HttpException(message, HttpStatus.FAILED_DEPENDENCY);
+        case ErrorKind.RATE_LIMIT:
+          throw new HttpException(message, HttpStatus.TOO_MANY_REQUESTS);
+        case ErrorKind.VALIDATION:
+          throw new NotFoundException(message);
+        case ErrorKind.NETWORK:
+          throw new BadGatewayException(message);
+        default:
+          throw new BadRequestException(message);
+      }
+    }
+    throw e;
+  }
 
   private async loadFinalCategoriesSnapshot(salonId: string): Promise<any[]> {
     const categories = await this.prisma.category.findMany({

@@ -1,5 +1,5 @@
 import { CrmType } from '@crm/shared';
-import { CreateBookingInput, RescheduleBookingInput, CancelBookingInput, GetAvailabilityInput, CompleteBookingInput, SalonData, CategoryData, CategoryCreateInput, CategoryUpdateInput, ServiceData, ServiceCreateInput, ServiceUpdateInput, WorkerData, Page, BookingData } from '@crm/provider-core';
+import { CreateBookingInput, RescheduleBookingInput, CancelBookingInput, GetAvailabilityInput, CompleteBookingInput, SalonData, CategoryData, CategoryCreateInput, CategoryUpdateInput, ServiceData, ServiceCreateInput, ServiceUpdateInput, WorkerData, Page, BookingData, EasyWeekBooking } from '@crm/provider-core';
 
 export type CategoryCreatePayload = CategoryCreateInput;
 
@@ -41,6 +41,7 @@ export interface ICrmAdapter {
     provider: CrmType,
     args?: { clientExternalId?: string; withDeleted?: boolean; startDate?: string; endDate?: string; }
   ): Promise<BookingData[]>;
+  fetchEasyWeekBookingDetails(salonId: string, bookingUuid: string): Promise<EasyWeekBooking>;
 
   pullCategories(salonId: string, provider: CrmType, cursor?: string): Promise<Page<CategoryData>>;
   createCategory(salonId: string, provider: CrmType, payload: CategoryCreatePayload): Promise<CategoryData>;

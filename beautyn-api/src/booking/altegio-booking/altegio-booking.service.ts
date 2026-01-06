@@ -215,13 +215,16 @@ export class AltegioBookingService {
     };
 
     const record = await this.callCrm(() => this.crmIntegration.createRecord(ctx.salonId, ctx.provider, payload));
+    const start = new Date(dto.datetime);
+    const endDatetime = slotLengthSec ? new Date(start.getTime() + slotLengthSec * 1000) : null;
 
     const created = await this.prisma.booking.create({
       data: {
         salonId,
         userId,
         workerId: worker.id,
-        datetime: new Date(dto.datetime),
+        datetime: start,
+        endDatetime,
         status: 'created',
         comment: dto.comment ?? 'Beautyn',
         attendance: dto.attendance ?? 1,
@@ -231,6 +234,8 @@ export class AltegioBookingService {
         crmServiceIds: crmServiceIds,
         serviceIds: dto.serviceIds,
         shortLink: record?.short_link ?? null,
+        crmType: CrmType.ALTEGIO,
+        crmPayload: payload,
       },
     });
 
