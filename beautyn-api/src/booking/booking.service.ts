@@ -25,8 +25,8 @@ export class BookingService {
     const shortLink = this.buildShortLink(workspaceSlug, bookingUuid);
     const links = Array.isArray(details.links) ? details.links : [];
     const orderedServices = Array.isArray(details.orderedServices) ? details.orderedServices : [];
-    const order = (details as any).order ?? undefined;
-    const duration = (details as any).duration ?? undefined;
+    const order = details.order ?? undefined;
+    const duration = details.duration ?? undefined;
 
     const booking = await this.prisma.$transaction(async (tx) => {
       const record = await tx.booking.upsert({
