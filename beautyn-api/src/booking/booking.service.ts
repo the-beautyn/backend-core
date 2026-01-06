@@ -46,7 +46,7 @@ export class BookingService {
           shortLink,
         },
         update: {
-          userId: userId ?? undefined,
+          userId: userId ?? null,
           status,
           datetime: start,
           endDatetime: end ?? null,
