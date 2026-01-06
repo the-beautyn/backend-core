@@ -26,8 +26,16 @@ function normalizeBooking(raw: any, fallbackUuid: string): EasyWeekBooking {
       ? booking.orderedServices
       : [];
 
+  const uuid = booking.uuid ?? fallbackUuid;
+  if (!uuid) {
+    throw new CrmError('EasyWeek booking UUID is missing', {
+      kind: ErrorKind.VALIDATION,
+      retryable: false,
+    });
+  }
+
   return {
-    uuid: String(booking.uuid ?? fallbackUuid ?? ''),
+    uuid: String(uuid),
     locationUuid: booking.location_uuid ?? booking.locationUuid ?? null,
     startTime: booking.start_time ?? booking.startTime ?? null,
     endTime: booking.end_time ?? booking.endTime ?? null,
