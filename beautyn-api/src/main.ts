@@ -28,6 +28,7 @@ import { CrmCategoryDto, CrmCategoryPageDto } from './categories/dto/categories-
 import { AppCategoryResponseDto } from './app-categories/dto/app-category-response.dto';
 import { AppCategoryListResponseDto } from './app-categories/dto/app-category-list-response.dto';
 import { SalonCategoryMappingResponseDto } from './app-categories/dto/salon-category-mapping-response.dto';
+import { ConfirmEasyweekBookingResponseDto, EasyweekBookingSummaryDto } from './booking/dto/confirm-easyweek-booking.response.dto';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -80,6 +81,8 @@ async function bootstrap() {
       AppCategoryResponseDto,
       AppCategoryListResponseDto,
       SalonCategoryMappingResponseDto,
+      ConfirmEasyweekBookingResponseDto,
+      EasyweekBookingSummaryDto,
     ],
   });
   SwaggerModule.setup('api/docs', app, doc);

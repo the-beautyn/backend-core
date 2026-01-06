@@ -2,12 +2,12 @@ import { Injectable } from '@nestjs/common';
 import { CrmType, CrmError, ErrorKind } from '@crm/shared';
 import { CapabilityRegistryService } from '@crm/capability-registry';
 import { SyncSchedulerService } from '@crm/sync-scheduler';
-import { ProviderFactory, CategoryData, CategoryCreateInput, CategoryUpdateInput, ServiceData, ServiceCreateInput, ServiceUpdateInput, WorkerData, WorkerSchedule, WorkerCreateInput, WorkerUpdateInput, SalonData, Page, BookingData, AltegioProvider, AltegioCreateRecordPayload } from '@crm/provider-core';
+import { ProviderFactory, CategoryData, CategoryCreateInput, CategoryUpdateInput, ServiceData, ServiceCreateInput, ServiceUpdateInput, WorkerData, WorkerSchedule, WorkerCreateInput, WorkerUpdateInput, SalonData, Page, BookingData, AltegioProvider, AltegioCreateRecordPayload, EasyWeekProvider, EasyWeekBooking } from '@crm/provider-core';
 import { executeWithRetry, CircuitBreaker } from '@crm/retry-handler';
 import { createChildLogger } from '@shared/logger';
 import { ICrmAdapter } from './types';
 
-type Op = 'booking.create' | 'booking.reschedule' | 'booking.cancel' | 'booking.complete' | 'availability.get' |
+type Op = 'booking.create' | 'booking.reschedule' | 'booking.cancel' | 'booking.complete' | 'booking.detail' | 'availability.get' |
   'salon.update' |
   'category.create' | 'category.update' | 'category.delete' |
   'service.create' | 'service.update' | 'service.delete' |
@@ -145,6 +145,16 @@ export class CrmAdapterService implements ICrmAdapter {
       const p = this.providers.make(provider) as AltegioProvider;
       await p.init({ salonId, provider });
       return p.createRecord(payload);
+    });
+  }
+
+  async fetchEasyWeekBookingDetails(salonId: string, bookingUuid: string): Promise<EasyWeekBooking> {
+    const provider = CrmType.EASYWEEK;
+    this.caps.assert(provider, 'supportsBooking');
+    return this.runOp('booking.detail', salonId, provider, async () => {
+      const p = this.providers.make(provider) as EasyWeekProvider;
+      await p.init({ salonId, provider });
+      return p.fetchBooking(bookingUuid);
     });
   }
 

@@ -20,10 +20,12 @@ import { SearchAuthenticatedController } from './v1/authenticated/search.authent
 import { SearchModule } from '../search/search.module';
 import { AltegioBookingModule } from '../booking/altegio-booking/altegio-booking.module';
 import { AltegioBookingAuthenticatedController } from './v1/authenticated/altegio-booking.authenticated.controller';
+import { BookingModule } from '../booking/booking.module';
+import { EasyweekBookingAuthenticatedController } from './v1/authenticated/easyweek-booking.authenticated.controller';
 
 
 @Module({
-  imports: [UserModule, OnboardingModule, CrmSalonChangesModule, SalonModule, CategoriesModule, ServicesModule, WorkersModule, AppCategoriesModule, SearchModule, AltegioBookingModule],
+  imports: [UserModule, OnboardingModule, CrmSalonChangesModule, SalonModule, CategoriesModule, ServicesModule, WorkersModule, AppCategoriesModule, SearchModule, AltegioBookingModule, BookingModule],
   controllers: [
     UserAuthenticatedController,
     OnboardingController,
@@ -36,6 +38,7 @@ import { AltegioBookingAuthenticatedController } from './v1/authenticated/altegi
     AppCategoryMappingsController,
     SearchAuthenticatedController,
     AltegioBookingAuthenticatedController,
+    EasyweekBookingAuthenticatedController,
   ],
 })
 export class AuthenticatedApiModule {}

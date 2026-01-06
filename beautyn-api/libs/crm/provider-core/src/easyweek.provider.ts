@@ -5,6 +5,7 @@ import * as EWSalon from './easyweek/salon';
 import * as EWCategories from './easyweek/categories';
 import * as EWServices from './easyweek/services';
 import * as EWWorkers from './easyweek/workers';
+import * as EWBookings from './easyweek/bookings';
 import { TokenStorageService } from '@crm/token-storage';
 import { AccountRegistryService } from '@crm/account-registry';
 import { createChildLogger } from '@shared/logger';
@@ -95,6 +96,10 @@ export class EasyWeekProvider implements ICrmProvider {
     const workers = await EWWorkers.pullWorkers(this.ctx());
     this.log.info('Pulled workers from EasyWeek', { count: workers.length });
     return workers;
+  }
+
+  async fetchBooking(bookingUuid: string) {
+    return EWBookings.fetchBooking(this.ctx(), bookingUuid);
   }
 
   // async createBooking(ctx: ProviderContext, payload: CreateBookingInput): Promise<{ externalBookingId: string }> {

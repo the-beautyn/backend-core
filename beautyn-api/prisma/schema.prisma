@@ -228,6 +228,7 @@ model Service {
   category     Category?       @relation(fields: [categoryId], references: [id])
   workerLinks  WorkerService[]
 
+  @@index([salonId, crmServiceId], map: "services_salon_crm_id_idx")
   @@index([salonId, isActive])
   @@index([categoryId, isActive])
   @@map("services")
@@ -281,22 +282,98 @@ model Booking {
   workerId      String?  @map("worker_id") @db.Uuid
   status        String   @default("created")
   datetime      DateTime @map("datetime") @db.Timestamptz(6)
+  endDatetime   DateTime? @map("end_datetime") @db.Timestamptz(6)
   comment       String?  @map("comment")
   attendance    Int?     @default(1)
+  crmType       String?  @map("crm_type")
   crmRecordId   String?  @map("crm_record_id")
   crmCompanyId  String?  @map("crm_company_id")
   crmStaffId    String?  @map("crm_staff_id")
   crmServiceIds Json?    @map("crm_service_ids")
   serviceIds    Json?    @map("service_ids")
   shortLink     String?  @map("short_link")
+  crmPayload    Json?    @map("crm_payload")
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
 
   salon  Salon  @relation(fields: [salonId], references: [id], onDelete: Cascade)
   worker Worker? @relation(fields: [workerId], references: [id], onDelete: SetNull)
+  easyweekExtra EasyweekBookingExtra?
 
   @@index([salonId], map: "bookings_salon_idx")
+  @@unique([crmType, crmRecordId], map: "bookings_crm_type_record_unique")
   @@map("bookings")
+}
+
+model EasyweekBookingExtra {
+  bookingId       String   @id @map("booking_id") @db.Uuid
+  booking         Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  orderPayload    Json?    @map("order_payload")
+  rawPayload      Json?    @map("raw_payload")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  links           EasyweekBookingLink[]
+  duration        EasyweekBookingDuration?
+  orderedServices EasyweekOrderedService[]
+
+  @@map("easyweek_booking_extra")
+}
+
+model EasyweekBookingLink {
+  id        String   @id @default(uuid()) @db.Uuid
+  extraId   String   @map("extra_id") @db.Uuid
+  type      String?  @map("type")
+  url       String   @map("url")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  extra EasyweekBookingExtra @relation(fields: [extraId], references: [bookingId], onDelete: Cascade)
+
+  @@index([extraId], map: "easyweek_booking_links_extra_idx")
+  @@map("easyweek_booking_links")
+}
+
+model EasyweekBookingDuration {
+  extraId   String   @id @map("extra_id") @db.Uuid
+  extra     EasyweekBookingExtra @relation(fields: [extraId], references: [bookingId], onDelete: Cascade)
+  value     Int?     @map("value")
+  label     String?  @map("label")
+  iso8601   String?  @map("iso_8601")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("easyweek_booking_durations")
+}
+
+model EasyweekOrderedService {
+  id                     String   @id @default(uuid()) @db.Uuid
+  extraId                String   @map("extra_id") @db.Uuid
+  extra                  EasyweekBookingExtra @relation(fields: [extraId], references: [bookingId], onDelete: Cascade)
+  externalUuid           String?  @map("external_uuid")
+  timezone               String?  @map("timezone")
+  reservedOn             DateTime? @map("reserved_on") @db.Timestamptz(6)
+  reservedUntil          DateTime? @map("reserved_until") @db.Timestamptz(6)
+  quantity               Int?     @map("quantity")
+  name                   String?  @map("name")
+  description            String?  @map("description")
+  currency               String?  @map("currency")
+  price                  Int?     @map("price")
+  priceFormatted         String?  @map("price_formatted")
+  discount               Int?     @map("discount")
+  discountFormatted      String?  @map("discount_formatted")
+  originalPrice          Int?     @map("original_price")
+  originalPriceFormatted String?  @map("original_price_formatted")
+  durationValue          Int?     @map("duration_value")
+  durationLabel          String?  @map("duration_label")
+  durationIso            String?  @map("duration_iso")
+  originalDurationValue  Int?     @map("original_duration_value")
+  originalDurationLabel  String?  @map("original_duration_label")
+  originalDurationIso    String?  @map("original_duration_iso")
+  createdAt              DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt              DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([extraId], map: "easyweek_ordered_services_extra_idx")
+  @@map("easyweek_ordered_services")
 }
 
 model CrmPairingCode {
