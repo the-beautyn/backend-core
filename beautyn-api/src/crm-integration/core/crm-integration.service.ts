@@ -212,7 +212,7 @@ export class CrmIntegrationService {
         raw: res.raw,
       };
     } catch (e) {
-      this.rethrowCrmError(e);
+      this.mapCrmErrorToHttpException(e);
       throw e;
     }
   }
@@ -357,7 +357,7 @@ export class CrmIntegrationService {
 
   //*** Private Helpers ***//
 
-  private rethrowCrmError(e: unknown): never {
+  private mapCrmErrorToHttpException(e: unknown): never {
     if (e instanceof CrmError) {
       const message = e.vendorMessage || e.message;
       switch (e.kind) {
