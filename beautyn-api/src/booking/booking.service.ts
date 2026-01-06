@@ -52,7 +52,7 @@ export class BookingService {
           endDatetime: end ?? null,
           crmType: CrmType.EASYWEEK,
           crmRecordId: bookingUuid,
-          crmCompanyId: details.locationUuid ?? undefined,
+          crmCompanyId: details.locationUuid ?? null,
           crmPayload: payload,
           crmServiceIds: Prisma.JsonNull,
           serviceIds: Prisma.JsonNull,
