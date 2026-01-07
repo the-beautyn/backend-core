@@ -392,8 +392,7 @@ export class AltegioBookingService {
         discount: this.toNumber(s?.discount),
         firstCost: this.toNumber(s?.first_cost),
         amount: this.toNumber(s?.amount),
-      }))
-      .filter((s) => true);
+      }));
   }
 
   private mapAltegioDocuments(docs: any, detailsId: string) {
