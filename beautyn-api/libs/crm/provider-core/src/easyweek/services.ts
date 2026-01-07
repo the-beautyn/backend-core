@@ -22,6 +22,8 @@ export async function pullServices(ctx: EasyWeekContext): Promise<Page<ServiceDa
       const externalId = s?.uuid ?? s?.id;
       if (!externalId) return null;
       const durationSeconds = toSeconds(s?.duration);
+      // EasyWeek public API currently does not expose service-staffer mapping reliably.
+      // Keep this parsing defensive so if EasyWeek starts returning staff arrays, we populate them.
       return {
         externalId: String(externalId),
         name: String(s?.name ?? '').trim() || 'Service',
@@ -36,5 +38,3 @@ export async function pullServices(ctx: EasyWeekContext): Promise<Page<ServiceDa
     .filter((item): item is ServiceData => !!item);
   return { items, fetched: items.length };
 }
-
-

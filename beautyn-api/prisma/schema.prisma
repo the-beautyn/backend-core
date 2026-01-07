@@ -298,44 +298,45 @@ model Booking {
 
   salon  Salon  @relation(fields: [salonId], references: [id], onDelete: Cascade)
   worker Worker? @relation(fields: [workerId], references: [id], onDelete: SetNull)
-  easyweekExtra EasyweekBookingExtra?
+  easyweekDetails EasyweekBookingDetails?
+  altegioDetails AltegioBookingDetails?
 
   @@index([salonId], map: "bookings_salon_idx")
   @@unique([crmType, crmRecordId], map: "bookings_crm_type_record_unique")
   @@map("bookings")
 }
 
-model EasyweekBookingExtra {
+model EasyweekBookingDetails {
   bookingId       String   @id @map("booking_id") @db.Uuid
   booking         Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-  orderPayload    Json?    @map("order_payload")
   rawPayload      Json?    @map("raw_payload")
   createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
   links           EasyweekBookingLink[]
   duration        EasyweekBookingDuration?
   orderedServices EasyweekOrderedService[]
+  order           EasyweekBookingOrder?
 
-  @@map("easyweek_booking_extra")
+  @@map("easyweek_booking_details")
 }
 
 model EasyweekBookingLink {
   id        String   @id @default(uuid()) @db.Uuid
-  extraId   String   @map("extra_id") @db.Uuid
+  detailsId String   @map("extra_id") @db.Uuid
   type      String?  @map("type")
   url       String   @map("url")
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  extra EasyweekBookingExtra @relation(fields: [extraId], references: [bookingId], onDelete: Cascade)
+  details EasyweekBookingDetails @relation(fields: [detailsId], references: [bookingId], onDelete: Cascade)
 
-  @@index([extraId], map: "easyweek_booking_links_extra_idx")
+  @@index([detailsId], map: "easyweek_booking_links_extra_idx")
   @@map("easyweek_booking_links")
 }
 
 model EasyweekBookingDuration {
-  extraId   String   @id @map("extra_id") @db.Uuid
-  extra     EasyweekBookingExtra @relation(fields: [extraId], references: [bookingId], onDelete: Cascade)
+  detailsId String   @id @map("extra_id") @db.Uuid
+  details   EasyweekBookingDetails @relation(fields: [detailsId], references: [bookingId], onDelete: Cascade)
   value     Int?     @map("value")
   label     String?  @map("label")
   iso8601   String?  @map("iso_8601")
@@ -345,10 +346,27 @@ model EasyweekBookingDuration {
   @@map("easyweek_booking_durations")
 }
 
+model EasyweekBookingOrder {
+  detailsId String   @id @map("booking_id") @db.Uuid
+  details   EasyweekBookingDetails @relation(fields: [detailsId], references: [bookingId], onDelete: Cascade)
+  payload   Json?    @map("payload")
+  tax       Json?    @map("tax")
+  subtotal  Int?     @map("subtotal")
+  subtotalFormatted   String? @map("subtotal_formatted")
+  amountPaid          Int?    @map("amount_paid")
+  amountPaidFormatted String? @map("amount_paid_formatted")
+  total               Int?    @map("total")
+  totalFormatted      String? @map("total_formatted")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("easyweek_booking_order")
+}
+
 model EasyweekOrderedService {
   id                     String   @id @default(uuid()) @db.Uuid
-  extraId                String   @map("extra_id") @db.Uuid
-  extra                  EasyweekBookingExtra @relation(fields: [extraId], references: [bookingId], onDelete: Cascade)
+  detailsId              String   @map("extra_id") @db.Uuid
+  details                EasyweekBookingDetails @relation(fields: [detailsId], references: [bookingId], onDelete: Cascade)
   externalUuid           String?  @map("external_uuid")
   timezone               String?  @map("timezone")
   reservedOn             DateTime? @map("reserved_on") @db.Timestamptz(6)
@@ -372,8 +390,174 @@ model EasyweekOrderedService {
   createdAt              DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt              DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  @@index([extraId], map: "easyweek_ordered_services_extra_idx")
+  @@index([detailsId], map: "easyweek_ordered_services_extra_idx")
   @@map("easyweek_ordered_services")
+}
+
+// --- Altegio booking details ---
+model AltegioBookingDetails {
+  bookingId        String   @id @map("booking_id") @db.Uuid
+  booking          Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  crmRecordId      String?  @map("crm_record_id")
+  companyId        String?  @map("company_id")
+  staffId          String?  @map("staff_id")
+  clientId         String?  @map("client_id")
+  datetime         DateTime? @map("datetime") @db.Timestamptz(6)
+  date             DateTime? @map("date") @db.Timestamptz(6)
+  createDate       DateTime? @map("create_date") @db.Timestamptz(6)
+  comment          String?   @map("comment")
+  online           Boolean?  @map("online")
+  attendance       Int?      @map("attendance")
+  visitAttendance  Int?      @map("visit_attendance")
+  confirmed        Int?      @map("confirmed")
+  seanceLength     Int?      @map("seance_length")
+  length           Int?      @map("length")
+  technicalBreak   Int?      @map("technical_break_duration")
+  smsBefore        Int?      @map("sms_before")
+  smsNow           Int?      @map("sms_now")
+  emailNow         Int?      @map("email_now")
+  notified         Int?      @map("notified")
+  masterRequest    Int?      @map("master_request")
+  apiId            String?   @map("api_id")
+  fromUrl          String?   @map("from_url")
+  reviewRequested  Int?      @map("review_requested")
+  visitId          String?   @map("visit_id")
+  createdUserId    String?   @map("created_user_id")
+  deleted          Boolean?  @map("deleted")
+  paidFull         Int?      @map("paid_full")
+  prepaid          Boolean?  @map("prepaid")
+  prepaidConfirmed Boolean?  @map("prepaid_confirmed")
+  isUpdateBlocked  Boolean?  @map("is_update_blocked")
+  lastChangeDate   DateTime? @map("last_change_date") @db.Timestamptz(6)
+  customColor      String?   @map("custom_color")
+  customFontColor  String?   @map("custom_font_color")
+  smsRemainHours   Int?      @map("sms_remain_hours")
+  emailRemainHours Int?      @map("email_remain_hours")
+  bookformId       Int?      @map("bookform_id")
+  recordFrom       String?   @map("record_from")
+  isMobile         Int?      @map("is_mobile")
+  shortLink        String?   @map("short_link")
+  rawPayload       Json?     @map("raw_payload")
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  staff            AltegioBookingStaff?
+  client           AltegioBookingClient?
+  services         AltegioBookingService[]
+  documents        AltegioBookingDocument[]
+  goodsTransactions AltegioBookingGoodsTransaction[]
+
+  @@map("altegio_booking_details")
+}
+
+model AltegioBookingStaff {
+  detailsId    String   @id @map("details_id") @db.Uuid
+  details      AltegioBookingDetails @relation(fields: [detailsId], references: [bookingId], onDelete: Cascade)
+  externalId   String?  @map("external_id")
+  apiId        String?  @map("api_id")
+  name         String?  @map("name")
+  specialization String? @map("specialization")
+  position     Json?    @map("position")
+  avatar       String?  @map("avatar")
+  avatarBig    String?  @map("avatar_big")
+  rating       Float?   @map("rating")
+  votesCount   Int?     @map("votes_count")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("altegio_booking_staff")
+}
+
+model AltegioBookingClient {
+  detailsId        String   @id @map("details_id") @db.Uuid
+  details          AltegioBookingDetails @relation(fields: [detailsId], references: [bookingId], onDelete: Cascade)
+  externalId       String?  @map("external_id")
+  name             String?  @map("name")
+  surname          String?  @map("surname")
+  patronymic       String?  @map("patronymic")
+  displayName      String?  @map("display_name")
+  comment          String?  @map("comment")
+  phone            String?  @map("phone")
+  card             String?  @map("card")
+  email            String?  @map("email")
+  successVisits    Int?     @map("success_visits_count")
+  failVisits       Int?     @map("fail_visits_count")
+  discount         Int?     @map("discount")
+  sex              Int?     @map("sex")
+  birthday         String?  @map("birthday")
+  clientTags       Json?    @map("client_tags")
+  customFields     Json?    @map("custom_fields")
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("altegio_booking_client")
+}
+
+model AltegioBookingService {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  detailsId      String   @map("details_id") @db.Uuid
+  details        AltegioBookingDetails @relation(fields: [detailsId], references: [bookingId], onDelete: Cascade)
+  externalId     String?  @map("external_id")
+  title          String?  @map("title")
+  cost           Int?     @map("cost")
+  costToPay      Int?     @map("cost_to_pay")
+  manualCost     Int?     @map("manual_cost")
+  costPerUnit    Int?     @map("cost_per_unit")
+  discount       Int?     @map("discount")
+  firstCost      Int?     @map("first_cost")
+  amount         Int?     @map("amount")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([detailsId], map: "altegio_booking_services_details_idx")
+  @@map("altegio_booking_services")
+}
+
+model AltegioBookingDocument {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  detailsId      String   @map("details_id") @db.Uuid
+  details        AltegioBookingDetails @relation(fields: [detailsId], references: [bookingId], onDelete: Cascade)
+  externalId     String?  @map("external_id")
+  typeId         Int?     @map("type_id")
+  storageId      Int?     @map("storage_id")
+  userId         Int?     @map("user_id")
+  companyId      Int?     @map("company_id")
+  number         Int?     @map("number")
+  comment        String?  @map("comment")
+  dateCreated    DateTime? @map("date_created") @db.Timestamptz(6)
+  categoryId     Int?     @map("category_id")
+  visitId        String?  @map("visit_id")
+  recordId       String?  @map("record_id")
+  typeTitle      String?  @map("type_title")
+  isSaleBillPrinted Boolean? @map("is_sale_bill_printed")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([detailsId], map: "altegio_booking_documents_details_idx")
+  @@map("altegio_booking_documents")
+}
+
+model AltegioBookingGoodsTransaction {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  detailsId      String   @map("details_id") @db.Uuid
+  details        AltegioBookingDetails @relation(fields: [detailsId], references: [bookingId], onDelete: Cascade)
+  externalId     String?  @map("external_id")
+  typeId         Int?     @map("type_id")
+  storageId      Int?     @map("storage_id")
+  userId         Int?     @map("user_id")
+  companyId      Int?     @map("company_id")
+  number         Int?     @map("number")
+  comment        String?  @map("comment")
+  dateCreated    DateTime? @map("date_created") @db.Timestamptz(6)
+  categoryId     Int?     @map("category_id")
+  visitId        String?  @map("visit_id")
+  recordId       String?  @map("record_id")
+  typeTitle      String?  @map("type_title")
+  isSaleBillPrinted Boolean? @map("is_sale_bill_printed")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([detailsId], map: "altegio_booking_goods_details_idx")
+  @@map("altegio_booking_goods_transactions")
 }
 
 model CrmPairingCode {

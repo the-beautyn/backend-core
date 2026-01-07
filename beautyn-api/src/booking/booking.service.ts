@@ -60,20 +60,20 @@ export class BookingService {
         },
       });
 
-      await tx.easyweekBookingExtra.upsert({
+      await tx.easyweekBookingDetails.upsert({
         where: { bookingId: record.id },
-        update: { orderPayload: order ?? Prisma.JsonNull, rawPayload: payload },
-        create: { bookingId: record.id, orderPayload: order ?? Prisma.JsonNull, rawPayload: payload },
+        update: { rawPayload: payload },
+        create: { bookingId: record.id, rawPayload: payload },
       });
 
-      await tx.easyweekBookingDuration.deleteMany({ where: { extraId: record.id } });
+      await tx.easyweekBookingDuration.deleteMany({ where: { detailsId: record.id } });
       if (duration) {
         await tx.easyweekBookingDuration.create({
-          data: { extraId: record.id, ...this.mapDuration(duration) },
+          data: { detailsId: record.id, ...this.mapDuration(duration) },
         });
       }
 
-      await tx.easyweekBookingLink.deleteMany({ where: { extraId: record.id } });
+      await tx.easyweekBookingLink.deleteMany({ where: { detailsId: record.id } });
       if (links.length) {
         await tx.easyweekBookingLink.createMany({
           data: links
@@ -82,7 +82,7 @@ export class BookingService {
         });
       }
 
-      await tx.easyweekOrderedService.deleteMany({ where: { extraId: record.id } });
+      await tx.easyweekOrderedService.deleteMany({ where: { detailsId: record.id } });
       if (orderedServices.length) {
         await tx.easyweekOrderedService.createMany({
           data: orderedServices
@@ -90,6 +90,13 @@ export class BookingService {
             .filter((v): v is NonNullable<typeof v> => !!v),
         });
       }
+
+      const mappedOrder = this.mapOrder(order);
+      await tx.easyweekBookingOrder.upsert({
+        where: { detailsId: record.id },
+        update: { payload: order ?? Prisma.JsonNull, ...mappedOrder },
+        create: { detailsId: record.id, payload: order ?? Prisma.JsonNull, ...mappedOrder },
+      });
 
       return record;
     });
@@ -119,23 +126,36 @@ export class BookingService {
     };
   }
 
-  private mapLink(extraId: string, link: any) {
+  private mapOrder(order: any) {
+    if (!order || typeof order !== 'object') return {};
+    return {
+      tax: Array.isArray(order.tax) ? order.tax : Prisma.JsonNull,
+      subtotal: this.toNumber(order.subtotal),
+      subtotalFormatted: order.subtotal_formatted ?? null,
+      amountPaid: this.toNumber(order.amount_paid),
+      amountPaidFormatted: order.amount_paid_formatted ?? null,
+      total: this.toNumber(order.total),
+      totalFormatted: order.total_formatted ?? null,
+    };
+  }
+
+  private mapLink(detailsId: string, link: any) {
     if (!link || typeof link !== 'object' || !link.link) return null;
     return {
-      extraId,
+      detailsId,
       type: link.type ?? null,
       url: String(link.link),
     };
   }
 
-  private mapOrderedService(extraId: string, svc: any) {
+  private mapOrderedService(detailsId: string, svc: any) {
     if (!svc || typeof svc !== 'object') return null;
     const reservedOn = this.toDate(svc.reserved_on ?? svc.reservedOn ?? svc.start_time ?? svc.startTime);
     const reservedUntil = this.toDate(svc.reserved_until ?? svc.reservedUntil ?? svc.end_time ?? svc.endTime);
     const duration = svc.duration ?? {};
     const originalDuration = svc.original_duration ?? svc.originalDuration ?? {};
     return {
-      extraId,
+      detailsId,
       externalUuid: svc.uuid ?? svc.id ?? null,
       timezone: svc.timezone ?? null,
       reservedOn,

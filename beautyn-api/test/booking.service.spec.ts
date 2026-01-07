@@ -25,7 +25,8 @@ describe('BookingService', () => {
   beforeEach(() => {
     prisma = {
       booking: { upsert: jest.fn() },
-      easyweekBookingExtra: { upsert: jest.fn() },
+      easyweekBookingDetails: { upsert: jest.fn() },
+      easyweekBookingOrder: { upsert: jest.fn() },
       easyweekBookingDuration: { deleteMany: jest.fn(), create: jest.fn() },
       easyweekBookingLink: { deleteMany: jest.fn(), createMany: jest.fn() },
       easyweekOrderedService: { deleteMany: jest.fn(), createMany: jest.fn() },
@@ -57,10 +58,11 @@ describe('BookingService', () => {
         create: expect.objectContaining({ crmCompanyId: baseDetails.locationUuid, shortLink: expect.stringContaining(bookingUuid) }),
       }),
     );
-    expect(prisma.easyweekBookingExtra.upsert).toHaveBeenCalledTimes(2);
+    expect(prisma.easyweekBookingDetails.upsert).toHaveBeenCalledTimes(2);
     expect(prisma.easyweekBookingDuration.deleteMany).toHaveBeenCalledTimes(2);
     expect(prisma.easyweekBookingLink.deleteMany).toHaveBeenCalledTimes(2);
     expect(prisma.easyweekOrderedService.deleteMany).toHaveBeenCalledTimes(2);
+    expect(prisma.easyweekBookingOrder.upsert).toHaveBeenCalledTimes(2);
   });
 
   it('maps canceled/completed flags to status', async () => {
