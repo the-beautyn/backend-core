@@ -493,7 +493,7 @@ model AltegioBookingClient {
 }
 
 model AltegioBookingService {
-  id             String   @id @default(uuid()) @db.Uuid
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   detailsId      String   @map("details_id") @db.Uuid
   details        AltegioBookingDetails @relation(fields: [detailsId], references: [bookingId], onDelete: Cascade)
   externalId     String?  @map("external_id")
@@ -513,7 +513,7 @@ model AltegioBookingService {
 }
 
 model AltegioBookingDocument {
-  id             String   @id @default(uuid()) @db.Uuid
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   detailsId      String   @map("details_id") @db.Uuid
   details        AltegioBookingDetails @relation(fields: [detailsId], references: [bookingId], onDelete: Cascade)
   externalId     String?  @map("external_id")
@@ -537,7 +537,7 @@ model AltegioBookingDocument {
 }
 
 model AltegioBookingGoodsTransaction {
-  id             String   @id @default(uuid()) @db.Uuid
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   detailsId      String   @map("details_id") @db.Uuid
   details        AltegioBookingDetails @relation(fields: [detailsId], references: [bookingId], onDelete: Cascade)
   externalId     String?  @map("external_id")
