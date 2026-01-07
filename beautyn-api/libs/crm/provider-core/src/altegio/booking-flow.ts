@@ -1,4 +1,3 @@
-import { log } from 'console';
 import { AltegioContext } from './context';
 
 export type AltegioBookCategory = { id: number; title?: string };
