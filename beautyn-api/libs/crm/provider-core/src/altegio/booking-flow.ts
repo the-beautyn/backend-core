@@ -1,3 +1,4 @@
+import { log } from 'console';
 import { AltegioContext } from './context';
 
 export type AltegioBookCategory = { id: number; title?: string };
@@ -57,7 +58,7 @@ export type AltegioCreateRecordPayload = {
   attendance?: number;
 };
 
-export type AltegioCreateRecordResponse = { id: number; short_link?: string | null };
+export type AltegioCreateRecordResponse = any; // Altegio returns full record payload; narrowed downstream
 
 export async function getBookServices(
   ctx: AltegioContext,
@@ -108,5 +109,6 @@ export async function getBookTimes(
 
 export async function createRecord(ctx: AltegioContext, payload: AltegioCreateRecordPayload): Promise<AltegioCreateRecordResponse> {
   const externalSalonId = ctx.requireExternalSalonId();
+  ctx.log.info('Creating Altegio record', { payload });
   return ctx.http<AltegioCreateRecordResponse>('POST', `/api/v1/records/${externalSalonId}`, { body: payload });
 }

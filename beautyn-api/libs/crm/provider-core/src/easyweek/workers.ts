@@ -9,6 +9,7 @@ export async function pullWorkers(ctx: EasyWeekContext): Promise<WorkerData[]> {
 }
 
 function mapWorker(raw: any): WorkerData {
+  // Note: EasyWeek staffers endpoint does not list linked services, so serviceIds stay empty.
   const first = typeof raw?.first_name === 'string' ? raw.first_name.trim() : '';
   const last = typeof raw?.last_name === 'string' ? raw.last_name.trim() : '';
   const name = [first, last].filter(Boolean).join(' ') || (typeof raw?.name === 'string' ? raw.name : '');

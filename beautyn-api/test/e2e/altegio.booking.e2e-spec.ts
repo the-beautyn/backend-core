@@ -13,6 +13,7 @@ describe('Altegio booking flow (e2e)', () => {
   let app: INestApplication;
   let prismaMock: any;
   let providerMock: any;
+  let tx: any;
   const salonId = '00000000-0000-0000-0000-00000000a001';
   const workerId = '00000000-0000-0000-0000-00000000a002';
   const serviceId = '00000000-0000-0000-0000-00000000a003';
@@ -41,6 +42,33 @@ describe('Altegio booking flow (e2e)', () => {
       }),
     };
 
+    tx = {
+      booking: {
+        create: jest.fn().mockImplementation(async ({ data }: any) => ({ id: 'booking-e2e', ...data })),
+      },
+      altegioBookingDetails: {
+        upsert: jest.fn().mockResolvedValue(undefined),
+      },
+      altegioBookingStaff: {
+        upsert: jest.fn().mockResolvedValue(undefined),
+      },
+      altegioBookingClient: {
+        upsert: jest.fn().mockResolvedValue(undefined),
+      },
+      altegioBookingService: {
+        deleteMany: jest.fn().mockResolvedValue(undefined),
+        createMany: jest.fn().mockResolvedValue(undefined),
+      },
+      altegioBookingDocument: {
+        deleteMany: jest.fn().mockResolvedValue(undefined),
+        createMany: jest.fn().mockResolvedValue(undefined),
+      },
+      altegioBookingGoodsTransaction: {
+        deleteMany: jest.fn().mockResolvedValue(undefined),
+        createMany: jest.fn().mockResolvedValue(undefined),
+      },
+    };
+
     prismaMock = {
       salon: {
         findFirst: jest.fn().mockResolvedValue({ id: salonId, provider: CrmType.ALTEGIO, externalSalonId: '12345', crmId: '12345' }),
@@ -62,9 +90,7 @@ describe('Altegio booking flow (e2e)', () => {
           where.id === workerId ? { id: workerId, firstName: 'Ann', lastName: 'Doe', position: 'Stylist', crmWorkerId } : null,
         ),
       },
-      booking: {
-        create: jest.fn().mockImplementation(async ({ data }: any) => ({ id: 'booking-e2e', ...data })),
-      },
+      $transaction: jest.fn((fn: any) => fn(tx)),
     } as Partial<PrismaService> as any;
 
     providerMock = {
