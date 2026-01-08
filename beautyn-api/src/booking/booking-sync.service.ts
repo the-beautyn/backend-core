@@ -103,7 +103,7 @@ export class BookingSyncService {
       where: { provider, externalId: { in: externalIds } },
       select: { serviceId: true },
     });
-    return mappings.map((m: any) => m.serviceId).filter((id: string | null) => !!id);
+    return mappings.map((m) => m.serviceId).filter((id): id is string => !!id);
   }
 
   private toDate(value?: string | null): Date | null {
