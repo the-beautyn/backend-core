@@ -22,6 +22,8 @@ import { AltegioBookingModule } from '../booking/altegio-booking/altegio-booking
 import { AltegioBookingAuthenticatedController } from './v1/authenticated/altegio-booking.authenticated.controller';
 import { BookingModule } from '../booking/booking.module';
 import { EasyweekBookingAuthenticatedController } from './v1/authenticated/easyweek-booking.authenticated.controller';
+import { ClientBookingsController } from './v1/authenticated/bookings.client.controller';
+import { OwnerBookingsController } from './v1/authenticated/bookings.owner.controller';
 
 
 @Module({
@@ -39,6 +41,8 @@ import { EasyweekBookingAuthenticatedController } from './v1/authenticated/easyw
     SearchAuthenticatedController,
     AltegioBookingAuthenticatedController,
     EasyweekBookingAuthenticatedController,
+    ClientBookingsController,
+    OwnerBookingsController,
   ],
 })
 export class AuthenticatedApiModule {}

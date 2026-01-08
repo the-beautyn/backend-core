@@ -9,6 +9,7 @@ export type EasyweekBookingDtoNormalized = {
   statusName?: string | null;
   orderedServices?: any[];
   order?: any;
+  comment?: string | null;
   duration?: any;
   policy?: any;
   links?: any;

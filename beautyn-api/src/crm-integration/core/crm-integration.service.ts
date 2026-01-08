@@ -206,6 +206,7 @@ export class CrmIntegrationService {
         statusName: res.statusName ?? null,
         orderedServices: res.orderedServices,
         order: res.order,
+        comment: res.publicNotes ?? null,
         duration: res.duration,
         policy: res.policy,
         links: res.links,
@@ -327,6 +328,14 @@ export class CrmIntegrationService {
 
   async pullWorkers(salonId: string, provider: CrmType): Promise<WorkerData[]> {
     return this.adapter.pullWorkers(salonId, provider);
+  }
+
+  async pullBookings(
+    salonId: string,
+    provider: CrmType,
+    args?: { clientExternalId?: string; withDeleted?: boolean; startDate?: string; endDate?: string; page?: number; count?: number },
+  ) {
+    return this.adapter.pullBookings(salonId, provider, args);
   }
 
   async createWorker(salonId: string, provider: CrmType, data: WorkerCreateInput): Promise<WorkerData> {

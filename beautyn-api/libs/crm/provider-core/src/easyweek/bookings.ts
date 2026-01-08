@@ -10,6 +10,7 @@ export type EasyWeekBooking = {
   isCanceled?: boolean;
   isCompleted?: boolean;
   statusName?: string | null;
+  publicNotes?: string | null;
   orderedServices?: any[];
   order?: any;
   duration?: any;
@@ -43,6 +44,7 @@ function normalizeBooking(raw: any, fallbackUuid: string): EasyWeekBooking {
     isCanceled: booking.is_canceled ?? booking.isCanceled ?? undefined,
     isCompleted: booking.is_completed ?? booking.isCompleted ?? undefined,
     statusName: booking.status?.name ?? booking.status ?? null,
+    publicNotes: booking.public_notes ?? booking.publicNotes ?? null,
     orderedServices: ordered,
     order: booking.order ?? null,
     duration: booking.duration ?? null,

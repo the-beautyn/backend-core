@@ -27,6 +27,7 @@ export class BookingService {
     const orderedServices = Array.isArray(details.orderedServices) ? details.orderedServices : [];
     const order = details.order ?? undefined;
     const duration = details.duration ?? undefined;
+    const comment = details.comment ?? null;
 
     const booking = await this.prisma.$transaction(async (tx) => {
       const record = await tx.booking.upsert({
@@ -40,6 +41,7 @@ export class BookingService {
           crmType: CrmType.EASYWEEK,
           crmRecordId: bookingUuid,
           crmCompanyId: details.locationUuid ?? null,
+          comment,
           crmPayload: payload,
           crmServiceIds: Prisma.JsonNull,
           serviceIds: Prisma.JsonNull,
@@ -53,6 +55,7 @@ export class BookingService {
           crmType: CrmType.EASYWEEK,
           crmRecordId: bookingUuid,
           crmCompanyId: details.locationUuid ?? null,
+          comment,
           crmPayload: payload,
           crmServiceIds: Prisma.JsonNull,
           serviceIds: Prisma.JsonNull,

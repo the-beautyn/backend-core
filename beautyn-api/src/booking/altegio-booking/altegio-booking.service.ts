@@ -231,7 +231,6 @@ export class AltegioBookingService {
           endDatetime,
           status: 'created',
           comment: dto.comment ?? 'Beautyn',
-          attendance: dto.attendance ?? 1,
           crmRecordId: recordData?.id ? String(recordData.id) : null,
           crmCompanyId: ctx.externalSalonId ?? null,
           crmStaffId: String(crmStaffId),
