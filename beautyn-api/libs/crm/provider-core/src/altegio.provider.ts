@@ -12,6 +12,8 @@ import { TokenStorageService } from '@crm/token-storage';
 import { CrmType } from '@crm/shared';
 import { createChildLogger } from '@shared/logger';
 import { CrmError, ErrorKind } from '@crm/shared';
+import { EasyWeekBooking } from './easyweek/bookings';
+import { AltegioBooking } from './altegio/bookings';
 
 export class AltegioProvider implements ICrmProvider {
   private log = createChildLogger('provider.altegio');
@@ -122,132 +124,66 @@ export class AltegioProvider implements ICrmProvider {
     return String(html).replace(/<[^>]+>/g, '').trim() || undefined;
   }
 
-  // Sync
-  async syncSalon(ctx: ProviderContext): Promise<SalonData> { 
-    return this.pullSalon(ctx);
-  }
-
-  async syncCategories(ctx: ProviderContext): Promise<void> { /* no-op */ }
-  async syncServices(ctx: ProviderContext): Promise<void> { /* no-op */ }
-  async syncWorkers(ctx: ProviderContext): Promise<void> { /* no-op */ }
-  async syncBookings(ctx: ProviderContext): Promise<void> { /* no-op */ }
-
   // Normalized pull
-  async pullSalon(ctx: ProviderContext): Promise<SalonData> {
+  async pullSalon(): Promise<SalonData> {
     return SalonBlock.pullSalon(this.ctx());
   }
 
-  async pullBookings(
-    ctx: ProviderContext,
-    args?: { clientExternalId?: string; withDeleted?: boolean; startDate?: string; endDate?: string; page?: number; count?: number }
-  ): Promise<BookingData[]> {
-    return BookingsBlock.pullBookings(this.ctx(), args);
+  async pullAltegioBookings(bookingIds: string[]): Promise<Page<AltegioBooking>> {
+    return BookingsBlock.pullBookings(this.ctx(), bookingIds);
   }
 
-  async pullCategories(ctx: ProviderContext, cursor?: string): Promise<Page<CategoryData>> {
+  async pullEasyWeekBookings(bookingIds: string[]): Promise<Page<EasyWeekBooking>> {
+    throw new CrmError('Altegio does not support EasyWeekBookings', { kind: ErrorKind.NOT_SUPPORTED, retryable: false });
+  }
+
+  async pullCategories(): Promise<Page<CategoryData>> {
     return CategoriesBlock.pullCategories(this.ctx());
   }
 
-  async pullServices(ctx: ProviderContext, cursor?: string): Promise<Page<ServiceData>> {
+  async pullServices(): Promise<Page<ServiceData>> {
     return ServicesBlock.pullServices(this.ctx());
   }
 
-  async pullWorkers(ctx: ProviderContext, cursor?: string): Promise<WorkerData[]> {
+  async pullWorkers(): Promise<Page<WorkerData>> {
     return WorkersBlock.pullWorkers(this.ctx());
   }
 
-  // async createBooking(ctx: ProviderContext, payload: CreateBookingInput): Promise<{ externalBookingId: string }> {
-  //   if (!this.externalSalonId) throw new CrmError('Provider not initialized (missing externalSalonId)', { kind: ErrorKind.INTERNAL, retryable: false });
-  //   const services = Array.isArray((payload.extra as any)?.services)
-  //     ? (payload.extra as any).services
-  //     : payload.externalServiceId
-  //       ? [{ id: Number(payload.externalServiceId), first_cost: (payload.extra as any)?.first_cost ?? (payload.extra as any)?.cost ?? 0, discount: (payload.extra as any)?.discount ?? 0, cost: (payload.extra as any)?.cost ?? 0 }]
-  //       : [];
-  //   if (!services.length) throw new CrmError('Missing services for Altegio booking create', { kind: ErrorKind.VALIDATION, retryable: false });
-  //   const body = {
-  //     staff_id: payload.externalWorkerId ? Number(payload.externalWorkerId) : undefined,
-  //     services,
-  //     client: payload.customer ? { phone: payload.customer.phone, name: payload.customer.name, email: payload.customer.email } : undefined,
-  //     datetime: payload.startAtIso,
-  //     seance_length: payload.durationMin ?? undefined,
-  //     comment: payload.note ?? undefined,
-  //   };
-  //   const data = await this.http<any>('POST', `/api/v1/records/${this.externalSalonId}`, { body });
-  //   const id = String(data?.id ?? data);
-  //   if (!id) throw new CrmError('Altegio booking create: missing id in response', { kind: ErrorKind.INTERNAL, retryable: false });
-  //   return { externalBookingId: id };
-  // }
-
-  // async rescheduleBooking(ctx: ProviderContext, payload: RescheduleBookingInput): Promise<void> {
-  //   if (!this.externalSalonId) throw new CrmError('Provider not initialized (missing externalSalonId)', { kind: ErrorKind.INTERNAL, retryable: false });
-  //   const body = { datetime: payload.newStartAtIso, comment: (payload.extra as any)?.comment ?? 'Rescheduled' };
-  //   await this.http('PUT', `/api/v1/record/${this.externalSalonId}/${payload.externalBookingId}`, { body });
-  // }
-
-  // async cancelBooking(ctx: ProviderContext, payload: CancelBookingInput): Promise<void> {
-  //   if (!this.externalSalonId) throw new CrmError('Provider not initialized (missing externalSalonId)', { kind: ErrorKind.INTERNAL, retryable: false });
-  //   await this.http('DELETE', `/api/v1/record/${this.externalSalonId}/${payload.externalBookingId}`);
-  // }
-
-  // async completeBooking(ctx: ProviderContext, payload: CompleteBookingInput): Promise<void> {
-  //   // Not documented for Altegio; keep as stub
-  //   this.notYet('completeBooking');
-  // }
-
-  // async getAvailability(ctx: ProviderContext, input: GetAvailabilityInput): Promise<{ slots: { startIso: string; endIso: string; priceMinor?: number; quantity?: number; }; timezone?: string | undefined; currency?: string | undefined; }> {
-  //   this.notYet('getAvailability');
-  // }
-
-  // CRUD
-  // async updateSalon(ctx: ProviderContext, patch: Partial<Omit<SalonData, 'externalId'>>): Promise<void> {
-  //   if (!this.externalSalonId) throw new CrmError('Provider not initialized (missing externalSalonId)', { kind: ErrorKind.INTERNAL, retryable: false });
-  //   const body: any = {
-  //     title: patch.name,
-  //     address: patch.location?.addressLine,
-  //     coordinate_lat: patch.location?.lat,
-  //     coordinate_lon: patch.location?.lon,
-  //     description: patch.description,
-  //     short_descr: (patch as any)?.short_descr,
-  //   };
-  //   await this.http('PUT', `/api/v1/company/${this.externalSalonId}`, { body });
-  // }
-
-  async createCategory(ctx: ProviderContext, data: CategoryCreateInput): Promise<CategoryData> {
+  async createCategory(data: CategoryCreateInput): Promise<CategoryData> {
     return CategoriesBlock.createCategory(this.ctx(), data);
   }
 
-  async updateCategory(ctx: ProviderContext, externalId: string, patch: CategoryUpdateInput): Promise<CategoryData> {
+  async updateCategory(externalId: string, patch: CategoryUpdateInput): Promise<CategoryData> {
     return CategoriesBlock.updateCategory(this.ctx(), externalId, patch);
   }
 
-  async deleteCategory(ctx: ProviderContext, externalId: string): Promise<void> {
+  async deleteCategory(externalId: string): Promise<void> {
     return CategoriesBlock.deleteCategory(this.ctx(), externalId);
   }
 
-  async createService(ctx: ProviderContext, data: ServiceCreateInput): Promise<ServiceData> {
+  async createService(data: ServiceCreateInput): Promise<ServiceData> {
     return ServicesBlock.createService(this.ctx(), data);
   }
 
-  async updateService(ctx: ProviderContext, externalId: string, patch: ServiceUpdateInput): Promise<ServiceData> {
+  async updateService(externalId: string, patch: ServiceUpdateInput): Promise<ServiceData> {
     return ServicesBlock.updateService(this.ctx(), externalId, patch);
   }
 
-  async deleteService(ctx: ProviderContext, externalId: string): Promise<void> {
+  async deleteService(externalId: string): Promise<void> {
     return ServicesBlock.deleteService(this.ctx(), externalId);
   }
 
-  async createWorker(ctx: ProviderContext, data: WorkerCreateInput): Promise<WorkerData> {
+  async createWorker(data: WorkerCreateInput): Promise<WorkerData> {
     return WorkersBlock.createWorker(this.ctx(), data);
   }
 
-  async updateWorker(ctx: ProviderContext, externalId: string, patch: WorkerUpdateInput): Promise<WorkerData> {
+  async updateWorker(externalId: string, patch: WorkerUpdateInput): Promise<WorkerData> {
     return WorkersBlock.updateWorker(this.ctx(), externalId, patch);
   }
 
-  async deleteWorker(ctx: ProviderContext, externalId: string): Promise<void> {
+  async deleteWorker(externalId: string): Promise<void> {
     return WorkersBlock.deleteWorker(this.ctx(), externalId);
   }
-  // async updateWorkerSchedule(ctx: ProviderContext, externalId: string, schedule: WorkerSchedule): Promise<void> { this.notYet('updateWorkerSchedule'); }
 
   // ---- Booking flow (Altegio-specific) ----
   async getBookServices(args?: { serviceIds?: number[]; staffId?: number }) {

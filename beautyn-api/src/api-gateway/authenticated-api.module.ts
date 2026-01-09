@@ -21,13 +21,15 @@ import { SearchModule } from '../search/search.module';
 import { AltegioBookingModule } from '../booking/altegio-booking/altegio-booking.module';
 import { AltegioBookingAuthenticatedController } from './v1/authenticated/altegio-booking.authenticated.controller';
 import { BookingModule } from '../booking/booking.module';
+import { EasyweekBookingModule } from '../booking/easyweek-booking/easyweek-booking.module';
 import { EasyweekBookingAuthenticatedController } from './v1/authenticated/easyweek-booking.authenticated.controller';
 import { ClientBookingsController } from './v1/authenticated/bookings.client.controller';
 import { OwnerBookingsController } from './v1/authenticated/bookings.owner.controller';
+import { CrmIntegrationModule } from '../crm-integration/core/crm-integration.module';
 
 
 @Module({
-  imports: [UserModule, OnboardingModule, CrmSalonChangesModule, SalonModule, CategoriesModule, ServicesModule, WorkersModule, AppCategoriesModule, SearchModule, AltegioBookingModule, BookingModule],
+  imports: [UserModule, OnboardingModule, CrmSalonChangesModule, SalonModule, CategoriesModule, ServicesModule, WorkersModule, AppCategoriesModule, SearchModule, AltegioBookingModule, BookingModule, EasyweekBookingModule, CrmIntegrationModule],
   controllers: [
     UserAuthenticatedController,
     OnboardingController,

@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { SyncJob, CronDiffJob, CronDiffJobWithSchedule, SYNC_QUEUE, CATEGORIES_QUEUE, SERVICES_QUEUE, WORKERS_QUEUE, CRON_DIFF_QUEUE, JOB_SYNC, JOB_CRON_DIFF } from './types';
+import { SyncJob, CronDiffJob, CronDiffJobWithSchedule, SYNC_QUEUE, CATEGORIES_QUEUE, SERVICES_QUEUE, WORKERS_QUEUE, CRON_DIFF_QUEUE, BOOKINGS_QUEUE, JOB_SYNC, JOB_CRON_DIFF } from './types';
 
 type BullQueueLike = {
   add: (name: string, data: unknown, opts?: any) => Promise<{ id: string | number } & any>;
@@ -27,7 +27,7 @@ export class SyncSchedulerService {
     return this.queues[name];
   }
 
-  async scheduleSync(job: SyncJob, opts?: { type?: 'initial' | 'categories' | 'services' | 'workers' }): Promise<string> {
+  async scheduleSync(job: SyncJob, opts?: { type?: 'initial' | 'categories' | 'services' | 'workers' | 'bookings' }): Promise<string> {
     const type = opts?.type ?? 'initial';
     const queueName =
       type === 'categories'
@@ -36,7 +36,9 @@ export class SyncSchedulerService {
           ? SERVICES_QUEUE
           : type === 'workers'
             ? WORKERS_QUEUE
-            : SYNC_QUEUE;
+            : type === 'bookings'
+              ? BOOKINGS_QUEUE
+              : SYNC_QUEUE;
     const id = `${JOB_SYNC}:${type}:${job.provider}:${job.salonId}`;
     const res = await (await this.getQueue(queueName)).add(JOB_SYNC, job, {
       jobId: id,

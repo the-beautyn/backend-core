@@ -2,21 +2,21 @@ import { Injectable } from '@nestjs/common';
 import { CrmType, CrmError, ErrorKind } from '@crm/shared';
 import { CapabilityRegistryService } from '@crm/capability-registry';
 import { SyncSchedulerService } from '@crm/sync-scheduler';
-import { ProviderFactory, CategoryData, CategoryCreateInput, CategoryUpdateInput, ServiceData, ServiceCreateInput, ServiceUpdateInput, WorkerData, WorkerSchedule, WorkerCreateInput, WorkerUpdateInput, SalonData, Page, BookingData, AltegioProvider, AltegioCreateRecordPayload, EasyWeekProvider, EasyWeekBooking } from '@crm/provider-core';
+import { ProviderFactory, CategoryData, CategoryCreateInput, CategoryUpdateInput, ServiceData, ServiceCreateInput, ServiceUpdateInput, WorkerData, WorkerCreateInput, WorkerUpdateInput, SalonData, Page, BookingData, AltegioProvider, AltegioCreateRecordPayload, EasyWeekProvider, EasyWeekBooking } from '@crm/provider-core';
+import type { AltegioBooking } from '@crm/provider-core/altegio/bookings';
 import { executeWithRetry, CircuitBreaker } from '@crm/retry-handler';
 import { createChildLogger } from '@shared/logger';
-import { ICrmAdapter } from './types';
 
 type Op = 'booking.create' | 'booking.reschedule' | 'booking.cancel' | 'booking.complete' | 'booking.detail' | 'availability.get' |
   'salon.update' |
   'category.create' | 'category.update' | 'category.delete' |
   'service.create' | 'service.update' | 'service.delete' |
-  'worker.create' | 'worker.update' | 'worker.delete' | 'worker.updateSchedule' | 'booking.list' |
+  'worker.create' | 'worker.update' | 'worker.delete' | 'worker.updateSchedule' | 'booking.list' | 'booking.sync' |
   'pull.salon' | 'pull.categories' | 'pull.services' | 'pull.workers' | 'sync.categories' |
   'book.services' | 'book.staff' | 'book.dates' | 'book.times' | 'book.create';
 
 @Injectable()
-export class CrmAdapterService implements ICrmAdapter {
+export class CrmAdapterService {
   private log = createChildLogger('crm.adapter');
   private breakers = new Map<string, CircuitBreaker>(); // key: provider:op
 
@@ -25,63 +25,6 @@ export class CrmAdapterService implements ICrmAdapter {
     private readonly scheduler: SyncSchedulerService,
     private readonly providers: ProviderFactory,
   ) {}
-
-  // async requestSync(salonId: string, provider: CrmType, requestId?: string): Promise<string> {
-  //   this.log.info('Enqueue full sync', { salonId, provider });
-  //   // Map to scheduler's full-sync job (previously "initial-sync")
-  //   return this.scheduler.scheduleSync({ salonId, provider, requestId } as any);
-  // }
-
-  // async ensureCronSync(salonId: string, provider: CrmType, cron: string, tz?: string, requestId?: string): Promise<void> {
-  //   this.log.info('Ensure CRON sync', { salonId, provider, cron, tz });
-  //   // Map to scheduler's repeating diff job (accepts any cron, not just nightly)
-  //   await this.scheduler.scheduleCronDiff({ salonId, provider, requestId, cron, tz } as any);
-  // }
-
-  // async createBooking(salonId: string, provider: CrmType, payload: CreateBookingInput) {
-  //   this.caps.assert(provider, 'supportsBooking');
-  //   return this.runOp('booking.create', salonId, provider, async () => {
-  //     const p = this.providers.make(provider);
-  //     await p.init({ salonId, provider });
-  //     return p.createBooking({ salonId, provider }, payload);
-  //   });
-  // }
-
-  // async rescheduleBooking(salonId: string, provider: CrmType, payload: RescheduleBookingInput): Promise<void> {
-  //   this.caps.assert(provider, 'supportsReschedule');
-  //   await this.runOp('booking.reschedule', salonId, provider, async () => {
-  //     const p = this.providers.make(provider);
-  //     await p.init({ salonId, provider });
-  //     await p.rescheduleBooking({ salonId, provider }, payload);
-  //   });
-  // }
-
-  // async cancelBooking(salonId: string, provider: CrmType, payload: CancelBookingInput): Promise<void> {
-  //   this.caps.assert(provider, 'supportsCancelBooking');
-  //   await this.runOp('booking.cancel', salonId, provider, async () => {
-  //     const p = this.providers.make(provider);
-  //     await p.init({ salonId, provider });
-  //     await p.cancelBooking({ salonId, provider }, payload);
-  //   });
-  // }
-
-  // async completeBooking(salonId: string, provider: CrmType, payload: CompleteBookingInput): Promise<void> {
-  //   this.caps.assert(provider, 'supportsBooking');
-  //   await this.runOp('booking.complete', salonId, provider, async () => {
-  //     const p = this.providers.make(provider);
-  //     await p.init({ salonId, provider });
-  //     await p.completeBooking({ salonId, provider }, payload);
-  //   });
-  // }
-
-  // async getAvailability(salonId: string, provider: CrmType, input: GetAvailabilityInput): Promise<{ slots: Array<{ startIso: string; endIso: string; priceMinor?: number; quantity?: number }>; timezone?: string; currency?: string }> {
-  //   return this.runOp('availability.get', salonId, provider, async () => {
-  //     const p = this.providers.make(provider);
-  //     await p.init({ salonId, provider });
-  //     return p.getAvailability({ salonId, provider }, input);
-  //   });
-  // }
-
   // ---- booking flow ----
   async bookServices(
     salonId: string,
@@ -158,13 +101,30 @@ export class CrmAdapterService implements ICrmAdapter {
     });
   }
 
-  // ---- Sync operations ----
-  async syncCategories(salonId: string, provider: CrmType): Promise<void> {
-    this.caps.assert(provider, 'supportsCategoriesSync');
-    await this.runOp('sync.categories', salonId, provider, async () => {
+  // ---- Booking operations ----
+  async pullAltegioBookings(
+    salonId: string,
+    bookingIds: string[]
+  ): Promise<Page<AltegioBooking>> {
+    const provider = CrmType.ALTEGIO;
+    this.caps.assert(provider, 'supportsBookingSync');
+    return this.runOp('booking.list', salonId, provider, async () => {
       const p = this.providers.make(provider);
       await p.init({ salonId, provider });
-      await p.syncCategories({ salonId, provider });
+      return p.pullAltegioBookings(bookingIds);
+    });
+  }
+
+  async pullEasyweekBookings(
+    salonId: string,
+    bookingIds: string[]
+  ): Promise<Page<EasyWeekBooking>> {
+    const provider = CrmType.EASYWEEK;
+    this.caps.assert(provider, 'supportsBookingSync');
+    return this.runOp('booking.list', salonId, provider, async () => {
+      const p = this.providers.make(provider);
+      await p.init({ salonId, provider });
+      return p.pullEasyWeekBookings(bookingIds);
     });
   }
 
@@ -174,58 +134,17 @@ export class CrmAdapterService implements ICrmAdapter {
     return this.runOp('pull.salon', salonId, provider, async () => {
       const p = this.providers.make(provider);
       await p.init({ salonId, provider });
-      return p.pullSalon({ salonId, provider });
+      return p.pullSalon();
     });
   }
-
-  async pullBookings(
-    salonId: string,
-    provider: CrmType,
-    args?: { clientExternalId?: string; withDeleted?: boolean; startDate?: string; endDate?: string; page?: number; count?: number }
-  ): Promise<BookingData[]> {
-    this.caps.assert(provider, 'supportsBooking');
-    return this.runOp('booking.list', salonId, provider, async () => {
-      const p = this.providers.make(provider);
-      await p.init({ salonId, provider });
-      return p.pullBookings({ salonId, provider }, args);
-    });
-  }
-
-  // async pullCategories(salonId: string, provider: CrmType, cursor?: string): Promise<Page<CategoryData>> {
-  //   this.caps.assert(provider, 'supportsCategoriesSync');
-  //   return this.runOp('pull.categories', salonId, provider, async () => {
-  //     const p = this.providers.make(provider);
-  //     await p.init({ salonId, provider });
-  //     return p.pullCategories({ salonId, provider }, cursor);
-  //   });
-  // }
-
-  // async pullServices(salonId: string, provider: CrmType, cursor?: string): Promise<Page<ServiceData>> {
-  //   this.caps.assert(provider, 'supportsServicesSync');
-  //   return this.runOp('pull.services', salonId, provider, async () => {
-  //     const p = this.providers.make(provider);
-  //     await p.init({ salonId, provider });
-  //     return p.pullServices({ salonId, provider }, cursor);
-  //   });
-  // }
-
-  // // ---- Master-data operations ----
-  // async updateSalon(salonId: string, provider: CrmType, patch: Partial<Omit<SalonData,'externalId'>>) {
-  //   this.caps.assert(provider, 'supportsSalonUpdate');
-  //   return this.runOp('salon.update', salonId, provider, async () => {
-  //     const p = this.providers.make(provider);
-  //     await p.init({ salonId, provider });
-  //     return p.updateSalon({ salonId, provider }, patch);
-  //   });
-  // }
 
   // ---- Category operations ----
-  async pullCategories(salonId: string, provider: CrmType, cursor?: string): Promise<Page<CategoryData>> {
+  async pullCategories(salonId: string, provider: CrmType): Promise<Page<CategoryData>> {
     this.caps.assert(provider, 'supportsCategoriesSync');
     return this.runOp('pull.categories', salonId, provider, async () => {
       const p = this.providers.make(provider);
       await p.init({ salonId, provider });
-      return p.pullCategories({ salonId, provider }, cursor);
+      return p.pullCategories();
     });
   }
 
@@ -238,7 +157,7 @@ export class CrmAdapterService implements ICrmAdapter {
     return this.runOp('category.create', salonId, provider, async () => {
       const p = this.providers.make(provider);
       await p.init({ salonId, provider });
-      return p.createCategory({ salonId, provider }, data);
+      return p.createCategory(data);
     });
   }
 
@@ -252,7 +171,7 @@ export class CrmAdapterService implements ICrmAdapter {
     return this.runOp('category.update', salonId, provider, async () => {
       const p = this.providers.make(provider);
       await p.init({ salonId, provider });
-      return p.updateCategory({ salonId, provider }, externalId, patch);
+      return p.updateCategory(externalId, patch);
     });
   }
 
@@ -261,26 +180,26 @@ export class CrmAdapterService implements ICrmAdapter {
     await this.runOp('category.delete', salonId, provider, async () => {
       const p = this.providers.make(provider);
       await p.init({ salonId, provider });
-      await p.deleteCategory({ salonId, provider }, externalId);
-    });
-  }
-
-  async pullServices(salonId: string, provider: CrmType, cursor?: string): Promise<Page<ServiceData>> {
-    this.caps.assert(provider, 'supportsServicesSync');
-    return this.runOp('pull.services', salonId, provider, async () => {
-      const p = this.providers.make(provider);
-      await p.init({ salonId, provider });
-      return p.pullServices({ salonId, provider }, cursor);
+      await p.deleteCategory(externalId);
     });
   }
 
   // ---- Service operations ----
+  async pullServices(salonId: string, provider: CrmType): Promise<Page<ServiceData>> {
+    this.caps.assert(provider, 'supportsServicesSync');
+    return this.runOp('pull.services', salonId, provider, async () => {
+      const p = this.providers.make(provider);
+      await p.init({ salonId, provider });
+      return p.pullServices();
+    });
+  }
+
   async createService(salonId: string, provider: CrmType, data: ServiceCreateInput): Promise<ServiceData> {
     this.caps.assert(provider, 'supportsServicesCreate');
     return this.runOp('service.create', salonId, provider, async () => {
       const p = this.providers.make(provider);
       await p.init({ salonId, provider });
-      return p.createService({ salonId, provider }, data);
+      return p.createService(data);
     });
   }
 
@@ -294,7 +213,7 @@ export class CrmAdapterService implements ICrmAdapter {
     return this.runOp('service.update', salonId, provider, async () => {
       const p = this.providers.make(provider);
       await p.init({ salonId, provider });
-      return p.updateService({ salonId, provider }, externalId, patch);
+      return p.updateService(externalId, patch);
     });
   }
 
@@ -303,17 +222,17 @@ export class CrmAdapterService implements ICrmAdapter {
     await this.runOp('service.delete', salonId, provider, async () => {
       const p = this.providers.make(provider);
       await p.init({ salonId, provider });
-      await p.deleteService({ salonId, provider }, externalId);
+      await p.deleteService(externalId);
     });
   }
 
   // ---- Workers operations ----
-  async pullWorkers(salonId: string, provider: CrmType, cursor?: string): Promise<WorkerData[]> {
+  async pullWorkers(salonId: string, provider: CrmType): Promise<Page<WorkerData>> {
     this.caps.assert(provider, 'supportsWorkersPull');
     return this.runOp('pull.workers', salonId, provider, async () => {
       const p = this.providers.make(provider);
       await p.init({ salonId, provider });
-      return p.pullWorkers({ salonId, provider }, cursor);
+      return p.pullWorkers();
     });
   }
 
@@ -322,7 +241,7 @@ export class CrmAdapterService implements ICrmAdapter {
     return this.runOp('worker.create', salonId, provider, async () => {
       const p = this.providers.make(provider);
       await p.init({ salonId, provider });
-      return p.createWorker({ salonId, provider }, data);
+      return p.createWorker(data);
     });
   }
 
@@ -331,7 +250,7 @@ export class CrmAdapterService implements ICrmAdapter {
     return this.runOp('worker.update', salonId, provider, async () => {
       const p = this.providers.make(provider);
       await p.init({ salonId, provider });
-      return p.updateWorker({ salonId, provider }, externalId, patch);
+      return p.updateWorker(externalId, patch);
     });
   }
 
@@ -340,17 +259,9 @@ export class CrmAdapterService implements ICrmAdapter {
     await this.runOp('worker.delete', salonId, provider, async () => {
       const p = this.providers.make(provider);
       await p.init({ salonId, provider });
-      await p.deleteWorker({ salonId, provider }, externalId);
+      await p.deleteWorker(externalId);
     });
   }
-  // async updateWorkerSchedule(salonId: string, provider: CrmType, externalId: string, schedule: WorkerSchedule) {
-  //   this.caps.assert(provider, 'supportsWorkerScheduleUpdate');
-  //   return this.runOp('worker.updateSchedule', salonId, provider, async () => {
-  //     const p = this.providers.make(provider);
-  //     await p.init({ salonId, provider });
-  //     return p.updateWorkerSchedule({ salonId, provider }, externalId, schedule);
-  //   });
-  // }
 
   // --- internals ---
   private breakerFor(provider: CrmType, op: Op) {

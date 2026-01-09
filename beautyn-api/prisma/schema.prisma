@@ -280,6 +280,7 @@ model Booking {
   salonId       String   @map("salon_id") @db.Uuid
   userId        String?  @map("user_id") @db.Uuid
   workerId      String?  @map("worker_id") @db.Uuid
+  version       Int      @default(1)
   status        String   @default("created")
   datetime      DateTime @map("datetime") @db.Timestamptz(6)
   endDatetime   DateTime? @map("end_datetime") @db.Timestamptz(6)
@@ -299,10 +300,28 @@ model Booking {
   worker Worker? @relation(fields: [workerId], references: [id], onDelete: SetNull)
   easyweekDetails EasyweekBookingDetails?
   altegioDetails AltegioBookingDetails?
+  history BookingHistory[]
 
   @@index([salonId], map: "bookings_salon_idx")
   @@unique([crmType, crmRecordId], map: "bookings_crm_type_record_unique")
   @@map("bookings")
+}
+
+model BookingHistory {
+  id               String   @id @default(uuid()) @db.Uuid
+  bookingId        String   @map("booking_id") @db.Uuid
+  version          Int      @map("version")
+  syncedAt         DateTime @default(now()) @map("synced_at") @db.Timestamptz(6)
+  remoteUpdatedAt  String?  @map("remote_updated_at")
+  payload          Json     @map("payload")
+  diffFromPrev     Json?    @map("diff_from_prev")
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([bookingId, version], map: "booking_history_booking_version_idx")
+  @@map("booking_history")
 }
 
 model EasyweekBookingDetails {

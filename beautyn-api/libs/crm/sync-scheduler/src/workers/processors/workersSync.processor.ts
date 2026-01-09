@@ -30,8 +30,8 @@ export function startWorkersSyncWorker(container: { providerFactory: ProviderFac
           const base = process.env.INTERNAL_API_BASE_URL;
           const key = process.env.INTERNAL_API_KEY;
           if (base && key) {
-            const workers = await executeWithRetry(() => p.pullWorkers({ salonId, provider }));
-            const payload = workers.map(mapWorkerForSync);
+            const workers = await executeWithRetry(() => p.pullWorkers());
+            const payload = (workers?.items ?? []).map(mapWorkerForSync);
             await fetch(`${base}/api/v1/internal/workers/sync`, {
               method: 'POST',
               headers: { 'content-type': 'application/json', 'x-internal-key': key },

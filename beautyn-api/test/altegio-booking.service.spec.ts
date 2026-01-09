@@ -1,5 +1,6 @@
 import { AltegioBookingService } from '../src/booking/altegio-booking/altegio-booking.service';
 import { CrmType } from '@crm/shared';
+import { BookingHandlerService } from '../src/booking/booking-handler.service';
 
 describe('AltegioBookingService', () => {
   const salonId = 'salon-1';
@@ -79,35 +80,9 @@ describe('AltegioBookingService', () => {
   let crmIntegration: any;
   let users: any;
   let service: AltegioBookingService;
-  let tx: any;
+  let bookingHandler: jest.Mocked<BookingHandlerService>;
 
   beforeEach(() => {
-    tx = {
-      booking: {
-        create: jest.fn(),
-      },
-      altegioBookingDetails: {
-        upsert: jest.fn(),
-      },
-      altegioBookingStaff: {
-        upsert: jest.fn(),
-      },
-      altegioBookingClient: {
-        upsert: jest.fn(),
-      },
-      altegioBookingService: {
-        deleteMany: jest.fn(),
-        createMany: jest.fn(),
-      },
-      altegioBookingDocument: {
-        deleteMany: jest.fn(),
-        createMany: jest.fn(),
-      },
-      altegioBookingGoodsTransaction: {
-        deleteMany: jest.fn(),
-        createMany: jest.fn(),
-      },
-    };
     prisma = {
       salon: {
         findFirst: jest.fn().mockResolvedValue({ id: salonId, provider: CrmType.ALTEGIO, externalSalonId: '999', crmId: '999' }),
@@ -119,7 +94,6 @@ describe('AltegioBookingService', () => {
         findMany: jest.fn(),
         findFirst: jest.fn(),
       },
-      $transaction: jest.fn((fn: any) => fn(tx)),
     };
 
     crmIntegration = {
@@ -140,7 +114,11 @@ describe('AltegioBookingService', () => {
         phone: '+123',
       }),
     };
-    service = new AltegioBookingService(prisma as any, crmIntegration as any, users as any);
+    bookingHandler = {
+      createAltegioBooking: jest.fn(),
+      handleAltegioBooking: jest.fn(),
+    } as any;
+    service = new AltegioBookingService(prisma as any, crmIntegration as any, users as any, bookingHandler);
   });
 
   it('returns bookable services with availability flags', async () => {
@@ -177,7 +155,7 @@ describe('AltegioBookingService', () => {
   it('creates record and persists booking', async () => {
     prisma.service.findMany.mockResolvedValue([{ id: serviceId, crmServiceId, name: 'Cut', price: 1200, duration: 30, categoryId: null }]);
     prisma.worker.findFirst.mockResolvedValue({ id: workerId, crmWorkerId, firstName: 'John', lastName: 'Doe' });
-    tx.booking.create.mockImplementation(async ({ data }: any) => ({ id: 'booking-1', ...data }));
+    bookingHandler.createAltegioBooking.mockResolvedValue({ bookingId: 'booking-1', changed: true });
 
     const res = await service.createRecord(salonId, 'user-1', {
       workerId,
@@ -197,7 +175,17 @@ describe('AltegioBookingService', () => {
         seance_length: 4200,
       }),
     );
-    expect(tx.booking.create).toHaveBeenCalled();
+    expect(bookingHandler.createAltegioBooking).toHaveBeenCalledWith(
+      expect.objectContaining({
+        salonId,
+        booking: expect.objectContaining({
+          crmRecordId: String(recordPayload.id),
+          staffId: String(recordPayload.staff_id),
+          clientId: String(recordPayload.client.id),
+        }),
+        userId: 'user-1',
+      }),
+    );
     expect(res).toEqual({
       bookingId: 'booking-1',
       crmRecordId: recordPayload.id,
@@ -206,10 +194,10 @@ describe('AltegioBookingService', () => {
     });
   });
 
-  it('maps Altegio booking payload into detail tables', async () => {
+  it('passes CRM payload details into handler', async () => {
     prisma.service.findMany.mockResolvedValue([{ id: serviceId, crmServiceId, name: 'Cut', price: 1200, duration: 30, categoryId: null }]);
     prisma.worker.findFirst.mockResolvedValue({ id: workerId, crmWorkerId, firstName: 'John', lastName: 'Doe' });
-    tx.booking.create.mockResolvedValue({ id: 'booking-1' });
+    bookingHandler.createAltegioBooking.mockResolvedValue({ bookingId: 'booking-1', changed: true });
 
     await service.createRecord(salonId, 'user-1', {
       workerId,
@@ -219,45 +207,17 @@ describe('AltegioBookingService', () => {
       attendance: 1,
     });
 
-    expect(tx.altegioBookingDetails.upsert).toHaveBeenCalledWith({
-      where: { bookingId: 'booking-1' },
-      update: expect.objectContaining({
-        crmRecordId: String(recordPayload.id),
-        staffId: String(recordPayload.staff_id),
-        clientId: String(recordPayload.client.id),
-        shortLink: recordPayload.short_link,
-        rawPayload: recordPayload,
+    expect(bookingHandler.createAltegioBooking).toHaveBeenCalledWith(
+      expect.objectContaining({
+        booking: expect.objectContaining({
+          services: recordPayload.services,
+          documents: recordPayload.documents,
+          staff: recordPayload.staff,
+          client: recordPayload.client,
+          goodsTransactions: recordPayload.goods_transactions,
+          raw: recordPayload,
+        }),
       }),
-      create: expect.objectContaining({ bookingId: 'booking-1' }),
-    });
-    expect(tx.altegioBookingStaff.upsert).toHaveBeenCalledWith({
-      where: { detailsId: 'booking-1' },
-      update: expect.objectContaining({ externalId: String(recordPayload.staff.id), name: recordPayload.staff.name }),
-      create: expect.objectContaining({ detailsId: 'booking-1' }),
-    });
-    expect(tx.altegioBookingClient.upsert).toHaveBeenCalledWith({
-      where: { detailsId: 'booking-1' },
-      update: expect.objectContaining({ externalId: String(recordPayload.client.id), phone: recordPayload.client.phone, email: recordPayload.client.email }),
-      create: expect.objectContaining({ detailsId: 'booking-1' }),
-    });
-    expect(tx.altegioBookingService.createMany).toHaveBeenCalledWith({
-      data: expect.arrayContaining([
-        expect.objectContaining({
-          detailsId: 'booking-1',
-          externalId: String(recordPayload.services[0].id),
-          title: recordPayload.services[0].title,
-        }),
-      ]),
-    });
-    expect(tx.altegioBookingDocument.createMany).toHaveBeenCalledWith({
-      data: expect.arrayContaining([
-        expect.objectContaining({
-          detailsId: 'booking-1',
-          externalId: String(recordPayload.documents[0].id),
-          recordId: String(recordPayload.documents[0].record_id),
-        }),
-      ]),
-    });
-    expect(tx.altegioBookingGoodsTransaction.createMany).not.toHaveBeenCalled();
+    );
   });
 });

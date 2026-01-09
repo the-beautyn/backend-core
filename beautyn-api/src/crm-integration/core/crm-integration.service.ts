@@ -5,6 +5,7 @@ import { AccountRegistryService } from '@crm/account-registry';
 import { TokenStorageService } from '@crm/token-storage';
 import { CrmAdapterService } from '@crm/adapter';
 import { CrmSalonDiffService } from '../../crm-salon-changes/crm-salon-diff.service';
+import { createChildLogger } from '@shared/logger';
 
 import {
   CategoryData,
@@ -18,12 +19,16 @@ import {
   WorkerUpdateInput,
   Page,
   SalonData,
+  BookingData,
 } from '@crm/provider-core';
+import type { AltegioBooking } from '@crm/provider-core/altegio/bookings';
+import type { EasyWeekBooking } from '@crm/provider-core/easyweek/bookings';
 import { SyncSchedulerService } from '@crm/sync-scheduler';
 import { EasyweekBookingDtoNormalized } from './dto/easyweek-booking.dto';
 
 @Injectable()
 export class CrmIntegrationService {
+  private readonly log = createChildLogger('crm-integration.service');
   constructor(
     private readonly prisma: PrismaService,
     private readonly accounts: AccountRegistryService,
@@ -227,6 +232,40 @@ export class CrmIntegrationService {
     return String(slug);
   }
 
+  //*** Bookings Sync ***//
+
+  async enqueueBookingsSync(salonId: string, provider?: CrmType): Promise<{ jobId: string }> {
+    const resolvedProvider = provider ?? (await this.resolveSalonProvider(salonId));
+    const jobId = await this.scheduler.scheduleSync({ salonId, provider: resolvedProvider }, { type: 'bookings' });
+    return { jobId };
+  }
+
+  async syncBookingsNow(
+    salonId: string,
+    bookings: string[],
+    provider: CrmType,
+  ): Promise<{ bookings: any[] }> {
+    if (provider === CrmType.ALTEGIO) {
+      const bookingsPage = await this.adapter.pullAltegioBookings(salonId, bookings);
+      const bookingsPayload = this.prepareAltegioBookingsSyncPayload(bookingsPage?.items ?? []);
+      return this.pushAltegioBookingsToInternal(salonId, bookingsPayload);
+    } else if (provider === CrmType.EASYWEEK) {
+      const bookingsPage = await this.adapter.pullEasyweekBookings(salonId, bookings);
+      const bookingsPayload = this.prepareEasyweekBookingsSyncPayload(bookingsPage?.items ?? []);
+      return this.pushEasyweekBookingsToInternal(salonId, bookingsPayload);
+    }
+
+    return { bookings: [] };
+  }
+
+  async rebaseBookingsNow(
+    salonId: string,
+    bookings: string[],
+    provider: CrmType,
+  ): Promise<{ bookings: any[] }> {
+    return this.syncBookingsNow(salonId, bookings, provider);
+  }
+
   //*** Services Sync ***//
 
   async enqueueServicesSync(salonId: string, provider: CrmType): Promise<{ jobId: string }> {
@@ -234,8 +273,8 @@ export class CrmIntegrationService {
     return { jobId };
   }
 
-  async pullServices(salonId: string, provider: CrmType, cursor?: string): Promise<Page<ServiceData>> {
-    return this.adapter.pullServices(salonId, provider, cursor);
+  async pullServices(salonId: string, provider: CrmType): Promise<Page<ServiceData>> {
+    return this.adapter.pullServices(salonId, provider);
   }
 
   async createService(
@@ -283,8 +322,8 @@ export class CrmIntegrationService {
     return { jobId };
   }
 
-  async pullCategories(salonId: string, provider: CrmType, cursor?: string): Promise<Page<CategoryData>> {
-    return this.adapter.pullCategories(salonId, provider, cursor);
+  async pullCategories(salonId: string, provider: CrmType): Promise<Page<CategoryData>> {
+    return this.adapter.pullCategories(salonId, provider);
   }
 
   async createCategory(
@@ -326,16 +365,8 @@ export class CrmIntegrationService {
     return { jobId };
   }
 
-  async pullWorkers(salonId: string, provider: CrmType): Promise<WorkerData[]> {
+  async pullWorkers(salonId: string, provider: CrmType): Promise<Page<WorkerData>> {
     return this.adapter.pullWorkers(salonId, provider);
-  }
-
-  async pullBookings(
-    salonId: string,
-    provider: CrmType,
-    args?: { clientExternalId?: string; withDeleted?: boolean; startDate?: string; endDate?: string; page?: number; count?: number },
-  ) {
-    return this.adapter.pullBookings(salonId, provider, args);
   }
 
   async createWorker(salonId: string, provider: CrmType, data: WorkerCreateInput): Promise<WorkerData> {
@@ -350,18 +381,18 @@ export class CrmIntegrationService {
     await this.adapter.deleteWorker(salonId, provider, externalId);
   }
 
-  async syncWorkersNow(salonId: string, provider?: CrmType): Promise<WorkerData[]> {
+  async syncWorkersNow(salonId: string, provider?: CrmType): Promise<{ workers: any[]; upserted: number; deleted: number }>  {
     const resolvedProvider = provider ?? (await this.resolveSalonProvider(salonId));
-    return this.adapter.pullWorkers(salonId, resolvedProvider);
+    const page = await this.adapter.pullWorkers(salonId, resolvedProvider);
+    const payload = this.prepareWorkersSyncPayload(page?.items ?? []);
+    return this.pushWorkersToInternal(salonId, payload);
   }
 
   async rebaseWorkersNow(
     salonId: string,
     provider: CrmType,
   ): Promise<{ workers: any[]; upserted: number; deleted: number }> {
-    const workers = await this.adapter.pullWorkers(salonId, provider);
-    const payload = this.prepareWorkersSyncPayload(workers);
-    return this.pushWorkersToInternal(salonId, payload);
+    return this.syncWorkersNow(salonId, provider);
   }
 
   //*** Private Helpers ***//
@@ -465,7 +496,7 @@ export class CrmIntegrationService {
     }));
   }
 
-  private async resolveSalonProvider(salonId: string): Promise<CrmType> {
+  async resolveSalonProvider(salonId: string): Promise<CrmType> {
     const salon = await this.prisma.salon.findUnique({ where: { id: salonId }, select: { provider: true } });
     if (!salon?.provider) {
       throw new BadRequestException('Salon is not linked to a CRM provider');
@@ -639,6 +670,86 @@ export class CrmIntegrationService {
     });
   }
 
+  private prepareAltegioBookingsSyncPayload(
+    bookings: Array<AltegioBooking | BookingData | Record<string, any>>,
+  ): AltegioBooking[] {
+    return (bookings ?? []).map((b) => {
+      const externalId =
+        (b as any).crmRecordId ??
+        (b as any).externalId ??
+        (b as any).id ??
+        ((b as any).raw && ((b as any).raw.id ?? (b as any).raw.recordId ?? (b as any).raw.crmRecordId)) ??
+        null;
+
+      const datetime = (b as any).datetime ?? (b as any).startAtIso ?? null;
+      const date = (b as any).date ?? null;
+      const durationMin =
+        typeof (b as any).durationMin === 'number'
+          ? (b as any).durationMin
+          : typeof (b as any).seanceLength === 'number'
+            ? Math.round((b as any).seanceLength / 60)
+            : typeof (b as any).length === 'number'
+              ? Math.round((b as any).length / 60)
+              : null;
+
+      return {
+        crmRecordId: externalId ? String(externalId) : undefined,
+        companyId: (b as any).companyId ?? null,
+        staffId: (b as any).staffId ?? (b as any).workerExternalId ?? null,
+        clientId: (b as any).clientId ?? null,
+        datetime: datetime ? String(datetime) : null,
+        date: date ? String(date) : null,
+        comment: (b as any).comment ?? (b as any).note ?? null,
+        attendance: (b as any).attendance ?? null,
+        confirmed: (b as any).confirmed ?? null,
+        visitAttendance: (b as any).visitAttendance ?? null,
+        length: (b as any).length ?? null,
+        seanceLength:
+          typeof (b as any).seanceLength === 'number'
+            ? (b as any).seanceLength
+            : typeof durationMin === 'number'
+              ? durationMin * 60
+              : null,
+        isDeleted: (b as any).isDeleted ?? (b as any).deleted ?? null,
+        staff: (b as any).staff ?? null,
+        client: (b as any).client ?? null,
+        services: (b as any).services ?? null,
+        documents: (b as any).documents ?? null,
+        goodsTransactions: (b as any).goodsTransactions ?? null,
+        raw: (b as any).raw ?? b ?? null,
+      } as AltegioBooking;
+    });
+  }
+
+  private prepareEasyweekBookingsSyncPayload(
+    bookings: Array<EasyWeekBooking | Record<string, any>>,
+  ): EasyWeekBooking[] {
+    return (bookings ?? []).map((b) => {
+      const links = Array.isArray((b as any).links) ? (b as any).links : [];
+      const duration = (b as any).duration ?? null;
+      const orderedServices = Array.isArray((b as any).orderedServices) ? (b as any).orderedServices : [];
+      const order = (b as any).order ?? null;
+
+      return {
+        uuid: (b as any).uuid ?? (b as any).externalId ?? '',
+        locationUuid: (b as any).locationUuid ?? (b as any).location_uuid ?? null,
+        startTime: (b as any).startTime ?? (b as any).start_time ?? null,
+        endTime: (b as any).endTime ?? (b as any).end_time ?? null,
+        timezone: (b as any).timezone ?? null,
+        isCanceled: (b as any).isCanceled ?? (b as any).is_canceled ?? undefined,
+        isCompleted: (b as any).isCompleted ?? (b as any).is_completed ?? undefined,
+        statusName: (b as any).statusName ?? (b as any).status?.name ?? null,
+        publicNotes: (b as any).publicNotes ?? (b as any).public_notes ?? null,
+        orderedServices,
+        order,
+        duration,
+        policy: (b as any).policy ?? null,
+        links,
+        raw: (b as any).raw ?? b ?? null,
+      } as EasyWeekBooking;
+    });
+  }
+
   private async pushServicesToInternal(
     salonId: string,
     services: Array<{
@@ -678,6 +789,64 @@ export class CrmIntegrationService {
     const servicesResult = (data?.services ?? []) as any[];
 
     return { services: servicesResult, upserted, deleted };
+  }
+
+  private async pushAltegioBookingsToInternal(
+    salonId: string,
+    bookings: AltegioBooking[],
+  ): Promise<{ bookings: any[]  }> {
+
+    this.log.info('---------pushAltegioBookingsToInternal--------------', { salonId, bookings });
+    const base = process.env.INTERNAL_API_BASE_URL?.trim();
+    const key = process.env.INTERNAL_API_KEY?.trim();
+    if (!base || !key) {
+      throw new BadRequestException('Internal API base URL or key not configured');
+    }
+
+    const res = await fetch(`${base}/api/v1/internal/bookings/altegio/sync`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-internal-key': key },
+      body: JSON.stringify({ salon_id: salonId, bookings }),
+    } as any);
+
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      throw new BadRequestException(`Bookings sync failed (altegio): ${res.status} ${text?.slice(0, 500)}`);
+    }
+
+    const body = await res.json().catch(() => ({} as any));
+    const data = body?.data ?? body ?? {};
+    const bookingsResult = (data?.bookings ?? []) as any[];
+
+    return { bookings: bookingsResult };
+  }
+
+  private async pushEasyweekBookingsToInternal(
+    salonId: string,
+    bookings: EasyWeekBooking[],
+  ): Promise<{ bookings: any[] }> {
+    const base = process.env.INTERNAL_API_BASE_URL?.trim();
+    const key = process.env.INTERNAL_API_KEY?.trim();
+    if (!base || !key) {
+      throw new BadRequestException('Internal API base URL or key not configured');
+    }
+
+    const res = await fetch(`${base}/api/v1/internal/bookings/easyweek/sync`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-internal-key': key },
+      body: JSON.stringify({ salon_id: salonId, bookings }),
+    } as any);
+
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      throw new BadRequestException(`Bookings sync failed (easyweek): ${res.status} ${text?.slice(0, 500)}`);
+    }
+
+    const body = await res.json().catch(() => ({} as any));
+    const data = body?.data ?? body ?? {};
+    const bookingsResult = (data?.bookings ?? []) as any[];
+
+    return { bookings: bookingsResult };
   }
 
   private prepareDetectionPayload(remote: SalonData, fallback: { externalSalonId?: string | null; name?: string | null }): SalonData {

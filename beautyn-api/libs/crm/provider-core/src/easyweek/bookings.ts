@@ -1,5 +1,6 @@
 import { CrmError, ErrorKind } from '@crm/shared';
 import { EasyWeekContext } from './context';
+import { Page } from '../dtos';
 
 export type EasyWeekBooking = {
   uuid: string;
@@ -54,6 +55,29 @@ function normalizeBooking(raw: any, fallbackUuid: string): EasyWeekBooking {
   };
 }
 
+export async function pullBookings(ctx: EasyWeekContext, bookingIds: string[]): Promise<Page<EasyWeekBooking>> {
+  const ids = (bookingIds ?? []).map((id) => String(id)).filter((id) => id.length > 0);
+  const items: EasyWeekBooking[] = [];
+
+  for (let i = 0; i < ids.length; i += 1) {
+    const bookingId = ids[i];
+    try {
+      const booking = await fetchBooking(ctx, bookingId);
+      items.push(booking);
+    } catch (e) {
+      if (e instanceof CrmError && e.kind === ErrorKind.VALIDATION) {
+        continue;
+      }
+      throw e;
+    }
+    if (i < ids.length - 1) {
+      await wait(1000);
+    }
+  }
+
+  return { items, fetched: items.length, total: ids.length };
+}
+
 export async function fetchBooking(ctx: EasyWeekContext, bookingUuid: string): Promise<EasyWeekBooking> {
   const url = `${ctx.base}/bookings/${encodeURIComponent(bookingUuid)}`;
   try {
@@ -69,4 +93,8 @@ export async function fetchBooking(ctx: EasyWeekContext, bookingUuid: string): P
     }
     throw e;
   }
+}
+
+async function wait(ms: number) {
+  await new Promise<void>((resolve) => setTimeout(resolve, ms));
 }

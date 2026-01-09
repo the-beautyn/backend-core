@@ -8,11 +8,14 @@ import { JwtAuthGuard } from '../../src/shared/guards/jwt-auth.guard';
 import { TransformInterceptor } from '../../src/shared/interceptors/transform.interceptor';
 import { CrmType } from '@crm/shared';
 import { UserService } from '../../src/user/user.service';
+import { BookingHandlerService } from '../../src/booking/booking-handler.service';
+import { ClientRolesGuard } from '../../src/shared/guards/roles.guard';
 
 describe('Altegio booking flow (e2e)', () => {
   let app: INestApplication;
   let prismaMock: any;
   let providerMock: any;
+  let bookingHandlerMock: any;
   let tx: any;
   const salonId = '00000000-0000-0000-0000-00000000a001';
   const workerId = '00000000-0000-0000-0000-00000000a002';
@@ -102,16 +105,24 @@ describe('Altegio booking flow (e2e)', () => {
       createRecord: jest.fn(),
     };
     resetProviderMocks();
+    bookingHandlerMock = {
+      createAltegioBooking: jest.fn().mockResolvedValue({ bookingId: 'booking-e2e', changed: true }),
+      handleAltegioBooking: jest.fn(),
+    };
 
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     })
       .overrideGuard(JwtAuthGuard)
       .useValue(mockJwtGuard)
+      .overrideGuard(ClientRolesGuard)
+      .useValue({ canActivate: jest.fn().mockReturnValue(true) })
       .overrideProvider(PrismaService)
       .useValue(prismaMock)
       .overrideProvider(ProviderFactory)
       .useValue({ make: jest.fn().mockReturnValue(providerMock) })
+      .overrideProvider(BookingHandlerService)
+      .useValue(bookingHandlerMock)
       .overrideProvider(UserService)
       .useValue({
         findContactInfo: jest.fn().mockResolvedValue({
@@ -163,6 +174,7 @@ describe('Altegio booking flow (e2e)', () => {
 
     expect(createResp.body.data.bookingId).toBe('booking-e2e');
     expect(providerMock.createRecord).toHaveBeenCalled();
+    expect(bookingHandlerMock.createAltegioBooking).toHaveBeenCalled();
   });
 
   it('returns worker slots when includeSlots=true', async () => {

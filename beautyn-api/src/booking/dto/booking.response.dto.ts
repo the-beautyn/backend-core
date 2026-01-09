@@ -1,3 +1,5 @@
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+
 export type BookingProviderEasyweekDto = {
   bookingUuid?: string | null;
   locationUuid?: string | null;
@@ -122,6 +124,13 @@ export type BookingDto = {
     easyweek?: BookingProviderEasyweekDto;
     altegio?: BookingProviderAltegioDto;
   };
+  history?: Array<{
+    version: number;
+    syncedAt: string;
+    remoteUpdatedAt?: string | null;
+    payload: any;
+    diffFromPrev?: any;
+  }>;
 };
 
 export type BookingListResponseDto = {
@@ -129,3 +138,67 @@ export type BookingListResponseDto = {
   nextCursor?: string | null;
   limit: number;
 };
+
+export class BookingProviderEasyweekResponseDto {
+  @ApiPropertyOptional() bookingUuid?: string | null;
+  @ApiPropertyOptional() locationUuid?: string | null;
+  @ApiPropertyOptional() timezone?: string | null;
+  @ApiPropertyOptional() statusName?: string | null;
+  @ApiPropertyOptional() isCanceled?: boolean;
+  @ApiPropertyOptional() isCompleted?: boolean;
+}
+
+export class BookingProviderAltegioResponseDto {
+  @ApiPropertyOptional() crmRecordId?: string | null;
+  @ApiPropertyOptional() companyId?: string | null;
+  @ApiPropertyOptional() staffId?: string | null;
+  @ApiPropertyOptional() clientId?: string | null;
+  @ApiPropertyOptional() datetime?: string | null;
+  @ApiPropertyOptional() date?: string | null;
+  @ApiPropertyOptional() comment?: string | null;
+}
+
+export class BookingHistoryEntryDto {
+  @ApiProperty() version!: number;
+  @ApiProperty() syncedAt!: string;
+  @ApiPropertyOptional() remoteUpdatedAt?: string | null;
+  @ApiPropertyOptional({ type: Object }) payload?: any;
+  @ApiPropertyOptional({ type: Object }) diffFromPrev?: any;
+}
+
+export class BookingProviderSpecificDto {
+  @ApiPropertyOptional({ type: () => BookingProviderEasyweekResponseDto })
+  easyweek?: BookingProviderEasyweekResponseDto;
+
+  @ApiPropertyOptional({ type: () => BookingProviderAltegioResponseDto })
+  altegio?: BookingProviderAltegioResponseDto;
+}
+
+export class BookingResponseDto {
+  @ApiProperty() id!: string;
+  @ApiProperty() salonId!: string;
+  @ApiPropertyOptional() userId?: string | null;
+  @ApiProperty() status!: string;
+  @ApiProperty() datetime!: string;
+  @ApiPropertyOptional() endDatetime?: string | null;
+  @ApiPropertyOptional() comment?: string | null;
+  @ApiPropertyOptional() crmType?: string | null;
+  @ApiPropertyOptional() crmRecordId?: string | null;
+  @ApiPropertyOptional() crmCompanyId?: string | null;
+  @ApiPropertyOptional() crmStaffId?: string | null;
+  @ApiPropertyOptional({ type: [String] }) crmServiceIds?: string[];
+  @ApiPropertyOptional({ type: [String] }) serviceIds?: string[];
+  @ApiPropertyOptional() shortLink?: string | null;
+  @ApiProperty() createdAt!: string;
+  @ApiProperty() updatedAt!: string;
+  @ApiPropertyOptional({ type: () => BookingProviderSpecificDto })
+  providerSpecific?: BookingProviderSpecificDto;
+  @ApiPropertyOptional({ type: [BookingHistoryEntryDto] })
+  history?: BookingHistoryEntryDto[];
+}
+
+export class BookingListResponseDtoClass {
+  @ApiProperty({ type: [BookingResponseDto] }) items!: BookingResponseDto[];
+  @ApiPropertyOptional() nextCursor?: string | null;
+  @ApiProperty() limit!: number;
+}

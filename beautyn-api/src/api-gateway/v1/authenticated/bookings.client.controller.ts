@@ -2,9 +2,10 @@ import { Controller, Get, NotFoundException, Param, ParseUUIDPipe, Query, Req, U
 import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Request } from 'express';
 import { BookingQueryService } from '../../../booking/booking-query.service';
-import { BookingDto, BookingListResponseDto } from '../../../booking/dto/booking.response.dto';
+import { BookingDto, BookingListResponseDto, BookingListResponseDtoClass, BookingResponseDto } from '../../../booking/dto/booking.response.dto';
 import { JwtAuthGuard } from '../../../shared/guards/jwt-auth.guard';
 import { ClientRolesGuard } from '../../../shared/guards/roles.guard';
+import { envelopeRef } from '../../../shared/utils/swagger-envelope.util';
 
 @ApiTags('Bookings')
 @ApiBearerAuth()
@@ -15,7 +16,7 @@ export class ClientBookingsController {
 
   @Get()
   @ApiOperation({ summary: 'List current client bookings' })
-  @ApiOkResponse({ description: 'List of bookings', type: Object })
+  @ApiOkResponse({ description: 'List of bookings', ...envelopeRef(BookingListResponseDtoClass) })
   async list(
     @Query('status') status: string | undefined,
     @Query('from') from?: string,
@@ -40,7 +41,7 @@ export class ClientBookingsController {
 
   @Get(':id')
   @ApiOperation({ summary: 'Get a booking by id' })
-  @ApiOkResponse({ description: 'Booking', type: Object })
+  @ApiOkResponse({ description: 'Booking', ...envelopeRef(BookingResponseDto) })
   async get(
     @Param('id', new ParseUUIDPipe()) id: string,
     @Req() req?: Request & { user?: { id?: string } },

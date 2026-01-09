@@ -28,7 +28,32 @@ import { CrmCategoryDto, CrmCategoryPageDto } from './categories/dto/categories-
 import { AppCategoryResponseDto } from './app-categories/dto/app-category-response.dto';
 import { AppCategoryListResponseDto } from './app-categories/dto/app-category-list-response.dto';
 import { SalonCategoryMappingResponseDto } from './app-categories/dto/salon-category-mapping-response.dto';
-import { ConfirmEasyweekBookingResponseDto, EasyweekBookingSummaryDto } from './booking/dto/confirm-easyweek-booking.response.dto';
+import { ConfirmEasyweekBookingResponseDto, EasyweekBookingSummaryDto } from './booking/easyweek-booking/dto/confirm-easyweek-booking.response.dto';
+import {
+  BookingResponseDto,
+  BookingListResponseDtoClass,
+  BookingProviderEasyweekResponseDto,
+  BookingProviderAltegioResponseDto,
+  BookingProviderSpecificDto,
+  BookingHistoryEntryDto,
+} from './booking/dto/booking.response.dto';
+import { SyncBookingsNowResponseDto, SyncBookingsJobResponseDto } from './api-gateway/v1/authenticated/bookings.owner.controller';
+import { DiscoverEasyWeekResponseDto } from './onboarding/dto/discover-easyweek-response.dto';
+import { FinalizeEasyWeekResponseDto as OnboardingFinalizeDto } from './onboarding/dto/finalize-easyweek-response.dto';
+import { BookableServicesResponseDto } from './booking/altegio-booking/dto/bookable-services.response.dto';
+import { BookableWorkersResponseDto } from './booking/altegio-booking/dto/bookable-workers.response.dto';
+import { BookableDatesResponseDto } from './booking/altegio-booking/dto/bookable-dates.response.dto';
+import { TimeSlotsResponseDto } from './booking/altegio-booking/dto/time-slots.response.dto';
+import { SearchHistoryItemDto } from './search/dto/search-history-item.dto';
+import { SearchSuggestionDto } from './search/dto/search-suggestion.dto';
+import { SearchResultDto } from './search/dto/search-response.dto';
+import { CategoriesSyncJobResponseDto, CategoriesSyncResultDto } from './categories/dto/categories-sync-result.dto';
+import { ServicesSyncJobResponseDto, ServicesSyncResultDto } from './services/dto/services-sync-result.dto';
+import { CrmServicePageDto } from './services/dto/services-crm-page.dto';
+import { ServiceResponseDto } from './services/dto/service-response.dto';
+import { ServicesListResponseDto as ServicesListDto } from './services/dto/services-list.response.dto';
+import { PublicWorkersListResponseDto } from './workers/dto/workers-public-list.response.dto';
+import { PublicWorkerDto } from './workers/dto/worker-public.dto';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -83,6 +108,38 @@ async function bootstrap() {
       SalonCategoryMappingResponseDto,
       ConfirmEasyweekBookingResponseDto,
       EasyweekBookingSummaryDto,
+      // Bookings
+      BookingResponseDto,
+      BookingListResponseDtoClass,
+      BookingProviderEasyweekResponseDto,
+      BookingProviderAltegioResponseDto,
+      BookingProviderSpecificDto,
+      BookingHistoryEntryDto,
+      SyncBookingsNowResponseDto,
+      SyncBookingsJobResponseDto,
+      // Onboarding
+      DiscoverEasyWeekResponseDto,
+      OnboardingFinalizeDto,
+      // Altegio booking public
+      BookableServicesResponseDto,
+      BookableWorkersResponseDto,
+      BookableDatesResponseDto,
+      TimeSlotsResponseDto,
+      // Search
+      SearchHistoryItemDto,
+      SearchSuggestionDto,
+      SearchResultDto,
+      // Categories/Services sync
+      CategoriesSyncJobResponseDto,
+      CategoriesSyncResultDto,
+      ServicesSyncJobResponseDto,
+      ServicesSyncResultDto,
+      CrmServicePageDto,
+      ServiceResponseDto,
+      ServicesListDto,
+      // Workers public
+      PublicWorkersListResponseDto,
+      PublicWorkerDto,
     ],
   });
   SwaggerModule.setup('api/docs', app, doc);

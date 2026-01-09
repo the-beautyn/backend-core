@@ -12,6 +12,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../../shared/database/prisma.service';
 import { AltegioBookTimesResponse } from '@crm/provider-core';
+import type { AltegioBooking } from '@crm/provider-core/altegio/bookings';
 import { CrmType, CrmError, ErrorKind } from '@crm/shared';
 import { CrmIntegrationService } from '../../crm-integration/core/crm-integration.service';
 import { GetBookableServicesDto } from './dto/get-services.dto';
@@ -27,6 +28,7 @@ import { TimeSlotsResponseDto } from './dto/time-slots.response.dto';
 import { CreateAltegioRecordResponseDto } from './dto/create-record.response.dto';
 import { UserService } from '../../user/user.service';
 import { createChildLogger } from '@shared/logger';
+import { BookingHandlerService } from '../booking-handler.service';
 
 type SalonContext = {
   salonId: string;
@@ -41,7 +43,23 @@ export class AltegioBookingService {
     private readonly prisma: PrismaService,
     private readonly crmIntegration: CrmIntegrationService,
     private readonly users: UserService,
+    private readonly bookingHandler: BookingHandlerService,
   ) {}
+
+  async handleBookings(params: { bookings: AltegioBooking[] }) {
+    const results = await Promise.all(
+      params.bookings.map((booking) =>
+        this.bookingHandler.handleAltegioBooking({ booking }),
+      ),
+    );
+    return {
+      bookings: results.map(result => result.booking)
+    }
+  }
+
+  async handleBooking(params: { booking: AltegioBooking }) {
+    return this.bookingHandler.handleAltegioBooking({ booking: params.booking });
+  }
 
   async getBookableServices(salonId: string, query: GetBookableServicesDto): Promise<BookableServicesResponseDto> {
     const ctx = await this.requireAltegioSalon(salonId);
@@ -218,232 +236,36 @@ export class AltegioBookingService {
     const recordData: any = (record as any)?.data ?? record ?? {};
     const clientData = recordData?.client ?? (record as any)?.client ?? payload?.client ?? null;
     const staffData = recordData?.staff ?? (record as any)?.staff ?? null;
-    const start = new Date(dto.datetime);
-    const endDatetime = slotLengthSec ? new Date(start.getTime() + slotLengthSec * 1000) : null;
 
-    const created = await this.prisma.$transaction(async (tx) => {
-      const booking = await tx.booking.create({
-        data: {
-          salonId,
-          userId,
-          workerId: worker.id,
-          datetime: start,
-          endDatetime,
-          status: 'created',
-          comment: dto.comment ?? 'Beautyn',
-          crmRecordId: recordData?.id ? String(recordData.id) : null,
-          crmCompanyId: ctx.externalSalonId ?? null,
-          crmStaffId: String(crmStaffId),
-          crmServiceIds: crmServiceIds,
-          serviceIds: dto.serviceIds,
-          shortLink: recordData?.short_link ?? null,
-          crmType: CrmType.ALTEGIO,
-          crmPayload: recordData ?? payload,
-        },
-      });
-
-      const details = this.mapAltegioDetails(recordData, booking.id);
-      await tx.altegioBookingDetails.upsert({
-        where: { bookingId: booking.id },
-        update: details,
-        create: { bookingId: booking.id, ...details },
-      });
-
-      await tx.altegioBookingStaff.upsert({
-        where: { detailsId: booking.id },
-        update: this.mapAltegioStaff(staffData),
-        create: { detailsId: booking.id, ...this.mapAltegioStaff(staffData) },
-      });
-
-      await tx.altegioBookingClient.upsert({
-        where: { detailsId: booking.id },
-        update: this.mapAltegioClient(clientData),
-        create: { detailsId: booking.id, ...this.mapAltegioClient(clientData) },
-      });
-
-      await tx.altegioBookingService.deleteMany({ where: { detailsId: booking.id } });
-      const serviceRows = this.mapAltegioServices(recordData?.services, booking.id);
-      if (serviceRows.length) {
-        await tx.altegioBookingService.createMany({ data: serviceRows });
-      }
-
-      await tx.altegioBookingDocument.deleteMany({ where: { detailsId: booking.id } });
-      const docs = this.mapAltegioDocuments(recordData?.documents, booking.id);
-      if (docs.length) {
-        await tx.altegioBookingDocument.createMany({ data: docs });
-      }
-
-      await tx.altegioBookingGoodsTransaction.deleteMany({ where: { detailsId: booking.id } });
-      const goods = this.mapAltegioGoods(recordData?.goods_transactions, booking.id);
-      if (goods.length) {
-        await tx.altegioBookingGoodsTransaction.createMany({ data: goods });
-      }
-
-      return booking;
-    });
+    const bookingPayload: AltegioBooking = {
+      crmRecordId: recordData?.id ? String(recordData.id) : null,
+      companyId: recordData?.company_id ? String(recordData.company_id) : ctx.externalSalonId ? String(ctx.externalSalonId) : null,
+      staffId: recordData?.staff_id ? String(recordData.staff_id) : String(crmStaffId),
+      clientId: recordData?.client?.id ? String(recordData.client.id) : null,
+      datetime: recordData?.datetime ?? dto.datetime,
+      date: recordData?.date ?? null,
+      comment: recordData?.comment ?? dto.comment ?? null,
+      attendance: recordData?.attendance ?? null,
+      confirmed: recordData?.confirmed ?? null,
+      visitAttendance: recordData?.visit_attendance ?? null,
+      length: recordData?.length ?? null,
+      seanceLength: recordData?.seance_length ?? slotLengthSec ?? null,
+      isDeleted: recordData?.deleted ?? recordData?.is_deleted ?? null,
+      staff: recordData?.staff ?? staffData ?? null,
+      client: recordData?.client ?? clientData ?? null,
+      services: recordData?.services ?? payload?.services ?? null,
+      documents: recordData?.documents ?? null,
+      goodsTransactions: recordData?.goods_transactions ?? null,
+      raw: recordData ?? payload,
+    };
+    const created = await this.bookingHandler.createAltegioBooking({ salonId, booking: bookingPayload, userId });
 
     return {
-      bookingId: created.id,
+      bookingId: created.bookingId,
       crmRecordId: Number(recordData?.id ?? 0),
       shortLink: recordData?.short_link ?? null,
       status: 'created',
     };
-  }
-
-  private mapAltegioDetails(data: any, bookingId: string) {
-    if (!data || typeof data !== 'object') return { rawPayload: data ?? null };
-    return {
-      crmRecordId: data.id ? String(data.id) : null,
-      companyId: data.company_id ? String(data.company_id) : null,
-      staffId: data.staff_id ? String(data.staff_id) : null,
-      clientId: data.client?.id ? String(data.client.id) : null,
-      datetime: this.toDate(data.datetime),
-      date: this.toDate(data.date),
-      createDate: this.toDate(data.create_date),
-      comment: data.comment ?? null,
-      online: data.online ?? null,
-      attendance: this.toNumber(data.attendance),
-      visitAttendance: this.toNumber(data.visit_attendance),
-      confirmed: this.toNumber(data.confirmed),
-      seanceLength: this.toNumber(data.seance_length),
-      length: this.toNumber(data.length),
-      technicalBreak: this.toNumber(data.technical_break_duration),
-      smsBefore: this.toNumber(data.sms_before),
-      smsNow: this.toNumber(data.sms_now),
-      emailNow: this.toNumber(data.email_now),
-      notified: this.toNumber(data.notified),
-      masterRequest: this.toNumber(data.master_request),
-      apiId: data.api_id ?? null,
-      fromUrl: data.from_url ?? null,
-      reviewRequested: this.toNumber(data.review_requested),
-      visitId: data.visit_id ? String(data.visit_id) : null,
-      createdUserId: data.created_user_id ? String(data.created_user_id) : null,
-      deleted: data.deleted ?? null,
-      paidFull: this.toNumber(data.paid_full),
-      prepaid: data.prepaid ?? null,
-      prepaidConfirmed: data.prepaid_confirmed ?? null,
-      isUpdateBlocked: data.is_update_blocked ?? null,
-      lastChangeDate: this.toDate(data.last_change_date),
-      customColor: data.custom_color ?? null,
-      customFontColor: data.custom_font_color ?? null,
-      smsRemainHours: this.toNumber(data.sms_remain_hours),
-      emailRemainHours: this.toNumber(data.email_remain_hours),
-      bookformId: this.toNumber(data.bookform_id),
-      recordFrom: data.record_from ?? null,
-      isMobile: this.toNumber(data.is_mobile),
-      shortLink: data.short_link ?? null,
-      rawPayload: data ?? null,
-    };
-  }
-
-  private mapAltegioStaff(staff: any) {
-    if (!staff || typeof staff !== 'object') {
-      return { externalId: null, apiId: null, name: null, specialization: null, position: null, avatar: null, avatarBig: null, rating: null, votesCount: null };
-    }
-    return {
-      externalId: staff.id ? String(staff.id) : null,
-      apiId: staff.api_id ? String(staff.api_id) : null,
-      name: staff.name ?? null,
-      specialization: staff.specialization ?? null,
-      position: staff.position ?? null,
-      avatar: staff.avatar ?? null,
-      avatarBig: staff.avatar_big ?? null,
-      rating: staff.rating ?? null,
-      votesCount: this.toNumber(staff.votes_count),
-    };
-  }
-
-  private mapAltegioClient(client: any) {
-    if (!client || typeof client !== 'object') {
-      return { externalId: null, name: null, surname: null, patronymic: null, displayName: null, comment: null, phone: null, card: null, email: null, successVisits: null, failVisits: null, discount: null, sex: null, birthday: null, clientTags: null, customFields: null };
-    }
-    return {
-      externalId: client.id ? String(client.id) : null,
-      name: client.name ?? null,
-      surname: client.surname ?? null,
-      patronymic: client.patronymic ?? null,
-      displayName: client.display_name ?? null,
-      comment: client.comment ?? null,
-      phone: client.phone ?? null,
-      card: client.card ?? null,
-      email: client.email ?? null,
-      successVisits: this.toNumber(client.success_visits_count),
-      failVisits: this.toNumber(client.fail_visits_count),
-      discount: this.toNumber(client.discount),
-      sex: this.toNumber(client.sex),
-      birthday: client.birthday ?? null,
-      clientTags: client.client_tags ?? null,
-      customFields: client.custom_fields ?? null,
-    };
-  }
-
-  private mapAltegioServices(services: any, detailsId: string) {
-    if (!Array.isArray(services)) return [];
-    return services
-      .map((s: any) => ({
-        detailsId,
-        externalId: s?.id ? String(s.id) : null,
-        title: s?.title ?? null,
-        cost: this.toNumber(s?.cost),
-        costToPay: this.toNumber(s?.cost_to_pay),
-        manualCost: this.toNumber(s?.manual_cost),
-        costPerUnit: this.toNumber(s?.cost_per_unit),
-        discount: this.toNumber(s?.discount),
-        firstCost: this.toNumber(s?.first_cost),
-        amount: this.toNumber(s?.amount),
-      }));
-  }
-
-  private mapAltegioDocuments(docs: any, detailsId: string) {
-    if (!Array.isArray(docs)) return [];
-    return docs.map((d: any) => ({
-      detailsId,
-      externalId: d?.id ? String(d.id) : null,
-      typeId: this.toNumber(d?.type_id),
-      storageId: this.toNumber(d?.storage_id),
-      userId: this.toNumber(d?.user_id),
-      companyId: this.toNumber(d?.company_id),
-      number: this.toNumber(d?.number),
-      comment: d?.comment ?? null,
-      dateCreated: this.toDate(d?.date_created),
-      categoryId: this.toNumber(d?.category_id),
-      visitId: d?.visit_id ? String(d.visit_id) : null,
-      recordId: d?.record_id ? String(d.record_id) : null,
-      typeTitle: d?.type_title ?? null,
-      isSaleBillPrinted: d?.is_sale_bill_printed ?? null,
-    }));
-  }
-
-  private mapAltegioGoods(goods: any, detailsId: string) {
-    if (!Array.isArray(goods)) return [];
-    return goods.map((g: any) => ({
-      detailsId,
-      externalId: g?.id ? String(g.id) : null,
-      typeId: this.toNumber(g?.type_id),
-      storageId: this.toNumber(g?.storage_id),
-      userId: this.toNumber(g?.user_id),
-      companyId: this.toNumber(g?.company_id),
-      number: this.toNumber(g?.number),
-      comment: g?.comment ?? null,
-      dateCreated: this.toDate(g?.date_created),
-      categoryId: this.toNumber(g?.category_id),
-      visitId: g?.visit_id ? String(g.visit_id) : null,
-      recordId: g?.record_id ? String(g.record_id) : null,
-      typeTitle: g?.type_title ?? null,
-      isSaleBillPrinted: g?.is_sale_bill_printed ?? null,
-    }));
-  }
-
-  private toNumber(value: any): number | null {
-    if (value === null || value === undefined) return null;
-    const num = Number(value);
-    return Number.isFinite(num) ? num : null;
-  }
-
-  private toDate(value: any): Date | null {
-    if (!value || (typeof value !== 'string' && typeof value !== 'number')) return null;
-    const ts = Date.parse(String(value));
-    return Number.isFinite(ts) ? new Date(ts) : null;
   }
 
   private async requireAltegioSalon(salonId: string): Promise<SalonContext> {

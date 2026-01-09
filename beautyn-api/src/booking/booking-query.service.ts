@@ -14,6 +14,13 @@ type BookingWithRelations = Booking & {
     rawPayload?: Prisma.JsonValue | null;
   } | null;
   altegioDetails: any | null;
+  history: Array<{
+    version: number;
+    syncedAt: Date;
+    remoteUpdatedAt: string | null;
+    payload: Prisma.JsonValue;
+    diffFromPrev: Prisma.JsonValue | null;
+  }>;
 };
 
 @Injectable()
@@ -37,6 +44,9 @@ export class BookingQueryService {
         goodsTransactions: true,
       },
     },
+    history: {
+      orderBy: { version: 'desc' as const },
+    },
   } satisfies Prisma.BookingInclude;
 
   constructor(private readonly prisma: PrismaService) {}
@@ -46,15 +56,15 @@ export class BookingQueryService {
       where: { id: bookingId, userId },
       include: this.include,
     });
-    return booking ? this.mapBooking(booking as unknown as BookingWithRelations) : null;
+    return booking ? this.mapBooking(booking as unknown as BookingWithRelations, { includeHistory: false }) : null;
   }
 
-  async getForSalon(bookingId: string, salonId: string): Promise<BookingDto | null> {
+  async getForSalon(bookingId: string, salonId: string, includeHistory = true): Promise<BookingDto | null> {
     const booking = await this.prisma.booking.findFirst({
       where: { id: bookingId, salonId },
       include: this.include,
     });
-    return booking ? this.mapBooking(booking as unknown as BookingWithRelations) : null;
+    return booking ? this.mapBooking(booking as unknown as BookingWithRelations, { includeHistory }) : null;
   }
 
   async listForClient(params: {
@@ -91,7 +101,7 @@ export class BookingQueryService {
     const nextCursor = items.length > take ? items[take].id : undefined;
     const slice = items.slice(0, take) as unknown as BookingWithRelations[];
     return {
-      items: slice.map((b) => this.mapBooking(b)),
+      items: slice.map((b) => this.mapBooking(b, { includeHistory: false })),
       nextCursor,
       limit: take,
     };
@@ -104,6 +114,7 @@ export class BookingQueryService {
     to?: Date;
     cursor?: string;
     limit?: number;
+    includeHistory?: boolean;
   }): Promise<BookingListResponseDto> {
     const take = this.clampTake(params.limit);
     const where: Prisma.BookingWhereInput = {
@@ -130,8 +141,9 @@ export class BookingQueryService {
 
     const nextCursor = items.length > take ? items[take].id : undefined;
     const slice = items.slice(0, take) as unknown as BookingWithRelations[];
+    const includeHistory = params.includeHistory ?? true;
     return {
-      items: slice.map((b) => this.mapBooking(b)),
+      items: slice.map((b) => this.mapBooking(b, { includeHistory })),
       nextCursor,
       limit: take,
     };
@@ -142,7 +154,8 @@ export class BookingQueryService {
     return Math.min(limit, 100);
   }
 
-  private mapBooking(booking: BookingWithRelations): BookingDto {
+  private mapBooking(booking: BookingWithRelations, opts?: { includeHistory?: boolean }): BookingDto {
+    const includeHistory = opts?.includeHistory !== false;
     return {
       id: booking.id,
       salonId: booking.salonId,
@@ -172,19 +185,35 @@ export class BookingQueryService {
         easyweek: this.mapEasyweek(booking),
         altegio: this.mapAltegio(booking),
       },
+      history: includeHistory
+        ? Array.isArray(booking.history)
+          ? booking.history.map((h) => ({
+              version: h.version,
+              syncedAt: h.syncedAt.toISOString(),
+              remoteUpdatedAt: h.remoteUpdatedAt ?? null,
+              payload: h.payload ?? null,
+              diffFromPrev: h.diffFromPrev ?? null,
+            }))
+          : undefined
+        : undefined,
     };
   }
 
   private mapEasyweek(booking: BookingWithRelations): BookingProviderEasyweekDto | undefined {
     const details = booking.easyweekDetails;
     if (!details) return undefined;
+    const raw = (details as any)?.rawPayload ?? {};
+    const isCanceled = raw?.isCanceled ?? raw?.is_canceled;
+    const isCompleted = raw?.isCompleted ?? raw?.is_completed;
+    const statusName = raw?.statusName ?? raw?.status?.name ?? raw?.status_name;
+    const timezone = raw?.timezone ?? raw?.time_zone ?? null;
     return {
       bookingUuid: booking.crmRecordId ?? null,
       locationUuid: booking.crmCompanyId ?? null,
-      timezone: (details.rawPayload as any)?.timezone ?? null,
-      statusName: (details.rawPayload as any)?.statusName ?? null,
-      isCanceled: (details.rawPayload as any)?.isCanceled ?? undefined,
-      isCompleted: (details.rawPayload as any)?.isCompleted ?? undefined,
+      timezone,
+      statusName: statusName ?? null,
+      isCanceled: isCanceled ?? undefined,
+      isCompleted: isCompleted ?? undefined,
       links: (details.links || []).map((l) => ({ type: l.type, url: l.url })),
       duration: details.duration
         ? {

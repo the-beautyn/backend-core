@@ -1,9 +1,9 @@
 import { Body, Controller, Post, Req, UseGuards } from '@nestjs/common';
 import { ApiBadRequestResponse, ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Request } from 'express';
-import { BookingService } from '../../../booking/booking.service';
-import { ConfirmEasyweekBookingDto } from '../../../booking/dto/confirm-easyweek-booking.dto';
-import { ConfirmEasyweekBookingResponseDto } from '../../../booking/dto/confirm-easyweek-booking.response.dto';
+import { EasyweekBookingService } from '../../../booking/easyweek-booking/easyweek-booking.service';
+import { ConfirmEasyweekBookingDto } from '../../../booking/easyweek-booking/dto/confirm-easyweek-booking.dto';
+import { ConfirmEasyweekBookingResponseDto } from '../../../booking/easyweek-booking/dto/confirm-easyweek-booking.response.dto';
 import { JwtAuthGuard } from '../../../shared/guards/jwt-auth.guard';
 import { ClientRolesGuard } from '../../../shared/guards/roles.guard';
 import { envelopeErrorSchema, envelopeRef } from '../../../shared/utils/swagger-envelope.util';
@@ -13,7 +13,7 @@ import { envelopeErrorSchema, envelopeRef } from '../../../shared/utils/swagger-
 @UseGuards(JwtAuthGuard, ClientRolesGuard)
 @Controller('api/v1/bookings/easyweek')
 export class EasyweekBookingAuthenticatedController {
-  constructor(private readonly bookings: BookingService) {}
+  constructor(private readonly bookings: EasyweekBookingService) {}
 
   @Post('confirm')
   @ApiOperation({ summary: 'Confirm EasyWeek widget booking and persist locally' })

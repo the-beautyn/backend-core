@@ -41,7 +41,7 @@ export class WorkersAuthenticatedController {
   @ApiOperation({ summary: 'Pull workers directly from connected CRM without persisting' })
   @ApiOkResponse({ type: WorkerDto, isArray: true })
   async pullFromCrm(@Req() req: Request & { user: { id: string } }): Promise<WorkerDto[]> {
-    return this.workers.pullFromCrm(req.user.id);
+    return await this.workers.pullFromCrm(req.user.id);
   }
 
   @Post('crm/sync')
@@ -50,7 +50,7 @@ export class WorkersAuthenticatedController {
   @ApiOperation({ summary: 'Fetch workers from CRM and persist them locally' })
   @ApiOkResponse({ type: WorkersSyncResultDto })
   async rebaseFromCrm(@Req() req: Request & { user: { id: string } }): Promise<WorkersSyncResultDto> {
-    return this.workers.rebaseFromCrm(req.user.id);
+    return await this.workers.rebaseFromCrm(req.user.id);
   }
 
   @Post('crm/sync/async')
@@ -60,7 +60,7 @@ export class WorkersAuthenticatedController {
   @ApiAcceptedResponse({ type: WorkersSyncJobResponseDto })
   @HttpCode(HttpStatus.ACCEPTED)
   async rebaseFromCrmAsync(@Req() req: Request & { user: { id: string } }): Promise<WorkersSyncJobResponseDto> {
-    return this.workers.rebaseFromCrmAsync(req.user.id);
+    return await this.workers.rebaseFromCrmAsync(req.user.id);
   }
 
   @Post()
@@ -69,7 +69,7 @@ export class WorkersAuthenticatedController {
   @ApiOperation({ summary: 'Create a worker within CRM and persist locally' })
   @ApiCreatedResponse({ type: WorkerDto })
   async create(@Req() req: Request & { user: { id: string } }, @Body() dto: UpsertWorkerDto): Promise<WorkerDto> {
-    return this.workers.create(req.user.id, dto);
+    return await this.workers.create(req.user.id, dto);
   }
 
   @Patch(':id')
@@ -82,7 +82,7 @@ export class WorkersAuthenticatedController {
     @Param('id') id: string,
     @Body() dto: UpsertWorkerDto,
   ): Promise<WorkerDto> {
-    return this.workers.update(req.user.id, id, dto);
+    return await this.workers.update(req.user.id, id, dto);
   }
 
   @Delete(':id')

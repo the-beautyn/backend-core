@@ -13,6 +13,7 @@ import { CapabilityRegistryService, Capability } from '@crm/capability-registry'
 import { CrmType, uuidV5FromStrings } from '@crm/shared';
 import { WorkerData } from '@crm/provider-core';
 import { createChildLogger } from '@shared/logger';
+import { Page } from '@crm/provider-core';
 
 interface PaginationParams {
   page: number;
@@ -86,9 +87,8 @@ export class WorkersService {
 
   async pullFromCrm(ownerId: string): Promise<WorkerDto[]> {
     const { salonId, provider } = await this.requireOwnerSalon(ownerId);
-    this.ensureCapability(provider, 'supportsWorkersPull');
-    const workers = await this.crmIntegration.pullWorkers(salonId, provider);
-    return workers.map((w) => this.mapCrmWorkerToPreviewDto(w, salonId));
+    let page = await this.crmIntegration.pullWorkers(salonId, provider);
+    return page.items.map((item) => this.mapCrmWorkerToPreviewDto(item, salonId));
   }
 
   async pull(ownerId: string, opts?: { page?: number; limit?: number; search?: string; isActive?: boolean }): Promise<{ items: WorkerDto[]; page: number; limit: number; total: number }> {
@@ -110,22 +110,16 @@ export class WorkersService {
 
   async rebaseFromCrm(ownerId: string): Promise<{ workers: WorkerDto[]; upserted: number; deleted: number }> {
     const { salonId, provider } = await this.requireOwnerSalon(ownerId);
-    this.ensureCapability(provider, 'supportsWorkersPull');
-    const crmWorkers = await this.crmIntegration.pullWorkers(salonId, provider);
-    const mapped = crmWorkers.map((w) => this.mapCrmWorkerToEntity(w));
-    const result = await this.category.rebase(salonId, mapped);
-    return result;
+    return this.crmIntegration.rebaseWorkersNow(salonId, provider);
   }
 
   async rebaseFromCrmAsync(ownerId: string): Promise<{ jobId: string }> {
     const { salonId, provider } = await this.requireOwnerSalon(ownerId);
-    this.ensureCapability(provider, 'supportsWorkersPull');
     return this.crmIntegration.enqueueWorkersSync(salonId, provider);
   }
 
   async create(ownerId: string, dto: UpsertWorkerDto): Promise<WorkerDto> {
     const { salonId, provider } = await this.requireOwnerSalon(ownerId);
-    this.ensureCapability(provider, 'supportsWorkersCreate');
     const payload = this.mapUpsertDtoToEntity(dto);
     const crmWorker = await this.crmIntegration.createWorker(salonId, provider, payload);
     const saved = await this.category.create(salonId, this.mapCrmWorkerToEntity(crmWorker));
@@ -134,7 +128,6 @@ export class WorkersService {
 
   async update(ownerId: string, workerId: string, dto: UpsertWorkerDto): Promise<WorkerDto> {
     const { salonId, provider } = await this.requireOwnerSalon(ownerId);
-    this.ensureCapability(provider, 'supportsWorkersUpdate');
     const current = await this.category.requireWithinSalon(workerId, salonId);
     if (!current.crmWorkerId) {
       throw new ConflictException({ message: 'Worker is not linked to CRM', code: 'WORKER_MISSING_CRM_ID' });
@@ -147,7 +140,6 @@ export class WorkersService {
 
   async delete(ownerId: string, workerId: string): Promise<{ id: string }> {
     const { salonId, provider } = await this.requireOwnerSalon(ownerId);
-    this.ensureCapability(provider, 'supportsWorkersDelete');
     const current = await this.category.requireWithinSalon(workerId, salonId);
     if (!current.crmWorkerId) {
       throw new ConflictException({ message: 'Worker is not linked to CRM', code: 'WORKER_MISSING_CRM_ID' });

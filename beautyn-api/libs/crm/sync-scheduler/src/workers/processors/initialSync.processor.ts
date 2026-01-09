@@ -32,7 +32,7 @@ export function startInitialSyncWorker(container: { providerFactory: ProviderFac
       if (base && key) {
         // Categories
         try {
-          const page = await executeWithRetry(() => p.pullCategories({ salonId, provider }));
+          const page = await executeWithRetry(() => p.pullCategories());
           const categories = (page?.items ?? []).map((c: any) => ({
             crm_category_id: String(c.externalId),
             name: String(c.name ?? ''),
@@ -51,7 +51,7 @@ export function startInitialSyncWorker(container: { providerFactory: ProviderFac
 
         // Services
         try {
-          const page = await executeWithRetry(() => p.pullServices({ salonId, provider }));
+          const page = await executeWithRetry(() => p.pullServices());
           const services = (page?.items ?? []).map((s: any) => ({
             crm_service_id: String(s.externalId),
             category_external_id: s.categoryExternalId ?? undefined,
@@ -76,8 +76,8 @@ export function startInitialSyncWorker(container: { providerFactory: ProviderFac
 
         // Workers
         try {
-          const workers = await executeWithRetry(() => p.pullWorkers({ salonId, provider }));
-          const payload = (workers ?? []).map(toWorkerPayload);
+          const workers = await executeWithRetry(() => p.pullWorkers());
+          const payload = (workers?.items ?? []).map(toWorkerPayload);
           log.info('Pulled workers from CRM', { salonId, provider, jobId: job.id, count: payload.length });
           await fetch(`${base}/api/v1/internal/workers/sync`, {
             method: 'POST',
