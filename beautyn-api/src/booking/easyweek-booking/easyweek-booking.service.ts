@@ -31,25 +31,6 @@ export class EasyweekBookingService {
     return this.bookingHandler.handleEasyweekBooking({ booking: params.booking });
   }
 
-  async syncEasyweekFromCrm(dto: EasyweekBookingsSyncDto): Promise<{ bookings: number; upserted: number; deleted: number }> {
-    const bookings = Array.isArray(dto.bookings) ? dto.bookings : [];
-    const workspaceSlug = await this.crmIntegration.getEasyweekWorkspaceSlug(dto.salon_id);
-    let upserted = 0;
-
-    for (const raw of bookings) {
-      const normalized = this.mapEasyweekRawToNormalized(raw);
-      if (!normalized?.bookingUuid) continue;
-      const result = await this.bookingHandler.createEasyweekBooking({
-        salonId: dto.salon_id,
-        booking: normalized,
-        workspaceSlug,
-      });
-      if (result.changed) upserted += 1;
-    }
-
-    return { bookings: bookings.length, upserted, deleted: 0 };
-  }
-
   async confirmEasyweekBooking(salonId: string, bookingUuid: string, userId?: string) {
     const details = await this.crmIntegration.fetchEasyweekBookingDetails({ salonId, bookingUuid });
     const workspaceSlug = await this.crmIntegration.getEasyweekWorkspaceSlug(salonId);
@@ -59,7 +40,7 @@ export class EasyweekBookingService {
       workspaceSlug,
       userId: userId ?? null,
     });
-    const booking = await this.prisma.booking.findUniqueOrThrow({ where: { id: result.bookingId } });
+    const booking = await this.prisma.booking.findUniqueOrThrow({ where: { id: result.booking.id } });
 
     return {
       bookingId: booking.id,

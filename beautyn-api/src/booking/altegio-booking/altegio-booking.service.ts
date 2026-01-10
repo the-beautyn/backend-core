@@ -261,7 +261,7 @@ export class AltegioBookingService {
     const created = await this.bookingHandler.createAltegioBooking({ salonId, booking: bookingPayload, userId });
 
     return {
-      bookingId: created.bookingId,
+      bookingId: created.booking.id,
       crmRecordId: Number(recordData?.id ?? 0),
       shortLink: recordData?.short_link ?? null,
       status: 'created',
