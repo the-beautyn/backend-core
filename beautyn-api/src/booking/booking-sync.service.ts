@@ -34,6 +34,6 @@ export class BookingSyncService {
 
     const result = await this.crm.rebaseBookingsNow(salonId, bookingIds, provider);
     const bookings = (result as any)?.bookings ?? [];
-    return bookings;
+    return { bookings };
   }
 }
