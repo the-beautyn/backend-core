@@ -667,10 +667,10 @@ export class BookingHandlerService {
       .map((svc: any) => {
         if (!svc || typeof svc !== 'object') return null;
         const reservedOn = this.toDate(
-          svc.reserved_on ?? svc.reservedOn ?? svc.start_time ?? svc.startTime ?? svc.reservedOn ?? svc.reserved_on,
+          svc.reserved_on ?? svc.reservedOn ?? svc.start_time ?? svc.startTime,
         );
         const reservedUntil = this.toDate(
-          svc.reserved_until ?? svc.reservedUntil ?? svc.end_time ?? svc.endTime ?? svc.reservedUntil ?? svc.reserved_until,
+          svc.reserved_until ?? svc.reservedUntil ?? svc.end_time ?? svc.endTime,
         );
         const duration = svc.duration ?? {};
         const originalDuration = svc.original_duration ?? svc.originalDuration ?? {};
