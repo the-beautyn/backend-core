@@ -14,7 +14,7 @@ export class BookingSyncService {
     private readonly crm: CrmIntegrationService,
   ) {}
 
-  async rebaseFromCrm(salonId: string): Promise<{ bookings: String[] }> {
+  async rebaseFromCrm(salonId: string): Promise<{ bookings: string[] }> {
     const provider = await this.crm.resolveSalonProvider(salonId);
 
     const bookingIds = await this.prisma.booking
