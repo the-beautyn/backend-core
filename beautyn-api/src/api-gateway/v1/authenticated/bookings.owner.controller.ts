@@ -96,7 +96,7 @@ export class OwnerBookingsController {
     @Param('salonId', new ParseUUIDPipe()) salonId: string,
     @Body() body?: { provider?: CrmType },
   ) {
-    const provider = body?.provider ?? (await this.crmIntegration['resolveSalonProvider'](salonId));
+    const provider = body?.provider ?? (await this.crmIntegration.resolveSalonProvider(salonId));
     const { jobId } = await this.crmIntegration.enqueueBookingsSync(salonId, provider);
     return { jobId };
   }
