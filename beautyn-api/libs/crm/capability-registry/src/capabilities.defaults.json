@@ -4,13 +4,14 @@
     "batchSize": 200,
 
     "supportsBooking": true,
-    "supportsReschedule": true,
-    "supportsCancelBooking": true,
+    "supportsReschedule": false,
+    "supportsCancelBooking": false,
 
     "supportsSalonSync": true,
     "supportsCategoriesSync": true,
     "supportsServicesSync": true,
     "supportsWorkersSync": true,
+    "supportsBookingSync": true,
 
     "supportsSalonUpdate": false,
 
@@ -44,13 +45,14 @@
     "batchSize": 100,
     
     "supportsBooking": true,
-    "supportsCancelBooking": true,
+    "supportsCancelBooking": false,
     "supportsReschedule": false,
 
     "supportsSalonSync": true,
     "supportsCategoriesSync": true,
     "supportsServicesSync": true,
     "supportsWorkersSync": true,
+    "supportsBookingSync": true,
 
     "supportsSalonUpdate": false,
 

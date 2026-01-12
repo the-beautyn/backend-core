@@ -10,6 +10,8 @@ import { TokenStorageService } from '@crm/token-storage';
 import { AccountRegistryService } from '@crm/account-registry';
 import { createChildLogger } from '@shared/logger';
 import { CrmError, ErrorKind } from '@crm/shared';
+import { AltegioBooking } from './altegio/bookings';
+import { EasyWeekBooking } from './easyweek/bookings';
 
 export class EasyWeekProvider implements ICrmProvider {
   public log = createChildLogger('provider.easyweek');
@@ -44,57 +46,22 @@ export class EasyWeekProvider implements ICrmProvider {
 
     this.log.info('EasyWeek provider initialized', { salonId: ctx.salonId, workspaceSlug, locationId });
   }
-
-  // async syncSalon(ctx: ProviderContext): Promise<void> { this.notYet('syncSalon'); }
-  // async syncCategories(ctx: ProviderContext): Promise<void> { this.notYet('syncCategories'); }
-  // async syncServices(ctx: ProviderContext): Promise<void> { this.notYet('syncServices'); }
-  // async syncWorkers(ctx: ProviderContext): Promise<void> { this.notYet('syncWorkers'); }
-
   // Normalized pull (stubs)
-  async pullSalon(ctx: ProviderContext): Promise<SalonData> {
+  async pullSalon(): Promise<SalonData> {
     return EWSalon.pullSalon(this.ctx());
   }
 
-  async pullBookings(ctx: ProviderContext, args?: { clientExternalId?: string; withDeleted?: boolean; startDate?: string; endDate?: string; }): Promise<BookingData[]> {
-    this.notYet('pullBookings');
+  async pullAltegioBookings(bookingIds: string[]): Promise<Page<AltegioBooking>> {
+    throw new CrmError('EasyWeek does not support AltegioBookings', { kind: ErrorKind.NOT_SUPPORTED, retryable: false });
   }
 
-  async syncSalon(ctx: ProviderContext): Promise<SalonData> { return this.pullSalon(ctx); };
-  async syncCategories(ctx: ProviderContext): Promise<void> { this.notYet('syncCategories'); }
-  async syncServices(ctx: ProviderContext): Promise<void> { this.notYet('syncServices'); }
-  async syncWorkers(ctx: ProviderContext): Promise<void> { this.notYet('syncWorkers'); }
-  async syncBookings(ctx: ProviderContext, args: { clientExternalId?: string; withDeleted?: boolean; startDate?: string; endDate?: string }): Promise<void> { 
-    this.notYet('syncBookings');
+  async pullEasyWeekBookings(bookingIds: string[]): Promise<Page<EasyWeekBooking>> {
+    return EWBookings.pullBookings(this.ctx(), bookingIds);
   }
-  // async pullCategories(ctx: ProviderContext, cursor?: string): Promise<Page<CategoryData>> {
-  //   const locationId = this.require(this.locationId, 'locationId');
-  //   const data = await this.fetchAll(`${this.base}/locations/${encodeURIComponent(locationId)}/service-categories`);
-  //   const items: CategoryData[] = data.map((c: any) => ({
-  //     externalId: String(c.uuid),
-  //     name: String(c.name ?? ''),
-  //     isActive: true,
-  //     updatedAtIso: undefined,
-  //   }));
-  //   return { items, fetched: items.length };
-  // }
-  // async pullServices(ctx: ProviderContext, cursor?: string): Promise<Page<ServiceData>> {
-  //   const locationId = this.require(this.locationId, 'locationId');
-  //   const data = await this.fetchAll(`${this.base}/locations/${encodeURIComponent(locationId)}/services`);
-  //   const items: ServiceData[] = data.map((s: any) => ({
-  //     externalId: String(s.uuid),
-  //     name: String(s.name ?? ''),
-  //     description: s.description ?? undefined,
-  //     currency: String(s.currency ?? 'USD'),
-  //     priceMinor: Number(s.price ?? 0),
-  //     durationMin: Number(s?.duration?.value ?? 0),
-  //     categoryExternalId: s?.category?.uuid ? String(s.category.uuid) : undefined as any,
-  //     isActive: true,
-  //   }));
-  //   return { items, fetched: items.length };
-  // }
-  async pullWorkers(ctx: ProviderContext, cursor?: string): Promise<WorkerData[]> {
+
+  async pullWorkers(): Promise<Page<WorkerData>> {
     const workers = await EWWorkers.pullWorkers(this.ctx());
-    this.log.info('Pulled workers from EasyWeek', { count: workers.length });
+    this.log.info('Pulled workers from EasyWeek', { count: workers.items.length });
     return workers;
   }
 
@@ -102,122 +69,53 @@ export class EasyWeekProvider implements ICrmProvider {
     return EWBookings.fetchBooking(this.ctx(), bookingUuid);
   }
 
-  // async createBooking(ctx: ProviderContext, payload: CreateBookingInput): Promise<{ externalBookingId: string }> {
-  //   const locationId = this.require(this.locationId, 'locationId');
-  //   const body: any = {
-  //     staffer_uuid: payload.externalWorkerId,
-  //     reserved_on: payload.startAtIso,
-  //     location_uuid: locationId,
-  //     service_uuid: payload.externalServiceId,
-  //     customer_phone: payload.customer?.phone,
-  //     customer_first_name: payload.customer?.name?.split(' ')[0],
-  //     customer_last_name: payload.customer?.name?.split(' ').slice(1).join(' ') || undefined,
-  //     customer_email: payload.customer?.email,
-  //     booking_comment: payload.note,
-  //     timezone: (payload.extra as any)?.timezone,
-  //   };
-  //   const res = await this.doFetch(`${this.base}/bookings`, { method: 'POST', body });
-  //   const uuid = String(res?.data?.uuid ?? '');
-  //   if (!uuid) throw new CrmError('EasyWeek createBooking: missing uuid', { kind: ErrorKind.INTERNAL, retryable: false });
-  //   return { externalBookingId: uuid };
-  // }
-  // async rescheduleBooking(ctx: ProviderContext, payload: RescheduleBookingInput): Promise<void> { this.notYet('rescheduleBooking'); }
-  // async cancelBooking(ctx: ProviderContext, payload: CancelBookingInput): Promise<void> {
-  //   const bookingId = this.require(payload.externalBookingId, 'externalBookingId');
-  //   const body: any = {
-  //     cancel_reason: payload.reason ?? 'customer_request',
-  //     internal_notes: (payload.extra as any)?.internal_notes,
-  //     staffer_uuid: (payload.extra as any)?.staffer_uuid,
-  //   };
-  //   await this.doFetch(`${this.base}/bookings/${encodeURIComponent(bookingId)}/status/cancel`, { method: 'PUT', body });
-  // }
-  // async completeBooking(ctx: ProviderContext, payload: CompleteBookingInput): Promise<void> {
-  //   const bookingId = this.require(payload.externalBookingId, 'externalBookingId');
-  //   const body: any = {
-  //     account_uuid: payload.accountExternalId,
-  //     staffer_uuid: payload.stafferExternalId,
-  //     internal_notes: payload.internalNotes,
-  //     paid_amount: payload.paidAmountMinor,
-  //   };
-  //   await this.doFetch(`${this.base}/bookings/${encodeURIComponent(bookingId)}/status/complete`, { method: 'PUT', body });
-  // }
-
-  // async getAvailability(ctx: ProviderContext, input: GetAvailabilityInput): Promise<{ slots: AvailabilitySlot[]; timezone?: string; currency?: string }> {
-  //   const locationId = this.require(this.locationId, 'locationId');
-  //   const qs = new URLSearchParams();
-  //   qs.set('service_uuid', this.require(input.externalServiceId, 'externalServiceId'));
-  //   if (input.externalWorkerId) qs.set('staffer_uuid', input.externalWorkerId);
-  //   if (input.rangeStartIso) qs.set('range_start', input.rangeStartIso);
-  //   if (input.rangeEndIso) qs.set('range_end', input.rangeEndIso);
-  //   if (input.timezone) qs.set('timezone', input.timezone);
-  //   const res = await this.doFetch(`${this.base}/locations/${encodeURIComponent(locationId)}/time-slots?${qs.toString()}`, { method: 'GET' });
-  //   const data = res?.data ?? {};
-  //   const slots: AvailabilitySlot[] = [];
-  //   for (const d of data?.dates ?? []) {
-  //     for (const s of d?.slots ?? []) {
-  //       slots.push({ startIso: s.start, endIso: s.end, priceMinor: s.price, quantity: s.quantity });
-  //     }
-  //   }
-  //   return { slots, timezone: data?.timezone, currency: data?.currency };
-  // }
-
-  // // CRUD stubs
-  // async updateSalon(ctx: ProviderContext, patch: Partial<Omit<SalonData, 'externalId'>>): Promise<void> { this.notYet('updateSalon'); }
-
-
-  async pullCategories(ctx: ProviderContext, cursor?: string): Promise<Page<CategoryData>> {
+  async pullCategories(): Promise<Page<CategoryData>> {
     const page = await EWCategories.pullCategories(this.ctx());
     this.log.info('Pulled categories from EasyWeek', { count: page.items.length });
     return page;
   }
-  async createCategory(ctx: ProviderContext, data: CategoryCreateInput): Promise<CategoryData> {
-    throw new CrmError('EasyWeek does not support category CRUD', { kind: ErrorKind.NOT_SUPPORTED, retryable: false });
-  }
-  async updateCategory(ctx: ProviderContext, externalId: string, patch: CategoryUpdateInput): Promise<CategoryData> {
-    throw new CrmError('EasyWeek does not support category CRUD', { kind: ErrorKind.NOT_SUPPORTED, retryable: false });
-  }
-  async deleteCategory(ctx: ProviderContext, externalId: string): Promise<void> {
+
+  async createCategory(data: CategoryCreateInput): Promise<CategoryData> {
     throw new CrmError('EasyWeek does not support category CRUD', { kind: ErrorKind.NOT_SUPPORTED, retryable: false });
   }
 
-  async pullServices(ctx: ProviderContext, cursor?: string): Promise<Page<ServiceData>> {
+  async updateCategory(externalId: string, patch: CategoryUpdateInput): Promise<CategoryData> {
+    throw new CrmError('EasyWeek does not support category CRUD', { kind: ErrorKind.NOT_SUPPORTED, retryable: false });
+  }
+
+  async deleteCategory(externalId: string): Promise<void> {
+    throw new CrmError('EasyWeek does not support category CRUD', { kind: ErrorKind.NOT_SUPPORTED, retryable: false });
+  }
+
+  async pullServices(): Promise<Page<ServiceData>> {
     const page = await EWServices.pullServices(this.ctx());
     this.log.info('Pulled services from EasyWeek', { count: page.items.length });
     return page;
   }
 
-  async createService(ctx: ProviderContext, data: ServiceCreateInput): Promise<ServiceData> {
+  async createService(data: ServiceCreateInput): Promise<ServiceData> {
     throw new CrmError('EasyWeek does not support service CRUD', { kind: ErrorKind.NOT_SUPPORTED, retryable: false });
   }
 
-  async updateService(ctx: ProviderContext, externalId: string, patch: ServiceUpdateInput): Promise<ServiceData> {
+  async updateService(externalId: string, patch: ServiceUpdateInput): Promise<ServiceData> {
     throw new CrmError('EasyWeek does not support service CRUD', { kind: ErrorKind.NOT_SUPPORTED, retryable: false });
   }
 
-  async deleteService(ctx: ProviderContext, externalId: string): Promise<void> {
+  async deleteService(externalId: string): Promise<void> {
     throw new CrmError('EasyWeek does not support service CRUD', { kind: ErrorKind.NOT_SUPPORTED, retryable: false });
   }
 
-  async createWorker(ctx: ProviderContext, data: WorkerCreateInput): Promise<WorkerData> {
+  async createWorker(data: WorkerCreateInput): Promise<WorkerData> {
     throw new CrmError('EasyWeek does not support worker CRUD', { kind: ErrorKind.NOT_SUPPORTED, retryable: false });
   }
 
-  async updateWorker(ctx: ProviderContext, externalId: string, patch: WorkerUpdateInput): Promise<WorkerData> {
+  async updateWorker(externalId: string, patch: WorkerUpdateInput): Promise<WorkerData> {
     throw new CrmError('EasyWeek does not support worker CRUD', { kind: ErrorKind.NOT_SUPPORTED, retryable: false });
   }
 
-  async deleteWorker(ctx: ProviderContext, externalId: string): Promise<void> {
+  async deleteWorker(externalId: string): Promise<void> {
     throw new CrmError('EasyWeek does not support worker CRUD', { kind: ErrorKind.NOT_SUPPORTED, retryable: false });
   }
-
-  // async createService(ctx: ProviderContext, data: Omit<ServiceData, 'externalId' | 'updatedAtIso'> & { clientId?: string }): Promise<{ externalId: string }> { this.notYet('createService'); }
-  // async updateService(ctx: ProviderContext, externalId: string, patch: Partial<Omit<ServiceData, 'externalId'>>): Promise<void> { this.notYet('updateService'); }
-  // async deleteService(ctx: ProviderContext, externalId: string): Promise<void> { this.notYet('deleteService'); }
-
-  // async createWorker(ctx: ProviderContext, data: Omit<WorkerData, 'externalId' | 'updatedAtIso'> & { clientId?: string }): Promise<{ externalId: string }> { this.notYet('createWorker'); }
-  // async updateWorker(ctx: ProviderContext, externalId: string, patch: Partial<Omit<WorkerData, 'externalId'>>): Promise<void> { this.notYet('updateWorker'); }
-  // async deleteWorker(ctx: ProviderContext, externalId: string): Promise<void> { this.notYet('deleteWorker'); }
-  // async updateWorkerSchedule(ctx: ProviderContext, externalId: string, schedule: WorkerSchedule): Promise<void> { this.notYet('updateWorkerSchedule'); }
 
   private notYet(method: string): never {
     this.log.warn('Stub method called', { method, workspaceSlug: this.workspaceSlug, locationId: this.locationId });

@@ -143,7 +143,18 @@ export class OnboardingController {
   @HttpCode(HttpStatus.ACCEPTED)
   @ApiTags('Onboarding / CRMs')
   @ApiOperation({ summary: 'Schedule initial CRM sync for owner salon' })
-  @ApiAcceptedResponse(envelopeRef(Object))
+  @ApiAcceptedResponse({
+    schema: {
+      type: 'object',
+      properties: {
+        success: { type: 'boolean', example: true },
+        data: {
+          type: 'object',
+          properties: { jobId: { type: 'string', example: 'job-123' } },
+        },
+      },
+    },
+  })
   async startInitialSync(@Req() req: Request & { user: { id: string } }) {
     const userId = req.user.id as string;
     const { jobId } = await this.onboardingService.startInitialSync(userId);
@@ -154,7 +165,16 @@ export class OnboardingController {
   @HttpCode(HttpStatus.OK)
   @ApiTags('Onboarding / CRMs')
   @ApiOperation({ summary: 'Run initial CRM pull synchronously for owner salon (no queue)' })
-  @ApiOkResponse(envelopeRef(Object))
+  @ApiOkResponse({
+    schema: {
+      type: 'object',
+      properties: {
+        success: { type: 'boolean', example: true },
+        data: { type: 'object' },
+      },
+      example: { success: true, data: {} },
+    },
+  })
   async startInitialPullNow(@Req() req: Request & { user: { id: string } }) {
     const userId = req.user.id as string;
     const data = await this.onboardingService.startInitialPullNow(userId);
@@ -165,7 +185,16 @@ export class OnboardingController {
   @HttpCode(HttpStatus.OK)
   @ApiTags('Onboarding / CRMs')
   @ApiOperation({ summary: 'Apply CRM salon preview to local record and advance onboarding' })
-  @ApiOkResponse(envelopeRef(Object))
+  @ApiOkResponse({
+    schema: {
+      type: 'object',
+      properties: {
+        success: { type: 'boolean', example: true },
+        data: { type: 'object' },
+      },
+      example: { success: true, data: {} },
+    },
+  })
   async submitSalon(@Req() req: Request & { user: { id: string } }, @Body() dto: SubmitSalonFromCrmDto) {
     const userId = req.user.id as string;
     const result = await this.onboardingService.submitSalonFromCrm(userId, dto);

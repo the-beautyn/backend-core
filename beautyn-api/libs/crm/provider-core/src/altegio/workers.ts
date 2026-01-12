@@ -3,11 +3,12 @@ import { WorkerCreateInput, WorkerUpdateInput } from '../types';
 import { CrmError, ErrorKind } from '@crm/shared';
 import { AltegioContext } from './context';
 import { splitName, buildFullName } from '@crm/shared';
+import { Page } from '../dtos';
 
-export async function pullWorkers(ctx: AltegioContext): Promise<WorkerData[]> {
+export async function pullWorkers(ctx: AltegioContext): Promise<Page<WorkerData>> {
   const externalSalonId = ctx.requireExternalSalonId();
   const items = await ctx.http<any[]>('GET', `/api/v1/company/${externalSalonId}/staff`);
-  return (items || []).map((w: any) => mapWorker(w, ctx));
+  return { items: (items || []).map((w: any) => mapWorker(w, ctx)), fetched: items?.length ?? 0 };
 }
 
 export async function createWorker(ctx: AltegioContext, data: WorkerCreateInput): Promise<WorkerData> {

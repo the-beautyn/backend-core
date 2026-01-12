@@ -1,25 +1,80 @@
-import { BookingData } from '../dtos';
+import { CrmError, ErrorKind } from '@crm/shared';
 import { AltegioContext } from './context';
+import { Page } from '../dtos';
 
-export async function pullBookings(ctx: AltegioContext, args?: { clientExternalId?: string; withDeleted?: boolean; startDate?: string; endDate?: string; page?: number; count?: number }): Promise<BookingData[]> {
+export type AltegioBooking = {
+  crmRecordId?: string | null;
+  companyId?: string | null;
+  staffId?: string | null;
+  clientId?: string | null;
+  datetime?: string | null;
+  date?: string | null;
+  comment?: string | null;
+  attendance?: number | null;
+  confirmed?: number | null;
+  visitAttendance?: number | null;
+  length?: number | null;
+  seanceLength?: number | null;
+  isDeleted?: boolean | null;
+  staff?: any;
+  client?: any;
+  services?: any;
+  documents?: any;
+  goodsTransactions?: any;
+  raw?: any;
+};
+
+export async function pullBookings(ctx: AltegioContext, bookingIds: string[]): Promise<Page<AltegioBooking>> {
   const externalSalonId = ctx.requireExternalSalonId();
-  const query: Record<string, any> = {};
-  if (args?.clientExternalId) query.client_id = args.clientExternalId;
-  if (args?.withDeleted !== undefined) query.with_deleted = args.withDeleted ? 1 : 0;
-  if (args?.startDate) query.start_date = args.startDate;
-  if (args?.endDate) query.end_date = args.endDate;
-  if (args?.page && args?.page > 0) query.page = args.page;
-  if (args?.count && args?.count > 0) query.count = args.count;
-  const items = await ctx.http<any[]>('GET', `/api/v1/records/${externalSalonId}`, { query });
-  return (items || []).map((b: any) => ({
-    externalId: String(b.id),
-    startAtIso: b.datetime,
-    durationMin: b.seance_length ?? undefined,
-    note: b.comment ?? undefined,
-    isDeleted: !!b.is_deleted,
-    workerExternalId: b.staff?.id ? String(b.staff.id) : undefined,
-    serviceExternalIds: Array.isArray(b.services) ? b.services.map((s: any) => String(s?.id)).filter(Boolean) : undefined,
-  }));
+  const ids = (bookingIds ?? []).map((id) => String(id)).filter((id) => id.length > 0);
+  const items: AltegioBooking[] = [];
+
+  for (let i = 0; i < ids.length; i += 1) {
+    const bookingId = ids[i];
+    try {
+      const booking = await fetchBooking(ctx, externalSalonId, bookingId);
+      items.push(booking);
+    } catch (e) {
+      if (e instanceof CrmError && e.kind === ErrorKind.VALIDATION) {
+        continue;
+      }
+      throw e;
+    }
+    if (i < ids.length - 1) {
+      await wait(300);
+    }
+  }
+
+  return { items, fetched: items.length, total: ids.length };
 }
 
+async function fetchBooking(ctx: AltegioContext, salonId: number, bookingId: string): Promise<AltegioBooking> {
+  const res = await ctx.http<any>('GET', `/api/v1/record/${salonId}/${encodeURIComponent(bookingId)}`);
+  const payload = (res as any)?.data ?? res;
 
+  return {
+    crmRecordId: payload?.id ? String(payload.id) : bookingId,
+    companyId: payload?.company_id ? String(payload.company_id) : null,
+    staffId: payload?.staff_id ? String(payload.staff_id) : null,
+    clientId: payload?.client?.id ? String(payload.client.id) : null,
+    datetime: payload?.datetime ?? null,
+    date: payload?.date ?? null,
+    comment: payload?.comment ?? null,
+    attendance: payload?.attendance ?? null,
+    confirmed: payload?.confirmed ?? null,
+    visitAttendance: payload?.visit_attendance ?? null,
+    length: payload?.length ?? null,
+    seanceLength: payload?.seance_length ?? null,
+    isDeleted: payload?.deleted ?? payload?.is_deleted ?? null,
+    staff: payload?.staff ?? null,
+    client: payload?.client ?? null,
+    services: payload?.services ?? null,
+    documents: payload?.documents ?? null,
+    goodsTransactions: payload?.goods_transactions ?? null,
+    raw: payload ?? null,
+  };
+}
+
+async function wait(ms: number) {
+  await new Promise<void>((resolve) => setTimeout(resolve, ms));
+}

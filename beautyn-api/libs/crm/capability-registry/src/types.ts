@@ -15,6 +15,7 @@ export interface Capability {
   supportsCategoriesSync: boolean;
   supportsServicesSync: boolean;
   supportsWorkersSync: boolean;
+  supportsBookingSync: boolean;
 
   /** WRITE (CRUD) */
   // Salon

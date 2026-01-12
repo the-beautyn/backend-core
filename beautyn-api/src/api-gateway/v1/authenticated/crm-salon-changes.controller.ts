@@ -17,7 +17,7 @@ export class CrmSalonChangesController {
 
   @Get()
   @ApiOperation({ summary: 'List detected CRM changes for a salon' })
-  @ApiOkResponse(envelopeArrayRef([CrmSalonChangeDto]))
+  @ApiOkResponse(envelopeArrayRef(CrmSalonChangeDto))
   @ApiBadRequestResponse(envelopeErrorSchema())
   async list(
     @Req() req: Request & { user: { id: string } },

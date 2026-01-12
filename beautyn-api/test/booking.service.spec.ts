@@ -1,6 +1,6 @@
 import { BadRequestException } from '@nestjs/common';
-import { BookingService } from '../src/booking/booking.service';
-import { CrmType } from '@crm/shared';
+import { EasyweekBookingService } from '../src/booking/easyweek-booking/easyweek-booking.service';
+import { BookingHandlerService } from '../src/booking/booking-handler.service';
 
 describe('BookingService', () => {
   const salonId = 'salon-1';
@@ -8,7 +8,9 @@ describe('BookingService', () => {
   const userId = 'user-1';
   let prisma: any;
   let crmIntegration: any;
-  let service: BookingService;
+  let service: EasyweekBookingService;
+  let bookingHandler: jest.Mocked<BookingHandlerService>;
+  let bookingQuery: any;
 
   const baseDetails = {
     bookingUuid,
@@ -24,23 +26,25 @@ describe('BookingService', () => {
 
   beforeEach(() => {
     prisma = {
-      booking: { upsert: jest.fn() },
-      easyweekBookingDetails: { upsert: jest.fn() },
-      easyweekBookingOrder: { upsert: jest.fn() },
-      easyweekBookingDuration: { deleteMany: jest.fn(), create: jest.fn() },
-      easyweekBookingLink: { deleteMany: jest.fn(), createMany: jest.fn() },
-      easyweekOrderedService: { deleteMany: jest.fn(), createMany: jest.fn() },
-      $transaction: jest.fn(async (cb: any) => cb(prisma)),
+      booking: {
+        findUniqueOrThrow: jest.fn(),
+      },
     };
     crmIntegration = {
       fetchEasyweekBookingDetails: jest.fn().mockResolvedValue(baseDetails),
       getEasyweekWorkspaceSlug: jest.fn().mockResolvedValue('the-best-company'),
     };
-    service = new BookingService(prisma as any, crmIntegration as any);
+    bookingHandler = {
+      createEasyweekBooking: jest.fn(),
+      handleEasyweekBooking: jest.fn(),
+    } as any;
+    bookingQuery = { getByIds: jest.fn().mockResolvedValue([]) };
+    service = new EasyweekBookingService(prisma as any, crmIntegration as any, bookingHandler, bookingQuery);
   });
 
-  it('persists EasyWeek booking idempotently', async () => {
-    prisma.booking.upsert.mockResolvedValue({
+  it('persists EasyWeek booking via handler', async () => {
+    bookingHandler.createEasyweekBooking.mockResolvedValue({ bookingId: 'booking-1', changed: true });
+    prisma.booking.findUniqueOrThrow.mockResolvedValue({
       id: 'booking-1',
       status: 'created',
       datetime: new Date(baseDetails.startTime),
@@ -52,39 +56,33 @@ describe('BookingService', () => {
 
     expect(first.bookingId).toBe('booking-1');
     expect(second.bookingId).toBe('booking-1');
-    expect(prisma.booking.upsert).toHaveBeenCalledWith(
+    expect(bookingHandler.createEasyweekBooking).toHaveBeenCalledTimes(2);
+    expect(bookingHandler.createEasyweekBooking).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { crmType_crmRecordId: { crmType: CrmType.EASYWEEK, crmRecordId: bookingUuid } },
-        create: expect.objectContaining({ crmCompanyId: baseDetails.locationUuid, shortLink: expect.stringContaining(bookingUuid) }),
+        salonId,
+        booking: expect.objectContaining({ bookingUuid }),
+        workspaceSlug: 'the-best-company',
+        userId,
       }),
     );
-    expect(prisma.easyweekBookingDetails.upsert).toHaveBeenCalledTimes(2);
-    expect(prisma.easyweekBookingDuration.deleteMany).toHaveBeenCalledTimes(2);
-    expect(prisma.easyweekBookingLink.deleteMany).toHaveBeenCalledTimes(2);
-    expect(prisma.easyweekOrderedService.deleteMany).toHaveBeenCalledTimes(2);
-    expect(prisma.easyweekBookingOrder.upsert).toHaveBeenCalledTimes(2);
   });
 
-  it('maps canceled/completed flags to status', async () => {
-    crmIntegration.fetchEasyweekBookingDetails.mockResolvedValueOnce({ ...baseDetails, isCanceled: true });
-    prisma.booking.upsert.mockResolvedValue({
+  it('returns booking status from persisted record', async () => {
+    bookingHandler.createEasyweekBooking.mockResolvedValue({ bookingId: 'booking-2', changed: true });
+    prisma.booking.findUniqueOrThrow.mockResolvedValue({
       id: 'booking-2',
       status: 'canceled',
       datetime: new Date(baseDetails.startTime),
       endDatetime: new Date(baseDetails.endTime),
     });
 
-    await service.confirmEasyweekBooking(salonId, bookingUuid, userId);
-
-    expect(prisma.booking.upsert).toHaveBeenCalledWith(
-      expect.objectContaining({
-        create: expect.objectContaining({ status: 'canceled' }),
-      }),
-    );
+    const res = await service.confirmEasyweekBooking(salonId, bookingUuid, userId);
+    expect(res.status).toBe('canceled');
   });
 
   it('throws when start time is missing', async () => {
     crmIntegration.fetchEasyweekBookingDetails.mockResolvedValueOnce({ ...baseDetails, startTime: null });
+    bookingHandler.createEasyweekBooking.mockRejectedValueOnce(new BadRequestException('EasyWeek booking start_time is missing'));
 
     await expect(service.confirmEasyweekBooking(salonId, bookingUuid, userId)).rejects.toBeInstanceOf(BadRequestException);
   });

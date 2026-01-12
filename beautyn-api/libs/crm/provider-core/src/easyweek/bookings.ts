@@ -1,5 +1,6 @@
 import { CrmError, ErrorKind } from '@crm/shared';
 import { EasyWeekContext } from './context';
+import { Page } from '../dtos';
 
 export type EasyWeekBooking = {
   uuid: string;
@@ -10,6 +11,7 @@ export type EasyWeekBooking = {
   isCanceled?: boolean;
   isCompleted?: boolean;
   statusName?: string | null;
+  publicNotes?: string | null;
   orderedServices?: any[];
   order?: any;
   duration?: any;
@@ -43,6 +45,7 @@ function normalizeBooking(raw: any, fallbackUuid: string): EasyWeekBooking {
     isCanceled: booking.is_canceled ?? booking.isCanceled ?? undefined,
     isCompleted: booking.is_completed ?? booking.isCompleted ?? undefined,
     statusName: booking.status?.name ?? booking.status ?? null,
+    publicNotes: booking.public_notes ?? booking.publicNotes ?? null,
     orderedServices: ordered,
     order: booking.order ?? null,
     duration: booking.duration ?? null,
@@ -50,6 +53,29 @@ function normalizeBooking(raw: any, fallbackUuid: string): EasyWeekBooking {
     links: booking.links ?? null,
     raw: booking,
   };
+}
+
+export async function pullBookings(ctx: EasyWeekContext, bookingIds: string[]): Promise<Page<EasyWeekBooking>> {
+  const ids = (bookingIds ?? []).map((id) => String(id)).filter((id) => id.length > 0);
+  const items: EasyWeekBooking[] = [];
+
+  for (let i = 0; i < ids.length; i += 1) {
+    const bookingId = ids[i];
+    try {
+      const booking = await fetchBooking(ctx, bookingId);
+      items.push(booking);
+    } catch (e) {
+      if (e instanceof CrmError && e.kind === ErrorKind.VALIDATION) {
+        continue;
+      }
+      throw e;
+    }
+    if (i < ids.length - 1) {
+      await wait(1000);
+    }
+  }
+
+  return { items, fetched: items.length, total: ids.length };
 }
 
 export async function fetchBooking(ctx: EasyWeekContext, bookingUuid: string): Promise<EasyWeekBooking> {
@@ -67,4 +93,8 @@ export async function fetchBooking(ctx: EasyWeekContext, bookingUuid: string): P
     }
     throw e;
   }
+}
+
+async function wait(ms: number) {
+  await new Promise<void>((resolve) => setTimeout(resolve, ms));
 }

@@ -1,5 +1,7 @@
 import { CrmType } from '@crm/shared';
 import { CategoryData, ServiceData, WorkerData, WorkerSchedule, WorkerWorkingSchedule, SalonData, Page, BookingData } from './dtos';
+import { AltegioBooking } from './altegio/bookings';
+import { EasyWeekBooking } from './easyweek/bookings';
 
 /** Minimal context for a provider operation */
 export interface ProviderContext {
@@ -117,55 +119,28 @@ export type WorkerUpdateInput = Partial<WorkerCreateInput> & {
 export interface ICrmProvider {
   /** Optional one-time setup per (salonId, provider). */
   init(ctx: ProviderContext): Promise<void>;
-
-  // Sync surfaces
-  // syncSalon(ctx: ProviderContext): Promise<void>;
-  // syncCategories(ctx: ProviderContext): Promise<void>;
-  // syncServices(ctx: ProviderContext): Promise<void>;
-  // syncWorkers(ctx: ProviderContext): Promise<void>;
-
   // // Normalized pull (MVP) for SoT reconciliation
-  pullSalon(ctx: ProviderContext): Promise<SalonData>;
-  pullCategories(ctx: ProviderContext, cursor?: string): Promise<Page<CategoryData>>;
-  pullServices(ctx: ProviderContext, cursor?: string): Promise<Page<ServiceData>>;
-  pullWorkers(ctx: ProviderContext, cursor?: string): Promise<WorkerData[]>;
-  pullBookings(
-    ctx: ProviderContext,
-    args?: { clientExternalId?: string; withDeleted?: boolean; startDate?: string; endDate?: string; page?: number; count?: number }
-  ): Promise<BookingData[]>;
+  // Salon
+  pullSalon(): Promise<SalonData>;
 
-  // Sync
-  syncSalon(ctx: ProviderContext): Promise<SalonData>;
-  syncCategories(ctx: ProviderContext): Promise<void>;
-  syncServices(ctx: ProviderContext): Promise<void>;
-  syncWorkers(ctx: ProviderContext): Promise<void>;
-  syncBookings(ctx: ProviderContext, args: { clientExternalId?: string; withDeleted?: boolean; startDate?: string; endDate?: string }): Promise<void>;
-
-  // // Booking lifecycle
-  // createBooking(ctx: ProviderContext, payload: CreateBookingInput): Promise<{ externalBookingId: string }>;
-  // rescheduleBooking(ctx: ProviderContext, payload: RescheduleBookingInput): Promise<void>;
-  // cancelBooking(ctx: ProviderContext, payload: CancelBookingInput): Promise<void>;
-  // completeBooking(ctx: ProviderContext, payload: CompleteBookingInput): Promise<void>;
-  // getAvailability(ctx: ProviderContext, input: GetAvailabilityInput): Promise<{ slots: AvailabilitySlot[]; timezone?: string; currency?: string }>;
-
-  // // Master-data CRUD (commands)
-  // // Salon
-  // updateSalon(ctx: ProviderContext, patch: Partial<Omit<SalonData, 'externalId'>>): Promise<void>;
-
-  // // Categories
-  pullCategories(ctx: ProviderContext, cursor?: string): Promise<Page<CategoryData>>;
-  createCategory(ctx: ProviderContext, data: CategoryCreateInput): Promise<CategoryData>;
-  updateCategory(ctx: ProviderContext, externalId: string, patch: CategoryUpdateInput): Promise<CategoryData>;
-  deleteCategory(ctx: ProviderContext, externalId: string): Promise<void>;
+  // Bookings
+  pullAltegioBookings(bookingIds: string[]): Promise<Page<AltegioBooking>>;
+  pullEasyWeekBookings(bookingIds: string[]): Promise<Page<EasyWeekBooking>>;
+  // Categories
+  pullCategories(): Promise<Page<CategoryData>>;
+  createCategory(data: CategoryCreateInput): Promise<CategoryData>;
+  updateCategory(externalId: string, patch: CategoryUpdateInput): Promise<CategoryData>;
+  deleteCategory(externalId: string): Promise<void>;
 
   // Services
-  createService(ctx: ProviderContext, data: ServiceCreateInput): Promise<ServiceData>;
-  updateService(ctx: ProviderContext, externalId: string, patch: ServiceUpdateInput): Promise<ServiceData>;
-  deleteService(ctx: ProviderContext, externalId: string): Promise<void>;
+  pullServices(): Promise<Page<ServiceData>>;
+  createService(data: ServiceCreateInput): Promise<ServiceData>;
+  updateService(externalId: string, patch: ServiceUpdateInput): Promise<ServiceData>;
+  deleteService(externalId: string): Promise<void>;
 
-  // // Workers
-  createWorker(ctx: ProviderContext, data: WorkerCreateInput): Promise<WorkerData>;
-  updateWorker(ctx: ProviderContext, externalId: string, patch: WorkerUpdateInput): Promise<WorkerData>;
-  deleteWorker(ctx: ProviderContext, externalId: string): Promise<void>;
-  // updateWorkerSchedule(ctx: ProviderContext, externalId: string, schedule: WorkerSchedule): Promise<void>;
+  // Workers
+  pullWorkers(): Promise<Page<WorkerData>>;
+  createWorker(data: WorkerCreateInput): Promise<WorkerData>;
+  updateWorker(externalId: string, patch: WorkerUpdateInput): Promise<WorkerData>;
+  deleteWorker(externalId: string): Promise<void>;
 }

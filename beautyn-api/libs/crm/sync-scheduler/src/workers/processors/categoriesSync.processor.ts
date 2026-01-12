@@ -29,7 +29,7 @@ export function startCategoriesSyncWorker(container: { providerFactory: Provider
         const base = process.env.INTERNAL_API_BASE_URL;
         const key = process.env.INTERNAL_API_KEY;
         if (base && key) {
-          const page = await executeWithRetry(() => p.pullCategories({ salonId, provider }));
+          const page = await executeWithRetry(() => p.pullCategories());
           const items = (page?.items ?? []).map((c: any) => ({
             crm_category_id: String(c.externalId),
             name: String(c.name ?? ''),

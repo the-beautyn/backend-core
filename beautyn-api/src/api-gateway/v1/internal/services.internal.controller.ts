@@ -1,8 +1,10 @@
 import { Controller, Post, Body, UseGuards, HttpCode, HttpStatus } from '@nestjs/common';
+import { ApiExcludeController } from '@nestjs/swagger';
 import { ServicesService } from '../../../services/services.service';
 import { ServicesSyncDto } from '../../../services/dto/services-sync.dto';
 import { InternalApiKeyGuard } from '../../../shared/guards/internal-api-key.guard';
 
+@ApiExcludeController()
 @Controller('api/v1/internal/services')
 export class ServicesInternalController {
   constructor(private readonly servicesService: ServicesService) {}

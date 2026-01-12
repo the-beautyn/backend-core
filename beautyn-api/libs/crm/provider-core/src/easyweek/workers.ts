@@ -1,11 +1,12 @@
 import { WorkerData } from '../dtos';
 import { EasyWeekContext } from './context';
+import { Page } from '../dtos';
 
-export async function pullWorkers(ctx: EasyWeekContext): Promise<WorkerData[]> {
+export async function pullWorkers(ctx: EasyWeekContext): Promise<Page<WorkerData>> {
   const locationId = ctx.require(ctx.locationId, 'locationId');
   const url = `${ctx.base}/locations/${encodeURIComponent(locationId)}/staffers`;
   const rows = await ctx.fetchAll(url);
-  return (rows || []).map(mapWorker);
+  return { items: (rows || []).map(mapWorker), fetched: rows?.length ?? 0 };
 }
 
 function mapWorker(raw: any): WorkerData {
