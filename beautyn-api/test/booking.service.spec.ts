@@ -10,6 +10,7 @@ describe('BookingService', () => {
   let crmIntegration: any;
   let service: EasyweekBookingService;
   let bookingHandler: jest.Mocked<BookingHandlerService>;
+  let bookingQuery: any;
 
   const baseDetails = {
     bookingUuid,
@@ -37,7 +38,8 @@ describe('BookingService', () => {
       createEasyweekBooking: jest.fn(),
       handleEasyweekBooking: jest.fn(),
     } as any;
-    service = new EasyweekBookingService(prisma as any, crmIntegration as any, bookingHandler);
+    bookingQuery = { getByIds: jest.fn().mockResolvedValue([]) };
+    service = new EasyweekBookingService(prisma as any, crmIntegration as any, bookingHandler, bookingQuery);
   });
 
   it('persists EasyWeek booking via handler', async () => {

@@ -5,6 +5,7 @@ import { PrismaService } from '../shared/database/prisma.service';
 import { CrmIntegrationService } from '../crm-integration/core/crm-integration.service';
 import { BookingData, Page } from '@crm/provider-core';
 import { createChildLogger } from '@shared/logger';
+import type { BookingDto } from './dto/booking.response.dto';
 
 @Injectable()
 export class BookingSyncService {
@@ -14,7 +15,7 @@ export class BookingSyncService {
     private readonly crm: CrmIntegrationService,
   ) {}
 
-  async rebaseFromCrm(salonId: string): Promise<{ bookings: any[] }> {
+  async rebaseFromCrm(salonId: string): Promise<BookingDto[]> {
     const provider = await this.crm.resolveSalonProvider(salonId);
 
     const bookingIds = await this.prisma.booking
@@ -33,7 +34,6 @@ export class BookingSyncService {
       );
 
     const result = await this.crm.rebaseBookingsNow(salonId, bookingIds, provider);
-    const bookings = (result as any)?.bookings ?? [];
-    return bookings;
+    return result;
   }
 }

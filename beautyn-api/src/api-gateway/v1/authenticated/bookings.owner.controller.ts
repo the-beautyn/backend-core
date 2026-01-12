@@ -14,7 +14,7 @@ import { SalonOwnerGuard } from '../../../shared/guards/salon-owner.guard';
 import { BookingSyncService } from '../../../booking/booking-sync.service';
 import { CrmIntegrationService } from '../../../crm-integration/core/crm-integration.service';
 import { CrmType } from '@crm/shared';
-import { envelopeRef } from '../../../shared/utils/swagger-envelope.util';
+import { envelopeArrayRef, envelopeRef } from '../../../shared/utils/swagger-envelope.util';
 import { createChildLogger } from '@shared/logger';
 
 export class SyncBookingsNowResponseDto {
@@ -82,10 +82,10 @@ export class OwnerBookingsController {
 
   @Post('sync')
   @ApiOperation({ summary: 'Sync bookings now from CRM and persist' })
-  @ApiOkResponse({ description: 'Sync result', ...envelopeRef(SyncBookingsNowResponseDto) })
+  @ApiOkResponse({ description: 'Sync result', ...envelopeArrayRef(BookingResponseDto) })
   async syncNow(
     @Param('salonId', new ParseUUIDPipe()) salonId: string
-  ) {
+  ): Promise<BookingDto[]> {
     return this.bookingSync.rebaseFromCrm(salonId);
   }
 

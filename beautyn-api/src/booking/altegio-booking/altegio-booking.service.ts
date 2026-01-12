@@ -29,6 +29,8 @@ import { CreateAltegioRecordResponseDto } from './dto/create-record.response.dto
 import { UserService } from '../../user/user.service';
 import { createChildLogger } from '@shared/logger';
 import { BookingHandlerService } from '../booking-handler.service';
+import type { BookingDto } from '../dto/booking.response.dto';
+import { BookingQueryService } from '../booking-query.service';
 
 type SalonContext = {
   salonId: string;
@@ -44,17 +46,17 @@ export class AltegioBookingService {
     private readonly crmIntegration: CrmIntegrationService,
     private readonly users: UserService,
     private readonly bookingHandler: BookingHandlerService,
+    private readonly bookingQuery: BookingQueryService,
   ) {}
 
-  async handleBookings(params: { bookings: AltegioBooking[] }) {
+  async handleBookings(params: { bookings: AltegioBooking[] }): Promise<BookingDto[]> {
     const results = await Promise.all(
       params.bookings.map((booking) =>
         this.bookingHandler.handleAltegioBooking({ booking }),
       ),
     );
-    return {
-      bookings: results.map(result => result.booking)
-    }
+    const bookingIds = results.map((result) => result.booking?.id).filter((id): id is string => !!id);
+    return this.bookingQuery.getByIds(bookingIds);
   }
 
   async handleBooking(params: { booking: AltegioBooking }) {

@@ -10,11 +10,13 @@ import {
   Post,
   Param,
 } from '@nestjs/common';
+import { ApiExcludeController } from '@nestjs/swagger';
 import { SalonService } from '../../../salon/salon.service';
 import { SalonSyncDto } from '../../../salon/dto/salon-sync.dto';
 import { SalonImagesSyncDto } from '../../../salon/dto/salon-images-sync.dto';
 import { InternalApiKeyGuard } from '../../../shared/guards/internal-api-key.guard';
 
+@ApiExcludeController()
 @Controller('api/v1/internal/salons')
 export class SalonsInternalController {
   constructor(private readonly salonService: SalonService) {}

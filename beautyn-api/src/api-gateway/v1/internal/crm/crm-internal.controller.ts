@@ -1,4 +1,5 @@
 import { Body, Controller, Param, Post, Put, UseGuards } from '@nestjs/common';
+import { ApiExcludeController } from '@nestjs/swagger';
 import { CrmAdapterService } from '@crm/adapter';
 import { CrmType } from '@crm/shared';
 import { EnsureCronSyncDto } from './dto/ensure-cron-sync.dto';
@@ -6,6 +7,7 @@ import { InternalApiKeyGuard } from '../../../../shared/guards/internal-api-key.
 
 function envelope<T>(data: T) { return { success: true, data }; }
 
+@ApiExcludeController()
 @Controller('api/v1/internal/crm')
 @UseGuards(InternalApiKeyGuard)
 export class CrmInternalController {
@@ -30,4 +32,3 @@ export class CrmInternalController {
   //   return envelope({ scheduled: true, cron: dto.cron, tz: dto.tz });
   // }
 }
-

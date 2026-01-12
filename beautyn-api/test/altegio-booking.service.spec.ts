@@ -81,6 +81,7 @@ describe('AltegioBookingService', () => {
   let users: any;
   let service: AltegioBookingService;
   let bookingHandler: jest.Mocked<BookingHandlerService>;
+  let bookingQuery: any;
 
   beforeEach(() => {
     prisma = {
@@ -118,7 +119,8 @@ describe('AltegioBookingService', () => {
       createAltegioBooking: jest.fn(),
       handleAltegioBooking: jest.fn(),
     } as any;
-    service = new AltegioBookingService(prisma as any, crmIntegration as any, users as any, bookingHandler);
+    bookingQuery = { getByIds: jest.fn().mockResolvedValue([]) };
+    service = new AltegioBookingService(prisma as any, crmIntegration as any, users as any, bookingHandler, bookingQuery);
   });
 
   it('returns bookable services with availability flags', async () => {

@@ -149,6 +149,20 @@ export class BookingQueryService {
     };
   }
 
+  async getByIds(ids: string[]): Promise<BookingDto[]> {
+    const unique = Array.from(new Set((ids ?? []).filter((id) => typeof id === 'string' && id.length > 0)));
+    if (!unique.length) return [];
+
+    const bookings = await this.prisma.booking.findMany({
+      where: { id: { in: unique } },
+      include: this.include,
+    });
+    const mapped = new Map<string, BookingDto>(
+      (bookings as unknown as BookingWithRelations[]).map((b) => [b.id, this.mapBooking(b)]),
+    );
+    return unique.map((id) => mapped.get(id)).filter((b): b is BookingDto => !!b);
+  }
+
   private clampTake(limit?: number): number {
     if (!limit || limit <= 0) return 20;
     return Math.min(limit, 100);

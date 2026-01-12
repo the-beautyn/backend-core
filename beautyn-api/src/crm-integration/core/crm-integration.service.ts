@@ -6,6 +6,7 @@ import { TokenStorageService } from '@crm/token-storage';
 import { CrmAdapterService } from '@crm/adapter';
 import { CrmSalonDiffService } from '../../crm-salon-changes/crm-salon-diff.service';
 import { createChildLogger } from '@shared/logger';
+import type { BookingDto } from '../../booking/dto/booking.response.dto';
 
 import {
   CategoryData,
@@ -244,7 +245,7 @@ export class CrmIntegrationService {
     salonId: string,
     bookings: string[],
     provider: CrmType,
-  ): Promise<{ bookings: any[] }> {
+  ): Promise<BookingDto[]> {
     if (provider === CrmType.ALTEGIO) {
       const bookingsPage = await this.adapter.pullAltegioBookings(salonId, bookings);
       const bookingsPayload = this.prepareAltegioBookingsSyncPayload(bookingsPage?.items ?? []);
@@ -255,14 +256,14 @@ export class CrmIntegrationService {
       return this.pushEasyweekBookingsToInternal(salonId, bookingsPayload);
     }
 
-    return { bookings: [] };
+    return [];
   }
 
   async rebaseBookingsNow(
     salonId: string,
     bookings: string[],
     provider: CrmType,
-  ): Promise<{ bookings: any[] }> {
+  ): Promise<BookingDto[]> {
     return this.syncBookingsNow(salonId, bookings, provider);
   }
 
@@ -794,9 +795,7 @@ export class CrmIntegrationService {
   private async pushAltegioBookingsToInternal(
     salonId: string,
     bookings: AltegioBooking[],
-  ): Promise<{ bookings: any[]  }> {
-
-    this.log.info('---------pushAltegioBookingsToInternal--------------', { salonId, bookings });
+  ): Promise<BookingDto[]> {
     const base = process.env.INTERNAL_API_BASE_URL?.trim();
     const key = process.env.INTERNAL_API_KEY?.trim();
     if (!base || !key) {
@@ -816,15 +815,14 @@ export class CrmIntegrationService {
 
     const body = await res.json().catch(() => ({} as any));
     const data = body?.data ?? body ?? {};
-    const bookingsResult = (data?.bookings ?? []) as any[];
 
-    return { bookings: bookingsResult };
+    return data;
   }
 
   private async pushEasyweekBookingsToInternal(
     salonId: string,
     bookings: EasyWeekBooking[],
-  ): Promise<{ bookings: any[] }> {
+  ): Promise<BookingDto[]> {
     const base = process.env.INTERNAL_API_BASE_URL?.trim();
     const key = process.env.INTERNAL_API_KEY?.trim();
     if (!base || !key) {
@@ -844,9 +842,8 @@ export class CrmIntegrationService {
 
     const body = await res.json().catch(() => ({} as any));
     const data = body?.data ?? body ?? {};
-    const bookingsResult = (data?.bookings ?? []) as any[];
 
-    return { bookings: bookingsResult };
+    return data;
   }
 
   private prepareDetectionPayload(remote: SalonData, fallback: { externalSalonId?: string | null; name?: string | null }): SalonData {
