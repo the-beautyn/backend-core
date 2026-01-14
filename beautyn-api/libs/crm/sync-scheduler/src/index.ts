@@ -7,3 +7,4 @@ export * from './workers/processors/categoriesSync.processor';
 export * from './workers/processors/servicesSync.processor';
 export * from './workers/processors/workersSync.processor';
 export * from './workers/processors/bookingsSync.processor';
+export * from './workers/processors/salonsSync.processor';

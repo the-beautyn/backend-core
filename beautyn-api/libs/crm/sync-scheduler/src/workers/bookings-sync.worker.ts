@@ -13,8 +13,7 @@ async function bootstrap() {
     logger: ['error', 'warn', 'log'],
   });
 
-  const providerFactory = app.get(ProviderFactory);
-  const worker = startBookingsSyncWorker({ providerFactory });
+  const worker = startBookingsSyncWorker();
   // Keep process alive; attach graceful shutdown
   const shutdown = async () => {
     try { await (worker as any)?.close?.(); } catch {}

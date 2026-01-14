@@ -4,7 +4,7 @@ import { runWithRequestContext, createChildLogger } from '@shared/logger';
 
 const log = createChildLogger('worker.bookings-sync');
 
-export function startBookingsSyncWorker(_container: { providerFactory: unknown }) {
+export function startBookingsSyncWorker() {
   const { REDIS_URL } = process.env;
   if (!REDIS_URL) throw new Error('REDIS_URL is required');
 

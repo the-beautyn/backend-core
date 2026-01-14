@@ -54,6 +54,7 @@ import { ServiceResponseDto } from './services/dto/service-response.dto';
 import { ServicesListResponseDto as ServicesListDto } from './services/dto/services-list.response.dto';
 import { PublicWorkersListResponseDto } from './workers/dto/workers-public-list.response.dto';
 import { PublicWorkerDto } from './workers/dto/worker-public.dto';
+import { SyncSalonJobResponseDto } from './api-gateway/v1/authenticated/salons.authenticated.controller';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -140,6 +141,7 @@ async function bootstrap() {
       // Workers public
       PublicWorkersListResponseDto,
       PublicWorkerDto,
+      SyncSalonJobResponseDto,
     ],
   });
   SwaggerModule.setup('api/docs', app, doc);

@@ -157,7 +157,7 @@ describe('AltegioBookingService', () => {
   it('creates record and persists booking', async () => {
     prisma.service.findMany.mockResolvedValue([{ id: serviceId, crmServiceId, name: 'Cut', price: 1200, duration: 30, categoryId: null }]);
     prisma.worker.findFirst.mockResolvedValue({ id: workerId, crmWorkerId, firstName: 'John', lastName: 'Doe' });
-    bookingHandler.createAltegioBooking.mockResolvedValue({ bookingId: 'booking-1', changed: true });
+    bookingHandler.createAltegioBooking.mockResolvedValue({ booking: { id: 'booking-1' }, changed: true });
 
     const res = await service.createRecord(salonId, 'user-1', {
       workerId,
@@ -199,7 +199,7 @@ describe('AltegioBookingService', () => {
   it('passes CRM payload details into handler', async () => {
     prisma.service.findMany.mockResolvedValue([{ id: serviceId, crmServiceId, name: 'Cut', price: 1200, duration: 30, categoryId: null }]);
     prisma.worker.findFirst.mockResolvedValue({ id: workerId, crmWorkerId, firstName: 'John', lastName: 'Doe' });
-    bookingHandler.createAltegioBooking.mockResolvedValue({ bookingId: 'booking-1', changed: true });
+    bookingHandler.createAltegioBooking.mockResolvedValue({ booking: { id: 'booking-1' }, changed: true });
 
     await service.createRecord(salonId, 'user-1', {
       workerId,

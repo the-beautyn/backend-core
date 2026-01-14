@@ -68,6 +68,7 @@ enum CrmSalonChangeStatus {
   pending   @map("pending")
   accepted  @map("accepted")
   dismissed @map("dismissed")
+  expired   @map("expired")
 
   @@map("crm_salon_change_status")
 }

@@ -134,6 +134,8 @@ export class OnboardingService {
       'description',
       'mainImageUrl',
       'imageUrls',
+      'phone',
+      'email',
       'location.country',
       'location.city',
       'location.addressLine',
@@ -185,6 +187,12 @@ export class OnboardingService {
           case 'mainImageUrl':
             baseUpdate.coverImageUrl = value ?? null;
             break;
+          case 'phone':
+            baseUpdate.phone = value ?? null;
+            break;
+          case 'email':
+            baseUpdate.email = value ?? null;
+            break;
           case 'workingSchedule':
             baseUpdate.workingSchedule = value ?? null;
             break;
@@ -234,6 +242,8 @@ export class OnboardingService {
         if ('name' in o) overrideUpdate.name = o.name ?? null;
         if ('description' in o) overrideUpdate.description = o.description ?? null;
         if ('mainImageUrl' in o) overrideUpdate.coverImageUrl = o.mainImageUrl ?? null;
+        if ('phone' in o) overrideUpdate.phone = o.phone ?? null;
+        if ('email' in o) overrideUpdate.email = o.email ?? null;
         if ('workingSchedule' in o) overrideUpdate.workingSchedule = o.workingSchedule ?? null;
         if ('timezone' in o) overrideUpdate.timezone = o.timezone ?? null;
         if (o.location) {

@@ -46,8 +46,16 @@ describe('Salon controllers', () => {
     it('GET /api/v1/salons/:id returns salon when found', async () => {
       const salon = { id: '1', name: 'Salon 1' };
       (service.findById as any).mockResolvedValue(salon);
-      const res = await request(app.getHttpServer()).get('/api/v1/salons/1').expect(200);
+      const res = await request(app.getHttpServer())
+        .get('/api/v1/salons/1?include=services,images')
+        .expect(200);
       expect(res.body).toEqual(salon);
+      expect(service.findById).toHaveBeenCalledWith('1', {
+        services: true,
+        workers: false,
+        categories: false,
+        images: true,
+      });
     });
 
     it('GET /api/v1/salons/:id returns 404 when not found', async () => {
@@ -61,8 +69,8 @@ describe('Salon controllers', () => {
   describe('Internal', () => {
     let app: INestApplication;
     const salonService = {
-      upsertFromCrm: jest.fn().mockResolvedValue({ processed: true }),
       replaceImages: jest.fn().mockResolvedValue({ count: 0 }),
+      pullSalon: jest.fn().mockResolvedValue([]),
     } as unknown as any;
 
     beforeAll(async () => {
@@ -79,21 +87,23 @@ describe('Salon controllers', () => {
       jest.clearAllMocks();
     });
 
-    it('POST /api/v1/internal/salons/sync requires internal key', async () => {
+    it('POST /api/v1/internal/salons/pull requires internal key', async () => {
       await request(app.getHttpServer())
-        .post('/api/v1/internal/salons/sync')
-        .send({ name: 'test' })
+        .post('/api/v1/internal/salons/pull')
+        .send({ salon_id: '00000000-0000-4000-8000-000000000001' })
         .expect(401);
     });
 
-    it('POST /api/v1/internal/salons/sync succeeds with key', async () => {
+    it('POST /api/v1/internal/salons/pull returns changes', async () => {
+      const payload = [{ id: 'change-1' }];
+      salonService.pullSalon.mockResolvedValueOnce(payload);
       const res = await withInternalKey(
-        request(app.getHttpServer()).post('/api/v1/internal/salons/sync'),
+        request(app.getHttpServer()).post('/api/v1/internal/salons/pull'),
       )
-        .send({ id: 'salon-1', name: 'Salon' })
-        .expect(201);
-      expect(res.body).toEqual({ processed: true });
-      expect(salonService.upsertFromCrm).toHaveBeenCalled();
+        .send({ salon_id: '00000000-0000-4000-8000-000000000001' })
+        .expect(200);
+      expect(res.body).toEqual(payload);
+      expect(salonService.pullSalon).toHaveBeenCalledWith('00000000-0000-4000-8000-000000000001');
     });
   });
 });

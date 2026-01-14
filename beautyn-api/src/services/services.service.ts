@@ -217,6 +217,8 @@ export class ServicesService {
 
   async syncFromCrm(payload: ServicesSyncDto): Promise<{ upserted: number; deleted: number; services: ServiceDto[] }> {
     const { salon_id } = payload;
+    const salon = await this.prisma.salon.findFirst({ where: { id: salon_id }, select: { provider: true } });
+    const isAltegio = salon?.provider === CrmType.ALTEGIO;
 
     const existingCategories = await (this.prisma as any).category.findMany({ where: { salonId: salon_id } });
     const categoriesByCrm = new Map<string, { id: string; name: string }>();
@@ -257,6 +259,13 @@ export class ServicesService {
 
       const remoteWorkerIds = this.normalizeWorkerExternalIds(svc.worker_ids);
 
+      const normalizedPrice =
+        typeof svc.price === 'number'
+          ? isAltegio
+            ? Math.round(svc.price * 100)
+            : svc.price
+          : undefined;
+
       const data = {
         salonId: salon_id,
         crmServiceId: svc.crm_service_id,
@@ -264,7 +273,7 @@ export class ServicesService {
         name: svc.name,
         description: svc.description ?? null,
         duration: svc.duration ?? existing?.duration ?? undefined,
-        price: svc.price ?? existing?.price ?? undefined,
+        price: normalizedPrice ?? existing?.price ?? undefined,
         currency: (svc.currency ?? existing?.currency ?? 'UAH'),
         sortOrder: (svc.sort_order ?? existing?.sortOrder ?? null),
         isActive: (svc.is_active ?? existing?.isActive ?? undefined),
