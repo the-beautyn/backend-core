@@ -873,6 +873,7 @@ export class CrmIntegrationService {
     if (remote.workingSchedule !== undefined) payload.workingSchedule = remote.workingSchedule;
     if (remote.timezone !== undefined) payload.timezone = remote.timezone;
     if (remote.phone !== undefined) payload.phone = remote.phone;
+    if (remote.email !== undefined) payload.email = remote.email;
 
     return payload;
   }
