@@ -2,17 +2,29 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { SalonService } from '../../../src/salon/salon.service';
 import { PrismaService } from '../../../src/shared/database/prisma.service';
 import { createFakePrismaForSalon } from '../utils/fakes.prisma.salon';
+import { ServicesRepository } from '../../../src/services/repositories/services.repo';
+import { WorkersRepository } from '../../../src/workers/repositories/workers.repository';
+import { CrmIntegrationService } from '../../../src/crm-integration/core/crm-integration.service';
 
 describe('SalonService', () => {
   let service: SalonService;
   let prisma: ReturnType<typeof createFakePrismaForSalon>;
+  let servicesRepo: { findBySalon: jest.Mock };
+  let workersRepo: { listBySalon: jest.Mock };
+  let crmIntegration: { pullSalonAndDetectChanges: jest.Mock };
 
   beforeEach(async () => {
     prisma = createFakePrismaForSalon();
+    servicesRepo = { findBySalon: jest.fn() };
+    workersRepo = { listBySalon: jest.fn() };
+    crmIntegration = { pullSalonAndDetectChanges: jest.fn() };
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         SalonService,
         { provide: PrismaService, useValue: prisma },
+        { provide: ServicesRepository, useValue: servicesRepo },
+        { provide: WorkersRepository, useValue: workersRepo },
+        { provide: CrmIntegrationService, useValue: crmIntegration },
       ],
     }).compile();
 
@@ -68,5 +80,88 @@ describe('SalonService', () => {
 
     const salon = await prisma.salon.findFirst({ where: { id: 's1' } });
     expect(salon.imagesCount).toBe(1);
+  });
+
+  it('findById can include services, workers, categories, images', async () => {
+    await prisma.salon.create({ data: { id: 's1', name: 'Salon' } });
+    await prisma.salonImage.createMany({
+      data: [
+        { salonId: 's1', imageUrl: 'url1', sortOrder: 2 },
+        { salonId: 's1', imageUrl: 'url2', sortOrder: 1 },
+      ],
+    });
+    await prisma.category.createMany({
+      data: [
+        { id: 'c1', salonId: 's1', name: 'Hair', sortOrder: 2, crmCategoryId: null },
+        { id: 'c2', salonId: 's1', name: 'Nails', sortOrder: 1, crmCategoryId: null },
+      ],
+    });
+
+    servicesRepo.findBySalon.mockResolvedValue([
+      {
+        id: 'svc-1',
+        salonId: 's1',
+        categoryId: null,
+        crmServiceId: null,
+        name: 'Cut',
+        description: null,
+        duration: 60,
+        price: 1000,
+        currency: 'UAH',
+        sortOrder: 2,
+        workerIds: [],
+        workerLinks: [],
+        isActive: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+      {
+        id: 'svc-2',
+        salonId: 's1',
+        categoryId: null,
+        crmServiceId: null,
+        name: 'Color',
+        description: null,
+        duration: 60,
+        price: 1500,
+        currency: 'UAH',
+        sortOrder: 1,
+        workerIds: [],
+        workerLinks: [],
+        isActive: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    ]);
+    workersRepo.listBySalon.mockResolvedValue([
+      {
+        id: 'w1',
+        salonId: 's1',
+        firstName: 'Jane',
+        lastName: 'Doe',
+        position: 'Stylist',
+        description: null,
+        photoUrl: null,
+        crmWorkerId: null,
+        role: null,
+        email: null,
+        phone: null,
+        isActive: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    ]);
+
+    const salon = await service.findById('s1', {
+      services: true,
+      workers: true,
+      categories: true,
+      images: true,
+    });
+
+    expect(salon?.services?.map((s) => s.id)).toEqual(['svc-2', 'svc-1']);
+    expect(salon?.workers?.map((w) => w.id)).toEqual(['w1']);
+    expect(salon?.categories?.map((c) => c.id)).toEqual(['c2', 'c1']);
+    expect(salon?.images).toEqual(['url2', 'url1']);
   });
 });

@@ -3,6 +3,7 @@ import { randomUUID } from 'crypto';
 export function createFakePrismaForSalon() {
   const salons: any[] = [];
   const images: any[] = [];
+  const categories: any[] = [];
 
   const matchSalon = (s: any, where: any = {}): boolean => {
     if (!where) return true;
@@ -85,6 +86,40 @@ export function createFakePrismaForSalon() {
       createMany: async ({ data }: any) => {
         for (const d of data) {
           images.push({ id: randomUUID(), ...d });
+        }
+        return { count: data.length };
+      },
+    },
+    category: {
+      findMany: async ({ where, orderBy }: any) => {
+        let res = categories.filter((c) => (where?.salonId === undefined || c.salonId === where.salonId));
+        if (orderBy?.length) {
+          res = res.sort((a, b) => {
+            const sortOrder = (a.sortOrder ?? 0) - (b.sortOrder ?? 0);
+            if (sortOrder !== 0) return sortOrder;
+            return String(a.name ?? '').localeCompare(String(b.name ?? ''));
+          });
+        }
+        return res;
+      },
+      create: async ({ data }: any) => {
+        const category = {
+          id: data.id ?? randomUUID(),
+          createdAt: data.createdAt ?? new Date(),
+          updatedAt: data.updatedAt ?? new Date(),
+          ...data,
+        };
+        categories.push(category);
+        return category;
+      },
+      createMany: async ({ data }: any) => {
+        for (const d of data) {
+          categories.push({
+            id: d.id ?? randomUUID(),
+            createdAt: d.createdAt ?? new Date(),
+            updatedAt: d.updatedAt ?? new Date(),
+            ...d,
+          });
         }
         return { count: data.length };
       },

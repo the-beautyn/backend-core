@@ -43,7 +43,7 @@ describe('BookingService', () => {
   });
 
   it('persists EasyWeek booking via handler', async () => {
-    bookingHandler.createEasyweekBooking.mockResolvedValue({ bookingId: 'booking-1', changed: true });
+    bookingHandler.createEasyweekBooking.mockResolvedValue({ booking: { id: 'booking-1' }, changed: true });
     prisma.booking.findUniqueOrThrow.mockResolvedValue({
       id: 'booking-1',
       status: 'created',
@@ -68,7 +68,7 @@ describe('BookingService', () => {
   });
 
   it('returns booking status from persisted record', async () => {
-    bookingHandler.createEasyweekBooking.mockResolvedValue({ bookingId: 'booking-2', changed: true });
+    bookingHandler.createEasyweekBooking.mockResolvedValue({ booking: { id: 'booking-2' }, changed: true });
     prisma.booking.findUniqueOrThrow.mockResolvedValue({
       id: 'booking-2',
       status: 'canceled',

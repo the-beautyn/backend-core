@@ -2,6 +2,7 @@ import { Controller, Get, Param, Post, Query, Req, UseGuards } from '@nestjs/com
 import { ApiBadRequestResponse, ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Request } from 'express';
 import { JwtAuthGuard } from '../../../shared/guards/jwt-auth.guard';
+import { OwnerRolesGuard } from '../../../shared/guards/roles.guard';
 import { CrmSalonDiffService } from '../../../crm-salon-changes/crm-salon-diff.service';
 import { CrmSalonChangeDto } from '../../../crm-salon-changes/dto/crm-salon-change.dto';
 import { CrmSalonChangeMapper } from '../../../crm-salon-changes/mappers/crm-salon-change.mapper';
@@ -31,6 +32,7 @@ export class CrmSalonChangesController {
   @ApiOperation({ summary: 'Accept a pending CRM change' })
   @ApiOkResponse({ type: Object })
   @ApiBadRequestResponse(envelopeErrorSchema())
+  @UseGuards(OwnerRolesGuard)
   async accept(
     @Req() req: Request & { user: { id: string } },
     @Param('id') id: string,
@@ -43,6 +45,7 @@ export class CrmSalonChangesController {
   @ApiOperation({ summary: 'Dismiss a pending CRM change' })
   @ApiOkResponse({ type: Object })
   @ApiBadRequestResponse(envelopeErrorSchema())
+  @UseGuards(OwnerRolesGuard)
   async dismiss(
     @Req() req: Request & { user: { id: string } },
     @Param('id') id: string,

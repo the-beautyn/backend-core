@@ -160,6 +160,12 @@ export class CrmIntegrationService {
     return remote;
   }
 
+  async enqueueSalonSync(salonId: string, provider?: CrmType): Promise<{ jobId: string }> {
+    const resolvedProvider = provider ?? (await this.resolveSalonProvider(salonId));
+    const jobId = await this.scheduler.scheduleSync({ salonId, provider: resolvedProvider }, { type: 'salon' });
+    return { jobId };
+  }
+
   // --- Booking flow passthrough ---
   async bookServices(salonId: string, provider: CrmType, args?: { serviceIds?: number[]; staffId?: number }) {
     return this.adapter.bookServices(salonId, provider, args);
@@ -866,6 +872,7 @@ export class CrmIntegrationService {
     }
     if (remote.workingSchedule !== undefined) payload.workingSchedule = remote.workingSchedule;
     if (remote.timezone !== undefined) payload.timezone = remote.timezone;
+    if (remote.phone !== undefined) payload.phone = remote.phone;
 
     return payload;
   }

@@ -15,6 +15,8 @@ type LocalSalonSnapshot = {
   description: unknown;
   mainImageUrl: unknown;
   imageUrls: string[];
+  phone: unknown;
+  email: unknown;
   location: {
     country: unknown;
     city: unknown;
@@ -30,7 +32,7 @@ type PendingOperation = {
   path: string;
   hash: string;
   crmValue: CanonicalValue;
-  localValue: CanonicalValue;
+  previousValue: CanonicalValue;
   requiresProposal: boolean;
 };
 
@@ -43,7 +45,11 @@ function buildLocalSnapshot(salon: Prisma.SalonGetPayload<{ include: { images: t
     name: salon.name ?? null,
     description: salon.description ?? null,
     mainImageUrl: salon.coverImageUrl ?? null,
-    imageUrls: (salon.images || []).map((img) => img.imageUrl).filter((url): url is string => typeof url === 'string' && url.length > 0),
+    imageUrls: (salon.images || [])
+      .map((img) => img.imageUrl)
+      .filter((url): url is string => typeof url === 'string' && url.length > 0),
+    phone: salon.phone ?? null,
+    email: salon.email ?? null,
     location: {
       country: salon.country ?? null,
       city: salon.city ?? null,
@@ -61,6 +67,8 @@ const TRACKED_FIELDS: TrackedField[] = [
   { path: 'description', getCrm: (payload) => payload?.description, getLocal: (snapshot) => snapshot.description },
   { path: 'mainImageUrl', getCrm: (payload) => payload?.mainImageUrl, getLocal: (snapshot) => snapshot.mainImageUrl },
   { path: 'imageUrls', getCrm: (payload) => payload?.imageUrls, getLocal: (snapshot) => snapshot.imageUrls },
+  { path: 'phone', getCrm: (payload) => payload?.phone, getLocal: (snapshot) => snapshot.phone },
+  { path: 'email', getCrm: (payload) => payload?.email, getLocal: (snapshot) => snapshot.email },
   { path: 'location.country', getCrm: (payload) => payload?.location?.country, getLocal: (snapshot) => snapshot.location.country },
   { path: 'location.city', getCrm: (payload) => payload?.location?.city, getLocal: (snapshot) => snapshot.location.city },
   { path: 'location.addressLine', getCrm: (payload) => payload?.location?.addressLine, getLocal: (snapshot) => snapshot.location.addressLine },
@@ -94,6 +102,11 @@ export class CrmSalonDiffService {
     const localSnapshot = buildLocalSnapshot(salon);
     const lastHashes = await this.prisma.crmSalonLastHash.findMany({ where: { salonId, provider: providerKey } });
     const lastHashMap = new Map(lastHashes.map((entry) => [entry.fieldPath, entry.lastCrmHash] as const));
+    const previousSnapshot = await this.prisma.crmSalonSnapshot.findFirst({
+      where: { salonId, provider: providerKey },
+      orderBy: { fetchedAt: 'desc' },
+    });
+    const previousPayload = previousSnapshot?.payloadJson as SalonData | undefined;
 
     const now = new Date();
     const operations: PendingOperation[] = [];
@@ -111,15 +124,19 @@ export class CrmSalonDiffService {
         continue;
       }
 
+      const previousValueRaw = field.getCrm(previousPayload ?? null);
       const localValueRaw = field.getLocal(localSnapshot);
-      const localCanonical = canonicalize(localValueRaw, pathParts);
-      const requiresProposal = previousHash !== undefined && !equalCanonical(crmValueRaw, localValueRaw, pathParts);
+      const previousCanonical = canonicalize(previousValueRaw, pathParts);
+      const requiresProposal =
+        previousPayload != null &&
+        !equalCanonical(crmValueRaw, previousValueRaw, pathParts) &&
+        !equalCanonical(crmValueRaw, localValueRaw, pathParts);
 
       operations.push({
         path: field.path,
         hash: newHash,
         crmValue: crmCanonical,
-        localValue: localCanonical,
+        previousValue: previousCanonical,
         requiresProposal,
       });
     }
@@ -174,12 +191,25 @@ export class CrmSalonDiffService {
 
       for (const op of operations.filter((o) => o.requiresProposal)) {
         try {
+          await tx.crmSalonChangeProposal.updateMany({
+            where: {
+              salonId,
+              provider: providerKey,
+              fieldPath: op.path,
+              status: CrmSalonChangeStatus.pending,
+            },
+            data: {
+              status: CrmSalonChangeStatus.expired,
+              decidedAt: now,
+              decidedBy: null,
+            },
+          });
           await tx.crmSalonChangeProposal.create({
             data: {
               salonId,
               provider: providerKey,
               fieldPath: op.path,
-              oldValue: toPrismaJson(op.localValue),
+              oldValue: toPrismaJson(op.previousValue),
               newValue: toPrismaJson(op.crmValue),
               newHash: op.hash,
               status: CrmSalonChangeStatus.pending,
@@ -290,6 +320,12 @@ async function applyFieldPatch(tx: Prisma.TransactionClient, salonId: string, fi
       return;
     case 'mainImageUrl':
       await scalar(typeof value === 'string' ? value : null, 'coverImageUrl');
+      return;
+    case 'phone':
+      await scalar(typeof value === 'string' ? value : null, 'phone');
+      return;
+    case 'email':
+      await scalar(typeof value === 'string' ? value : null, 'email');
       return;
     case 'workingSchedule':
       await scalar(typeof value === 'string' ? value : null, 'workingSchedule');

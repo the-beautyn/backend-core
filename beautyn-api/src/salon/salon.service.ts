@@ -1,24 +1,48 @@
-import { Injectable } from '@nestjs/common';
-import { Prisma, Salon as SalonModel, SalonImage as SalonImageModel } from '@prisma/client';
+import { ForbiddenException, Injectable } from '@nestjs/common';
+import { CrmSalonChangeStatus, Prisma, Salon as SalonModel, SalonImage as SalonImageModel } from '@prisma/client';
 import { PrismaService } from '../shared/database/prisma.service';
 import { SalonDto } from './dto/salon.dto';
 import { SalonListQuery } from './dto/salon-list.query';
 import { SalonSyncDto } from './dto/salon-sync.dto';
 import { SalonImagesSyncDto } from './dto/salon-images-sync.dto';
 import { SalonMapper } from './mappers/salon.mapper';
+import { ServicesRepository } from '../services/repositories/services.repo';
+import { toServiceDto } from '../services/mappers/service.mapper';
+import { WorkersRepository } from '../workers/repositories/workers.repository';
+import { WorkerMapper } from '../workers/mappers/worker.mapper';
+import { toCategoryResponse } from '../categories/mappers/category.mapper';
+import { CrmIntegrationService } from '../crm-integration/core/crm-integration.service';
+
+export interface SalonIncludeOptions {
+  services?: boolean;
+  workers?: boolean;
+  categories?: boolean;
+  images?: boolean;
+}
 
 @Injectable()
 export class SalonService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly servicesRepo: ServicesRepository,
+    private readonly workersRepo: WorkersRepository,
+    private readonly crmIntegration: CrmIntegrationService,
+  ) {}
 
-  async findById(id: string): Promise<SalonDto | null> {
+  async findById(id: string, include?: SalonIncludeOptions): Promise<SalonDto | null> {
     const salon = await this.prisma.salon.findFirst({ where: { id, deletedAt: null } });
-    return salon ? SalonMapper.toDto(salon) : null;
+    if (!salon) return null;
+    const dto = SalonMapper.toDto(salon);
+    await this.applyIncludes(dto, include);
+    return dto;
   }
 
-  async findByOwnerUserId(ownerUserId: string): Promise<SalonDto | null> {
+  async findByOwnerUserId(ownerUserId: string, include?: SalonIncludeOptions): Promise<SalonDto | null> {
     const salon = await this.prisma.salon.findFirst({ where: { ownerUserId, deletedAt: null } });
-    return salon ? SalonMapper.toDto(salon) : null;
+    if (!salon) return null;
+    const dto = SalonMapper.toDto(salon);
+    await this.applyIncludes(dto, include);
+    return dto;
   }
 
   async list(query: SalonListQuery): Promise<{ items: SalonDto[]; page: number; limit: number; total: number }> {
@@ -94,6 +118,93 @@ export class SalonService {
       orderBy: { sortOrder: 'asc' },
     });
     return images.map(SalonMapper.toImageDto);
+  }
+
+  async pullSalon(salonId: string) {
+    const before = await this.prisma.crmSalonChangeProposal.findMany({
+      where: { salonId, status: CrmSalonChangeStatus.pending },
+      select: { id: true },
+    });
+    const beforeIds = new Set(before.map((entry) => entry.id));
+    await this.crmIntegration.pullSalonAndDetectChanges(salonId);
+    const pending = await this.prisma.crmSalonChangeProposal.findMany({
+      where: { salonId, status: CrmSalonChangeStatus.pending },
+      orderBy: { detectedAt: 'desc' },
+    });
+    const added = pending.filter((change) => !beforeIds.has(change.id));
+    return added.length ? added : pending;
+  }
+
+  async pullSalonForOwner(ownerId: string, salonId: string) {
+    const salon = await this.prisma.salon.findFirst({
+      where: { id: salonId, ownerUserId: ownerId },
+      select: { id: true },
+    });
+    if (!salon) {
+      throw new ForbiddenException('Access denied');
+    }
+    return this.pullSalon(salonId);
+  }
+
+  async pullSalonForOwnerUser(ownerId: string) {
+    const salon = await this.prisma.salon.findFirst({
+      where: { ownerUserId: ownerId },
+      select: { id: true },
+    });
+    if (!salon) {
+      throw new ForbiddenException('Access denied');
+    }
+    return this.pullSalon(salon.id);
+  }
+
+  private async applyIncludes(dto: SalonDto, include?: SalonIncludeOptions): Promise<void> {
+    if (!include) return;
+    const tasks: Array<Promise<void>> = [];
+    if (include.services) {
+      tasks.push(
+        this.servicesRepo.findBySalon(dto.id).then((services) => {
+          const sorted = services.sort((a, b) => {
+            const orderDelta = (a.sortOrder ?? 0) - (b.sortOrder ?? 0);
+            if (orderDelta !== 0) return orderDelta;
+            return a.name.localeCompare(b.name);
+          });
+          dto.services = sorted.map(toServiceDto);
+        }),
+      );
+    }
+    if (include.workers) {
+      tasks.push(
+        this.workersRepo.listBySalon(dto.id).then((workers) => {
+          dto.workers = workers.map((worker) => WorkerMapper.toPublicDto(worker));
+        }),
+      );
+    }
+    if (include.categories) {
+      tasks.push(
+        this.prisma.category
+          .findMany({
+            where: { salonId: dto.id },
+            orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
+          })
+          .then((categories) => {
+            dto.categories = categories.map(toCategoryResponse);
+          }),
+      );
+    }
+    if (include.images) {
+      tasks.push(
+        this.prisma.salonImage
+          .findMany({
+            where: { salonId: dto.id },
+            orderBy: { sortOrder: 'asc' },
+            select: { imageUrl: true },
+          })
+          .then((images) => {
+            dto.images = images.map((image) => image.imageUrl);
+          }),
+      );
+    }
+    await Promise.all(tasks);
   }
 
   private mapSyncDto(input: SalonSyncDto): Prisma.SalonUncheckedCreateInput {

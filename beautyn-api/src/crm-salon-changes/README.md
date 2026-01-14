@@ -1,15 +1,15 @@
 # CRM Salon Change Detection
 
-The **CRM Salon Changes** module is responsible for tracking field-level differences between the external CRM payload and the local `salons` data. It never mutates the salon directly during detection—every change is surfaced as an explicit proposal that must be accepted.
+The **CRM Salon Changes** module is responsible for tracking field-level differences between the external CRM payload and the last synced CRM snapshot. It never mutates the salon directly during detection—every change is surfaced as an explicit proposal that must be accepted.
 
 ## How Detection Works
 
-1. `CrmSalonDiffService.detectChanges(salonId, provider, payload)` loads the current salon plus images and builds a canonical local snapshot.
+1. `CrmSalonDiffService.detectChanges(salonId, provider, payload)` loads the last CRM snapshot for the salon/provider.
 2. The incoming CRM payload is canonicalized per tracked field (trim strings, treat arrays as sets, round geo coordinates, collapse empty values to `null`).
 3. Each field’s canonical value is hashed (SHA‑256). Hashes are compared against `crm_salon_last_hash`.
-   - First pull: hashes are stored but no proposals are created (`oldValue` is whatever is currently persisted locally).
-   - Subsequent pulls: if the CRM value differs from the local snapshot, a pending proposal is stored in `crm_salon_change_proposal` and the hash baseline is advanced.
-4. The full CRM payload is stored in `crm_salon_snapshot` for auditing, but snapshots are not used for comparison.
+   - First pull: hashes are stored but no proposals are created.
+   - Subsequent pulls: if the CRM value differs from the **previous CRM snapshot**, a pending proposal is stored in `crm_salon_change_proposal` and the hash baseline is advanced.
+4. The full CRM payload is stored in `crm_salon_snapshot` and is used as the comparison baseline for future syncs.
 
 ## Resolution Flow
 
@@ -21,7 +21,7 @@ The **CRM Salon Changes** module is responsible for tracking field-level differe
 
 ```
 name, description, mainImageUrl,
-imageUrls,
+imageUrls, phone, email,
 location.country, location.city, location.addressLine, location.lat, location.lon,
 workingSchedule, timezone
 ```
@@ -43,8 +43,8 @@ All comparisons use canonical form, so formatting differences (e.g. whitespace, 
 ## Testing
 
 `test/crm-salon-changes/crm-salon-diff.service.spec.ts` covers:
-- No-op when hashes match.
-- Proposal creation when CRM diverges from local data.
+- No-op when hashes match and snapshot is unchanged.
+- Proposal creation when CRM diverges from the previous snapshot.
 - Silent baseline seeding on first pull.
 - Accept/dismiss flows and image updates.
 

@@ -190,7 +190,7 @@ export class EasyWeekProvider implements ICrmProvider {
     return list.find((x: any) => String(x?.uuid) === String(locationId)) ?? null;
   }
 
-  public mapSalon(loc: any): SalonData {
+  public mapSalon(loc: any, workspace?: any): SalonData {
     const schedule: string | undefined = this.mapOpeningHours(loc?.opening_hours?.days);
     return {
       externalId: String(loc.uuid),
@@ -199,12 +199,13 @@ export class EasyWeekProvider implements ICrmProvider {
       mainImageUrl: Array.isArray(loc.images) && loc.images.length ? String(loc.images[0]) : undefined,
       imageUrls: Array.isArray(loc.images) ? loc.images.map((u: any) => String(u)) : undefined,
       location: {
-        country: '',
+        country: workspace?.country_iso ?? '',
         city: loc?.address?.city ?? '',
         addressLine: loc?.address?.address_1 ?? '',
         lat: loc?.address?.position?.lat,
         lon: loc?.address?.position?.lng,
       },
+      phone: workspace?.contacts?.phone ?? undefined,
       timezone: loc?.timezone?.name,
       workingSchedule: schedule,
     };

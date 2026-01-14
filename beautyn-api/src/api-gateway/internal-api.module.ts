@@ -9,9 +9,25 @@ import { BookingsInternalController } from './v1/internal/bookings.internal.cont
 import { BookingModule } from '../booking/booking.module';
 import { EasyweekBookingModule } from '../booking/easyweek-booking/easyweek-booking.module';
 import { AltegioBookingModule } from '../booking/altegio-booking/altegio-booking.module';
+import { SalonModule } from '../salon/salon.module';
+import { SalonsInternalController } from './v1/internal/salons.internal.controller';
 
 @Module({
-  imports: [CategoriesModule, ServicesModule, WorkersModule, BookingModule, EasyweekBookingModule, AltegioBookingModule],
-  controllers: [CategoriesInternalController, ServicesInternalController, WorkersInternalController, BookingsInternalController],
+  imports: [
+    CategoriesModule,
+    ServicesModule,
+    WorkersModule,
+    BookingModule,
+    EasyweekBookingModule,
+    AltegioBookingModule,
+    SalonModule,
+  ],
+  controllers: [
+    CategoriesInternalController,
+    ServicesInternalController,
+    WorkersInternalController,
+    BookingsInternalController,
+    SalonsInternalController,
+  ],
 })
 export class InternalApiModule {}

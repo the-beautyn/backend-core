@@ -32,12 +32,17 @@ export class SalonsController {
   @Get(':id')
   @ApiOperation({ summary: 'Get salon by id' })
   @ApiParam({ name: 'id', type: String })
+  @ApiQuery({
+    name: 'include',
+    required: false,
+    description: 'Comma-separated list: services, workers, categories, images',
+  })
   @ApiOkResponse(envelopeRef(SalonDto))
   @ApiBadRequestResponse(
     envelopeErrorSchema({ statusCode: 404, message: 'Not Found', error: 'Not Found' }),
   )
-  async get(@Param('id') id: string) {
-    const salon = await this.salonService.findById(id);
+  async get(@Param('id') id: string, @Query('include') include?: string) {
+    const salon = await this.salonService.findById(id, this.parseInclude(include));
     if (!salon) throw new NotFoundException('Salon not found');
     return salon;
   }
@@ -53,5 +58,21 @@ export class SalonsController {
     const salon = await this.salonService.findById(id);
     if (!salon) throw new NotFoundException('Salon not found');
     return this.salonService.listImages(id);
+  }
+
+  private parseInclude(include?: string) {
+    if (!include) return undefined;
+    const tokens = include
+      .split(',')
+      .map((item) => item.trim().toLowerCase())
+      .filter(Boolean);
+    if (!tokens.length) return undefined;
+    const set = new Set(tokens);
+    return {
+      services: set.has('services'),
+      workers: set.has('workers'),
+      categories: set.has('categories'),
+      images: set.has('images'),
+    };
   }
 }

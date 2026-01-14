@@ -10,7 +10,5 @@ export type EasyWeekContext = {
   doFetch(url: string, opts?: { method?: string; body?: any }): Promise<any>;
   fetchAll(url: string): Promise<any[]>;
   findLocationById(): Promise<any | null>;
-  mapSalon(loc: any): SalonData;
+  mapSalon(loc: any, workspace?: any): SalonData;
 };
-
-

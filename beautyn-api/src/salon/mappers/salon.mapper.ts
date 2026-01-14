@@ -13,9 +13,12 @@ export class SalonMapper {
       longitude: entity.longitude ? Number(entity.longitude) : undefined,
       phone: entity.phone ?? undefined,
       email: entity.email ?? undefined,
+      provider: entity.provider ?? undefined,
+      description: entity.description ?? undefined,
       rating_avg: entity.ratingAvg ? Number(entity.ratingAvg) : undefined,
       rating_count: entity.ratingCount ?? undefined,
       open_hours_json: entity.openHoursJson ?? undefined,
+      working_schedule: entity.workingSchedule ?? undefined,
       images_count: entity.imagesCount ?? undefined,
       cover_image_url: entity.coverImageUrl ?? undefined,
     };

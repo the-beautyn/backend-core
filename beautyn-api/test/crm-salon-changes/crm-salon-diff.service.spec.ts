@@ -14,9 +14,11 @@ type MockedPrisma = {
   };
   crmSalonSnapshot: {
     create: jest.Mock;
+    findFirst: jest.Mock;
   };
   crmSalonChangeProposal: {
     create: jest.Mock;
+    updateMany: jest.Mock;
     findUnique: jest.Mock;
     update: jest.Mock;
     findMany: jest.Mock;
@@ -30,9 +32,11 @@ type MockedPrisma = {
 
 function createPrismaMock(overrides?: Partial<MockedPrisma>): { prisma: PrismaService; mocks: MockedPrisma } {
   const snapshotCreate = jest.fn().mockResolvedValue(undefined);
+  const snapshotFindFirst = jest.fn().mockResolvedValue(null);
   const lastHashFindMany = jest.fn().mockResolvedValue([]);
   const lastHashUpsert = jest.fn().mockResolvedValue(undefined);
   const proposalCreate = jest.fn().mockResolvedValue(undefined);
+  const proposalUpdateMany = jest.fn().mockResolvedValue({ count: 0 });
   const proposalFindUnique = jest.fn();
   const proposalUpdate = jest.fn().mockResolvedValue(undefined);
   const proposalFindMany = jest.fn().mockResolvedValue([]);
@@ -57,9 +61,14 @@ function createPrismaMock(overrides?: Partial<MockedPrisma>): { prisma: PrismaSe
   const salonImageCreateMany = jest.fn().mockResolvedValue(undefined);
 
   const tx = {
-    crmSalonSnapshot: { create: snapshotCreate },
+    crmSalonSnapshot: { create: snapshotCreate, findFirst: snapshotFindFirst },
     crmSalonLastHash: { upsert: lastHashUpsert },
-    crmSalonChangeProposal: { create: proposalCreate, findUnique: proposalFindUnique, update: proposalUpdate },
+    crmSalonChangeProposal: {
+      create: proposalCreate,
+      updateMany: proposalUpdateMany,
+      findUnique: proposalFindUnique,
+      update: proposalUpdate,
+    },
     salon: { update: salonUpdate },
     salonImage: { deleteMany: salonImageDeleteMany, createMany: salonImageCreateMany },
   };
@@ -67,8 +76,14 @@ function createPrismaMock(overrides?: Partial<MockedPrisma>): { prisma: PrismaSe
   const prisma = {
     salon: { findUnique: salonFindUnique, update: salonUpdate },
     crmSalonLastHash: { findMany: lastHashFindMany, upsert: lastHashUpsert },
-    crmSalonSnapshot: { create: snapshotCreate },
-    crmSalonChangeProposal: { create: proposalCreate, findUnique: proposalFindUnique, update: proposalUpdate, findMany: proposalFindMany },
+    crmSalonSnapshot: { create: snapshotCreate, findFirst: snapshotFindFirst },
+    crmSalonChangeProposal: {
+      create: proposalCreate,
+      updateMany: proposalUpdateMany,
+      findUnique: proposalFindUnique,
+      update: proposalUpdate,
+      findMany: proposalFindMany,
+    },
     salonImage: { deleteMany: salonImageDeleteMany, createMany: salonImageCreateMany },
     $transaction: jest.fn(async (cb) => cb(tx as any)),
   } as unknown as PrismaService;
@@ -93,6 +108,10 @@ describe('CrmSalonDiffService', () => {
   test('detectChanges skips when CRM payload unchanged', async () => {
     const existingHash = canonicalHash('Local Salon', ['name']);
     const { prisma, mocks } = createPrismaMock();
+    mocks.crmSalonSnapshot.findFirst.mockResolvedValueOnce({
+      payloadJson: { externalId: 'ext-1', name: 'Local Salon' },
+      fetchedAt: new Date(),
+    });
     mocks.crmSalonLastHash.findMany.mockResolvedValueOnce([
       { fieldPath: 'name', lastCrmHash: existingHash },
     ]);
@@ -105,8 +124,12 @@ describe('CrmSalonDiffService', () => {
     expect(mocks.crmSalonSnapshot.create).toHaveBeenCalledTimes(1);
   });
 
-  test('detectChanges creates proposal when CRM differs from local', async () => {
+  test('detectChanges creates proposal when CRM differs from previous snapshot', async () => {
     const { prisma, mocks } = createPrismaMock();
+    mocks.crmSalonSnapshot.findFirst.mockResolvedValueOnce({
+      payloadJson: { externalId: 'ext-1', name: 'Local Salon' },
+      fetchedAt: new Date(),
+    });
     mocks.crmSalonLastHash.findMany.mockResolvedValueOnce([
       { fieldPath: 'name', lastCrmHash: 'old-hash' },
     ]);
@@ -148,8 +171,12 @@ describe('CrmSalonDiffService', () => {
     expect(mocks.crmSalonChangeProposal.create).not.toHaveBeenCalled();
   });
 
-  test('detectChanges advances hash without proposal when local already matches', async () => {
+  test('detectChanges advances hash without proposal when CRM matches previous snapshot', async () => {
     const { prisma, mocks } = createPrismaMock();
+    mocks.crmSalonSnapshot.findFirst.mockResolvedValueOnce({
+      payloadJson: { externalId: 'ext-1', name: 'Local Salon' },
+      fetchedAt: new Date(),
+    });
     mocks.crmSalonLastHash.findMany.mockResolvedValueOnce([
       { fieldPath: 'name', lastCrmHash: 'old-hash' },
     ]);
@@ -159,6 +186,56 @@ describe('CrmSalonDiffService', () => {
 
     expect(mocks.crmSalonLastHash.upsert).toHaveBeenCalledTimes(1);
     expect(mocks.crmSalonChangeProposal.create).not.toHaveBeenCalled();
+  });
+
+  test('detectChanges skips proposal when local already matches CRM', async () => {
+    const { prisma, mocks } = createPrismaMock();
+    (mocks.salon.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: 'salon-1',
+      provider: 'ALTEGIO',
+      name: 'Remote Name',
+      description: null,
+      coverImageUrl: null,
+      country: null,
+      city: null,
+      addressLine: null,
+      latitude: null,
+      longitude: null,
+      workingSchedule: null,
+      timezone: null,
+      externalSalonId: 'ext-1',
+      images: [],
+    });
+    mocks.crmSalonSnapshot.findFirst.mockResolvedValueOnce({
+      payloadJson: { externalId: 'ext-1', name: 'Local Salon' },
+      fetchedAt: new Date(),
+    });
+    mocks.crmSalonLastHash.findMany.mockResolvedValueOnce([
+      { fieldPath: 'name', lastCrmHash: 'old-hash' },
+    ]);
+
+    const service = new CrmSalonDiffService(prisma);
+    await service.detectChanges('salon-1', 'ALTEGIO', { externalId: 'ext-1', name: 'Remote Name' });
+
+    expect(mocks.crmSalonLastHash.upsert).toHaveBeenCalledTimes(1);
+    expect(mocks.crmSalonChangeProposal.create).not.toHaveBeenCalled();
+  });
+
+  test('detectChanges does not create new proposals when CRM payload unchanged', async () => {
+    const { prisma, mocks } = createPrismaMock();
+    mocks.crmSalonSnapshot.findFirst.mockResolvedValue({
+      payloadJson: { externalId: 'ext-1', name: 'Local Salon' },
+      fetchedAt: new Date(),
+    });
+    mocks.crmSalonLastHash.findMany
+      .mockResolvedValueOnce([{ fieldPath: 'name', lastCrmHash: 'old-hash' }])
+      .mockResolvedValueOnce([{ fieldPath: 'name', lastCrmHash: canonicalHash('Remote Name', ['name']) }]);
+
+    const service = new CrmSalonDiffService(prisma);
+    await service.detectChanges('salon-1', 'ALTEGIO', { externalId: 'ext-1', name: 'Remote Name' });
+    await service.detectChanges('salon-1', 'ALTEGIO', { externalId: 'ext-1', name: 'Remote Name' });
+
+    expect(mocks.crmSalonChangeProposal.create).toHaveBeenCalledTimes(1);
   });
 
   test('acceptChange updates only targeted field and marks accepted', async () => {

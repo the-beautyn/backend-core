@@ -106,7 +106,7 @@ describe('Altegio booking flow (e2e)', () => {
     };
     resetProviderMocks();
     bookingHandlerMock = {
-      createAltegioBooking: jest.fn().mockResolvedValue({ bookingId: 'booking-e2e', changed: true }),
+      createAltegioBooking: jest.fn().mockResolvedValue({ booking: { id: 'booking-e2e' }, changed: true }),
       handleAltegioBooking: jest.fn(),
     };
 
