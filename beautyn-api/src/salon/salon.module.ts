@@ -7,7 +7,7 @@ import { SalonService } from './salon.service';
 import { forwardRef } from '@nestjs/common';
 
 @Module({
-  imports: [SharedModule, forwardRef(() =>  ServicesModule), WorkersModule, forwardRef(() =>  CrmIntegrationModule)],
+  imports: [SharedModule, forwardRef(() => ServicesModule), WorkersModule, forwardRef(() => CrmIntegrationModule)],
   providers: [SalonService],
   exports: [SalonService],
 })
