@@ -40,8 +40,7 @@ export class CategoriesService {
     };
   }
 
-  async pullFromDb(userId: string, opts?: { page?: number; limit?: number }): Promise<CategoryListResponseDto> {
-    const { salonId } = await this.requireOwnerSalon(userId);
+  async pullFromDb(salonId: string, opts?: { page?: number; limit?: number }): Promise<CategoryListResponseDto> {
     const { page, limit, skip } = this.normalizePagination(opts?.page, opts?.limit);
     const { items, total } = await this.repo.paginate(salonId, skip, limit);
     return {
@@ -52,8 +51,8 @@ export class CategoriesService {
     };
   }
 
-  async create(ownerId: string, dto: CreateCategoryDto): Promise<CategoryResponseDto> {
-    const { salonId, provider } = await this.requireOwnerSalon(ownerId);
+  async create(salonId: string, dto: CreateCategoryDto): Promise<CategoryResponseDto> {
+    const provider = await this.requireSalonProvider(salonId);
     const name = dto.title.trim();
     await this.ensureNameUnique(salonId, name);
 
@@ -75,14 +74,14 @@ export class CategoriesService {
     return toCategoryResponse(saved);
   }
 
-  async update(ownerId: string, categoryId: string, dto: UpdateCategoryDto): Promise<CategoryResponseDto> {
+  async update(salonId: string, categoryId: string, dto: UpdateCategoryDto): Promise<CategoryResponseDto> {
     if (!dto || Object.keys(dto).length === 0) {
       const fallback = await this.repo.findById(categoryId);
       if (!fallback) throw new NotFoundException('Category not found');
       return toCategoryResponse(fallback);
     }
 
-    const { salonId, provider } = await this.requireOwnerSalon(ownerId);
+    const provider = await this.requireSalonProvider(salonId);
     const category = await this.repo.findByIdWithinSalon(categoryId, salonId);
     if (!category) {
       throw new NotFoundException('Category not found');
@@ -128,8 +127,8 @@ export class CategoriesService {
     return toCategoryResponse(updated);
   }
 
-  async delete(ownerId: string, categoryId: string): Promise<void> {
-    const { salonId, provider } = await this.requireOwnerSalon(ownerId);
+  async delete(salonId: string, categoryId: string): Promise<void> {
+    const provider = await this.requireSalonProvider(salonId);
     const category = await this.repo.findByIdWithinSalon(categoryId, salonId);
     if (!category) {
       throw new NotFoundException('Category not found');
@@ -148,13 +147,13 @@ export class CategoriesService {
     await this.repo.delete(category.id);
   }
 
-  async pullFromCrm(ownerId: string): Promise<Page<CategoryData>> {
-    const { salonId, provider } = await this.requireOwnerSalon(ownerId);
+  async pullFromCrm(salonId: string): Promise<Page<CategoryData>> {
+    const provider = await this.requireSalonProvider(salonId);
     return this.crmIntegration.pullCategories(salonId, provider);
   }
 
-  async rebaseFromCrm(ownerId: string): Promise<{ categories: CategoryResponseDto[]; upserted: number; deleted: number }> {
-    const { salonId, provider } = await this.requireOwnerSalon(ownerId);
+  async rebaseFromCrm(salonId: string): Promise<{ categories: CategoryResponseDto[]; upserted: number; deleted: number }> {
+    const provider = await this.requireSalonProvider(salonId);
     const result = await this.crmIntegration.rebaseCategoriesNow(salonId, provider);
     return {
       categories: (result.categories ?? []) as CategoryResponseDto[],
@@ -163,8 +162,8 @@ export class CategoriesService {
     };
   }
 
-  async rebaseFromCrmAsync(ownerId: string): Promise<{ jobId: string }> {
-    const { salonId, provider } = await this.requireOwnerSalon(ownerId);
+  async rebaseFromCrmAsync(salonId: string): Promise<{ jobId: string }> {
+    const provider = await this.requireSalonProvider(salonId);
     return this.crmIntegration.enqueueCategoriesSync(salonId, provider);
   }
 
@@ -246,19 +245,16 @@ export class CategoriesService {
     }
   }
 
-  private async requireOwnerSalon(userId: string): Promise<{ salonId: string; provider: CrmType }> {
-    const salon = await (this.prisma as any).salon.findFirst({
-      where: { ownerUserId: userId, deletedAt: null },
-      select: { id: true, provider: true },
+  private async requireSalonProvider(salonId: string): Promise<CrmType> {
+    const salon = await this.prisma.salon.findUnique({
+      where: { id: salonId },
+      select: { provider: true },
     });
 
-    if (!salon?.id) {
+    if (!salon?.provider) {
       throw new NotFoundException('Salon not found');
     }
-    if (!salon.provider) {
-      throw new ConflictException({ message: 'Salon is not linked to a CRM provider', code: 'SALON_NOT_LINKED_TO_CRM' });
-    }
-    return { salonId: salon.id, provider: salon.provider as CrmType };
+    return salon.provider as CrmType;
   }
 
   private normalizePagination(page?: number, limit?: number): { page: number; limit: number; skip: number } {

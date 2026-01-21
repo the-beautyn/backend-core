@@ -13,10 +13,10 @@ describe('ServicesService', () => {
   beforeEach(() => {
     prisma = {
       $transaction: jest.fn(),
-      salon: { findFirst: jest.fn() },
+      salon: { findUnique: jest.fn() },
       category: { findMany: jest.fn(), findFirst: jest.fn(), findUnique: jest.fn(), update: jest.fn() },
     } as unknown as jest.Mocked<PrismaService>;
-    (prisma.salon.findFirst as any).mockResolvedValue({ id: 'salon-1', provider: 'ALTEGIO' });
+    (prisma.salon.findUnique as any).mockResolvedValue({ id: 'salon-1', provider: 'ALTEGIO' });
 
     integration = {
       pullServices: jest.fn(),
@@ -62,28 +62,28 @@ describe('ServicesService', () => {
 
   describe('pull/rebase', () => {
     it('pullFromCrm delegates to integration with resolved salon/provider', async () => {
-      (prisma.salon.findFirst as any).mockResolvedValue({ id: 'salon-1', provider: 'ALTEGIO' });
+      (prisma.salon.findUnique as any).mockResolvedValue({ id: 'salon-1', provider: 'ALTEGIO' });
       integration.pullServices.mockResolvedValue({ items: [], fetched: 0 } as any);
 
-      const res = await service.pullFromCrm('user-1');
+      const res = await service.pullFromCrm('salon-1');
       expect(integration.pullServices).toHaveBeenCalledWith('salon-1', 'ALTEGIO');
       expect(res.items).toEqual([]);
     });
 
     it('rebaseFromCrm delegates to integration', async () => {
-      (prisma.salon.findFirst as any).mockResolvedValue({ id: 'salon-1', provider: 'EASYWEEK' });
+      (prisma.salon.findUnique as any).mockResolvedValue({ id: 'salon-1', provider: 'EASYWEEK' });
       integration.rebaseServicesNow.mockResolvedValue({ services: [], upserted: 0, deleted: 0 } as any);
 
-      const res = await service.rebaseFromCrm('user-1');
+      const res = await service.rebaseFromCrm('salon-1');
       expect(integration.rebaseServicesNow).toHaveBeenCalledWith('salon-1', 'EASYWEEK');
       expect(res).toEqual({ services: [], upserted: 0, deleted: 0 });
     });
 
     it('rebaseFromCrmAsync enqueues sync', async () => {
-      (prisma.salon.findFirst as any).mockResolvedValue({ id: 'salon-1', provider: 'ALTEGIO' });
+      (prisma.salon.findUnique as any).mockResolvedValue({ id: 'salon-1', provider: 'ALTEGIO' });
       integration.enqueueServicesSync.mockResolvedValue({ jobId: 'job-1' });
 
-      const res = await service.rebaseFromCrmAsync('user-1');
+      const res = await service.rebaseFromCrmAsync('salon-1');
       expect(integration.enqueueServicesSync).toHaveBeenCalledWith('salon-1', 'ALTEGIO');
       expect(res.jobId).toBe('job-1');
     });
@@ -91,25 +91,25 @@ describe('ServicesService', () => {
 
   describe('create', () => {
     it('throws BadRequest when title is empty', async () => {
-      (prisma.salon.findFirst as any).mockResolvedValue({ id: 'salon-1', provider: 'ALTEGIO' });
+      (prisma.salon.findUnique as any).mockResolvedValue({ id: 'salon-1', provider: 'ALTEGIO' });
       await service
-        .create('user-1', { title: '  ' } as any)
+        .create('salon-1', { title: '  ' } as any)
         .then(() => fail('Expected BadRequestException'))
         .catch((e) => expect(e).toBeInstanceOf(BadRequestException));
     });
 
     it('throws Conflict when category is linked but missing crm external id', async () => {
-      (prisma.salon.findFirst as any).mockResolvedValue({ id: 'salon-1', provider: 'ALTEGIO' });
+      (prisma.salon.findUnique as any).mockResolvedValue({ id: 'salon-1', provider: 'ALTEGIO' });
       (prisma.category.findFirst as any).mockResolvedValue({ id: 'cat-1', crmCategoryId: null });
 
       await service
-        .create('user-1', { title: 'Cut', category_id: 'cat-1' } as any)
+        .create('salon-1', { title: 'Cut', category_id: 'cat-1' } as any)
         .then(() => fail('Expected ConflictException'))
         .catch((e) => expect(e).toBeInstanceOf(ConflictException));
     });
 
     it('creates service via integration and upserts locally', async () => {
-      (prisma.salon.findFirst as any).mockResolvedValue({ id: 'salon-1', provider: 'ALTEGIO' });
+      (prisma.salon.findUnique as any).mockResolvedValue({ id: 'salon-1', provider: 'ALTEGIO' });
       (prisma.category.findFirst as any).mockResolvedValue({ id: 'cat-1', crmCategoryId: 'ext-cat' });
       integration.createService.mockResolvedValue({ externalId: 'ext-svc', name: 'Cut', duration: 3600, price: 1000, currency: 'UAH', categoryExternalId: 'ext-cat', isActive: true } as any);
       // upsertServiceFromCrm path — simulate prisma create
@@ -139,7 +139,7 @@ describe('ServicesService', () => {
         updatedAt: new Date(),
       } as any);
 
-      const res = await service.create('user-1', { title: 'Cut', category_id: 'cat-1', duration: 3600, price: 1000 } as any);
+      const res = await service.create('salon-1', { title: 'Cut', category_id: 'cat-1', duration: 3600, price: 1000 } as any);
       expect(integration.createService).toHaveBeenCalledWith('salon-1', 'ALTEGIO', expect.objectContaining({ name: 'Cut', categoryExternalId: 'ext-cat' }));
       expect((prisma as any).service.create).toHaveBeenCalled();
       expect(res).toMatchObject({ title: 'Cut', crmServiceId: 'ext-svc', duration: 3600, price: 1000 });
@@ -170,31 +170,31 @@ describe('ServicesService', () => {
         createdAt: new Date(),
         updatedAt: new Date(),
       } as any);
-      const res = await service.update('user-1', 'svc-1', {} as any);
+      const res = await service.update('salon-1', 'svc-1', {} as any);
       expect(res.id).toBe('svc-1');
       expect(res.title).toBe('Cut');
     });
 
     it('throws NotFound when service absent in salon', async () => {
-      (prisma.salon.findFirst as any).mockResolvedValue({ id: 'salon-1', provider: 'ALTEGIO' });
+      (prisma.salon.findUnique as any).mockResolvedValue({ id: 'salon-1', provider: 'ALTEGIO' });
       repo.findByIdWithinSalon.mockResolvedValue(null);
       await service
-        .update('user-1', 'svc-1', { title: 'New' } as any)
+        .update('salon-1', 'svc-1', { title: 'New' } as any)
         .then(() => fail('Expected NotFoundException'))
         .catch((e) => expect(e).toBeInstanceOf(NotFoundException));
     });
 
     it('throws Conflict when service is not linked to CRM', async () => {
-      (prisma.salon.findFirst as any).mockResolvedValue({ id: 'salon-1', provider: 'ALTEGIO' });
+      (prisma.salon.findUnique as any).mockResolvedValue({ id: 'salon-1', provider: 'ALTEGIO' });
       repo.findByIdWithinSalon.mockResolvedValue({ id: 'svc-1', name: 'Cut', crmServiceId: null } as any);
       await service
-        .update('user-1', 'svc-1', { title: 'New' } as any)
+        .update('salon-1', 'svc-1', { title: 'New' } as any)
         .then(() => fail('Expected ConflictException'))
         .catch((e) => expect(e).toBeInstanceOf(ConflictException));
     });
 
     it('moves serviceId from old category to new one', async () => {
-      (prisma.salon.findFirst as any).mockResolvedValue({ id: 'salon-1', provider: 'ALTEGIO' });
+      (prisma.salon.findUnique as any).mockResolvedValue({ id: 'salon-1', provider: 'ALTEGIO' });
       repo.findByIdWithinSalon.mockResolvedValue({
         id: 'svc-1',
         salonId: 'salon-1',
@@ -241,7 +241,7 @@ describe('ServicesService', () => {
         updatedAt: new Date(),
       } as any);
 
-      await service.update('user-1', 'svc-1', { category_id: 'new-cat' } as any);
+      await service.update('salon-1', 'svc-1', { category_id: 'new-cat' } as any);
       // Removed from old category
       expect((prisma as any).category.update).toHaveBeenCalledWith({
         where: { id: 'old-cat' },
@@ -257,32 +257,32 @@ describe('ServicesService', () => {
 
   describe('delete', () => {
     it('throws NotFound when service missing', async () => {
-      (prisma.salon.findFirst as any).mockResolvedValue({ id: 'salon-1', provider: 'ALTEGIO' });
+      (prisma.salon.findUnique as any).mockResolvedValue({ id: 'salon-1', provider: 'ALTEGIO' });
       (prisma as any).service = { findFirst: jest.fn().mockResolvedValue(null) };
       await service
-        .delete('user-1', 'svc-1')
+        .delete('salon-1', 'svc-1')
         .then(() => fail('Expected NotFoundException'))
         .catch((e) => expect(e).toBeInstanceOf(NotFoundException));
     });
 
     it('throws Conflict when service is not linked to CRM', async () => {
-      (prisma.salon.findFirst as any).mockResolvedValue({ id: 'salon-1', provider: 'ALTEGIO' });
+      (prisma.salon.findUnique as any).mockResolvedValue({ id: 'salon-1', provider: 'ALTEGIO' });
       (prisma as any).service = { findFirst: jest.fn().mockResolvedValue({ id: 'svc-1', crmServiceId: null, categoryId: null }) };
       await service
-        .delete('user-1', 'svc-1')
+        .delete('salon-1', 'svc-1')
         .then(() => fail('Expected ConflictException'))
         .catch((e) => expect(e).toBeInstanceOf(ConflictException));
     });
 
     it('removes serviceId from category on delete', async () => {
-      (prisma.salon.findFirst as any).mockResolvedValue({ id: 'salon-1', provider: 'ALTEGIO' });
+      (prisma.salon.findUnique as any).mockResolvedValue({ id: 'salon-1', provider: 'ALTEGIO' });
       (prisma as any).service = { findFirst: jest.fn().mockResolvedValue({ id: 'svc-1', crmServiceId: 'ext-1', categoryId: 'cat-1' }) };
       integration.deleteService.mockResolvedValue(undefined as any);
       (prisma as any).category.findUnique = jest.fn().mockResolvedValue({ serviceIds: ['svc-1'] });
       (prisma as any).category.update = jest.fn().mockResolvedValue({});
       repo.delete = jest.fn().mockResolvedValue(undefined as any);
 
-      await service.delete('user-1', 'svc-1');
+      await service.delete('salon-1', 'svc-1');
 
       expect((prisma as any).category.update).toHaveBeenCalledWith({
         where: { id: 'cat-1' },

@@ -21,10 +21,10 @@ export class AltegioWebhookService {
 
   async confirm({
     code,
-    externalSalonId,
+    externalSalonIds,
   }: {
     code: string;
-    externalSalonId: string;
+    externalSalonIds: string[];
   }): Promise<'ok' | 'invalid' | 'expired'> {
     const pepper = process.env.PAIRING_CODE_PEPPER || '';
     const hash = createHmac('sha256', pepper).update(code).digest('hex');
@@ -58,15 +58,17 @@ export class AltegioWebhookService {
     }
     
     await this.prisma.crmPairingCode.update({ where: { id: row.id }, data: { usedAt: now } });
-    // Confirm with Altegio partner API
-    await this.altegioPartner.confirmRegistration(externalSalonId);
-    // Link salon; in e2e tests Prisma is sometimes overridden without full schema, so guard findFirst
-    try {
-      await this.crmIntegration.linkAltegio({ userId: row.userId, externalSalonId });
-    } catch (error) {
-      // ignore linking failures in test mocks, but log in non-test environments
-      if (process.env.NODE_ENV !== 'test') {
-        this.logger.debug(`Failed to link Altegio: ${error?.message}`, error instanceof Error ? error.stack : undefined);
+    for (const externalSalonId of externalSalonIds) {
+      // Confirm with Altegio partner API
+      await this.altegioPartner.confirmRegistration(externalSalonId);
+      // Link salon; in e2e tests Prisma is sometimes overridden without full schema, so guard findFirst
+      try {
+        await this.crmIntegration.linkAltegio({ userId: row.userId, externalSalonIds: [externalSalonId] });
+      } catch (error) {
+        // ignore linking failures in test mocks, but log in non-test environments
+        if (process.env.NODE_ENV !== 'test') {
+          this.logger.debug(`Failed to link Altegio: ${error?.message}`, error instanceof Error ? error.stack : undefined);
+        }
       }
     }
     // Mark onboarding step as linked (uses upsert only)

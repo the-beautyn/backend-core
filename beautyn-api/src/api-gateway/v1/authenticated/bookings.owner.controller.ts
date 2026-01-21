@@ -10,7 +10,7 @@ import {
 } from '../../../booking/dto/booking.response.dto';
 import { JwtAuthGuard } from '../../../shared/guards/jwt-auth.guard';
 import { OwnerRolesGuard } from '../../../shared/guards/roles.guard';
-import { SalonOwnerGuard } from '../../../shared/guards/salon-owner.guard';
+import { SalonAccessGuard } from '../../../brand/guards/salon-access.guard';
 import { BookingSyncService } from '../../../booking/booking-sync.service';
 import { CrmIntegrationService } from '../../../crm-integration/core/crm-integration.service';
 import { CrmType } from '@crm/shared';
@@ -27,7 +27,7 @@ export class SyncBookingsJobResponseDto {
 
 @ApiTags('Salon Bookings')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard, OwnerRolesGuard, SalonOwnerGuard)
+@UseGuards(JwtAuthGuard, OwnerRolesGuard, SalonAccessGuard)
 @Controller('api/v1/salons/:salonId/bookings')
 export class OwnerBookingsController {
   private readonly log = createChildLogger('owner-bookings.controller');

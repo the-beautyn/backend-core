@@ -31,9 +31,7 @@ import { DiscoverEasyWeekResponseDto } from '../../../onboarding/dto/discover-ea
 import { CrmProvidersRegistry } from '../../../onboarding/providers/crm-providers.registry';
 import { CrmProviderListResponseDto } from '../../../onboarding/dto/crm-provider-list.dto';
 import { CrmProviderDto } from '../../../onboarding/dto/crm-provider.dto';
-import { CrmSalonPreviewDto } from '../../../onboarding/dto/crm-salon-preview.dto';
 import { AltegioPairCodeResponseDto } from '../../../onboarding/dto/altegio-pair-code.dto';
-import { SubmitSalonFromCrmDto } from '../../../onboarding/dto/submit-salon-from-crm.dto';
 
 @ApiTags('Onboarding')
 @ApiBearerAuth()
@@ -78,7 +76,7 @@ export class OnboardingController {
       userId,
       dto.auth_token,
       dto.workspace_slug,
-      dto.salon_uuid,
+      dto.salon_uuids,
     );
     return { success: true } as any;
   }
@@ -123,22 +121,6 @@ export class OnboardingController {
     return { success: true, data: { code, expires_at: expiresAt.toISOString() } };
   }
 
-  @Get('crm/salon-preview')
-  @HttpCode(HttpStatus.OK)
-  @ApiTags('Onboarding / CRMs')
-  @ApiOperation({ summary: 'Preview salon data from connected CRM' })
-  @ApiOkResponse(envelopeRef(CrmSalonPreviewDto))
-  @ApiBadRequestResponse(
-    envelopeErrorSchema({ statusCode: 400, message: 'CRM is not connected', error: 'Bad Request' })
-  )
-  async salonPreview(
-    @Req() req: Request & { user: { id: string } },
-  ) {
-    const userId = req.user.id as string;
-    const data = await this.onboardingService.getCrmSalonPreviewForUser(userId);
-    return { success: true, data };
-  }
-
   @Post('crm/initial/sync/async')
   @HttpCode(HttpStatus.ACCEPTED)
   @ApiTags('Onboarding / CRMs')
@@ -150,15 +132,15 @@ export class OnboardingController {
         success: { type: 'boolean', example: true },
         data: {
           type: 'object',
-          properties: { jobId: { type: 'string', example: 'job-123' } },
+          properties: { jobIds: { type: 'array', items: { type: 'string' }, example: ['job-123'] } },
         },
       },
     },
   })
   async startInitialSync(@Req() req: Request & { user: { id: string } }) {
     const userId = req.user.id as string;
-    const { jobId } = await this.onboardingService.startInitialSync(userId);
-    return { success: true, data: { jobId } } as any;
+    const { jobIds } = await this.onboardingService.startInitialSync(userId);
+    return { success: true, data: { jobIds } } as any;
   }
 
   @Post('crm/initial/sync')
@@ -179,25 +161,5 @@ export class OnboardingController {
     const userId = req.user.id as string;
     const data = await this.onboardingService.startInitialPullNow(userId);
     return { success: true, data };
-  }
-
-  @Post('submit-salon')
-  @HttpCode(HttpStatus.OK)
-  @ApiTags('Onboarding / CRMs')
-  @ApiOperation({ summary: 'Apply CRM salon preview to local record and advance onboarding' })
-  @ApiOkResponse({
-    schema: {
-      type: 'object',
-      properties: {
-        success: { type: 'boolean', example: true },
-        data: { type: 'object' },
-      },
-      example: { success: true, data: {} },
-    },
-  })
-  async submitSalon(@Req() req: Request & { user: { id: string } }, @Body() dto: SubmitSalonFromCrmDto) {
-    const userId = req.user.id as string;
-    const result = await this.onboardingService.submitSalonFromCrm(userId, dto);
-    return { success: true, data: result } as any;
   }
 }

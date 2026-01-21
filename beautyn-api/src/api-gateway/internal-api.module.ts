@@ -11,6 +11,7 @@ import { EasyweekBookingModule } from '../booking/easyweek-booking/easyweek-book
 import { AltegioBookingModule } from '../booking/altegio-booking/altegio-booking.module';
 import { SalonModule } from '../salon/salon.module';
 import { SalonsInternalController } from './v1/internal/salons.internal.controller';
+import { CrmIntegrationModule } from '../crm-integration/core/crm-integration.module';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { SalonsInternalController } from './v1/internal/salons.internal.controll
     EasyweekBookingModule,
     AltegioBookingModule,
     SalonModule,
+    CrmIntegrationModule,
   ],
   controllers: [
     CategoriesInternalController,

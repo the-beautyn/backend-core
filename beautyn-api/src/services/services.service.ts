@@ -22,11 +22,6 @@ interface PaginationParams {
   skip: number;
 }
 
-interface SalonInfo {
-  salonId: string;
-  provider: CrmType;
-}
-
 @Injectable()
 export class ServicesService {
   private readonly log = createChildLogger('services.service');
@@ -49,8 +44,7 @@ export class ServicesService {
     };
   }
 
-  async pullFromDb(ownerId: string, query: OwnerServicesListQueryDto): Promise<ServicesListResponseDto> {
-    const { salonId } = await this.requireOwnerSalon(ownerId);
+  async pullFromDb(salonId: string, query: OwnerServicesListQueryDto): Promise<ServicesListResponseDto> {
     return this.listPublic({
       salonId: salonId,
       q: query.q,
@@ -60,23 +54,23 @@ export class ServicesService {
     });
   }
 
-  async pullFromCrm(ownerId: string): Promise<Page<ServiceData>> {
-    const { salonId, provider } = await this.requireOwnerSalon(ownerId);
+  async pullFromCrm(salonId: string): Promise<Page<ServiceData>> {
+    const provider = await this.requireSalonProvider(salonId);
     return this.crmIntegration.pullServices(salonId, provider);
   }
 
-  async rebaseFromCrm(ownerId: string): Promise<ServicesSyncResultDto> {
-    const { salonId, provider } = await this.requireOwnerSalon(ownerId);
+  async rebaseFromCrm(salonId: string): Promise<ServicesSyncResultDto> {
+    const provider = await this.requireSalonProvider(salonId);
     return this.crmIntegration.rebaseServicesNow(salonId, provider);
   }
 
-  async rebaseFromCrmAsync(ownerId: string): Promise<{ jobId: string }> {
-    const { salonId, provider } = await this.requireOwnerSalon(ownerId);
+  async rebaseFromCrmAsync(salonId: string): Promise<{ jobId: string }> {
+    const provider = await this.requireSalonProvider(salonId);
     return this.crmIntegration.enqueueServicesSync(salonId, provider);
   }
 
-  async create(ownerId: string, dto: CreateServiceDto): Promise<ServiceResponseDto> {
-    const { salonId, provider } = await this.requireOwnerSalon(ownerId);
+  async create(salonId: string, dto: CreateServiceDto): Promise<ServiceResponseDto> {
+    const provider = await this.requireSalonProvider(salonId);
 
     const name = dto.title.trim();
     if (!name) {
@@ -118,8 +112,8 @@ export class ServicesService {
     return this.toServiceResponse(saved);
   }
 
-  async update(ownerId: string, serviceId: string, dto: UpdateServiceDto): Promise<ServiceResponseDto> {
-    const { salonId, provider } = await this.requireOwnerSalon(ownerId);
+  async update(salonId: string, serviceId: string, dto: UpdateServiceDto): Promise<ServiceResponseDto> {
+    const provider = await this.requireSalonProvider(salonId);
 
     if (!dto || Object.keys(dto).length === 0) {
       const fallback = await this.servicesRepo.findByIdWithinSalon(serviceId, salonId);
@@ -195,8 +189,8 @@ export class ServicesService {
     return this.toServiceResponse(saved);
   }
 
-  async delete(ownerId: string, serviceId: string): Promise<void> {
-    const { salonId, provider } = await this.requireOwnerSalon(ownerId);
+  async delete(salonId: string, serviceId: string): Promise<void> {
+    const provider = await this.requireSalonProvider(salonId);
 
     const prismaAny = this.prisma as any;
     const service = await prismaAny.service.findFirst({ where: { id: serviceId, salonId } });
@@ -331,19 +325,16 @@ export class ServicesService {
     };
   }
 
-  private async requireOwnerSalon(userId: string): Promise<SalonInfo> {
-    const salon = await (this.prisma as any).salon.findFirst({
-      where: { ownerUserId: userId, deletedAt: null },
-      select: { id: true, provider: true },
+  private async requireSalonProvider(salonId: string): Promise<CrmType> {
+    const salon = await this.prisma.salon.findUnique({
+      where: { id: salonId },
+      select: { provider: true },
     });
 
-    if (!salon?.id) {
+    if (!salon?.provider) {
       throw new NotFoundException('Salon not found');
     }
-    if (!salon.provider) {
-      throw new ConflictException({ message: 'Salon is not linked to a CRM provider', code: 'SALON_NOT_LINKED_TO_CRM' });
-    }
-    return { salonId: salon.id, provider: salon.provider as CrmType };
+    return salon.provider as CrmType;
   }
 
   private async ensureCategoryForSalon(

@@ -11,6 +11,7 @@ import { OwnerRolesGuard } from '../../../shared/guards/roles.guard';
 import { CrmSalonChangeDto } from '../../../crm-salon-changes/dto/crm-salon-change.dto';
 import { CrmSalonChangeMapper } from '../../../crm-salon-changes/mappers/crm-salon-change.mapper';
 import { CrmIntegrationService } from '../../../crm-integration/core/crm-integration.service';
+import { SalonAccessGuard } from '../../../brand/guards/salon-access.guard';
 
 export class SyncSalonJobResponseDto {
   @ApiProperty() jobId!: string;
@@ -28,23 +29,6 @@ export class SalonsAuthenticatedController {
     private readonly searchHistoryService: SearchHistoryService,
     private readonly crmIntegration: CrmIntegrationService,
   ) {}
-
-  @Get('me')
-  @ApiOperation({ summary: 'Get my salon (by owner user id)' })
-  @ApiQuery({
-    name: 'include',
-    required: false,
-    description: 'Comma-separated list: services, workers, categories, images',
-  })
-  @ApiOkResponse(envelopeRef(SalonDto))
-  async me(
-    @Req() req: Request & { user: { id: string } },
-    @Query('include') include?: string,
-  ) {
-    const salon = await this.salonService.findByOwnerUserId(req.user.id, this.parseInclude(include));
-    if (!salon) throw new NotFoundException('Salon not found');
-    return salon;
-  }
 
   @Get(':id')
   @ApiOperation({ summary: 'Get salon by id' })
@@ -77,29 +61,21 @@ export class SalonsAuthenticatedController {
     return salon;
   }
 
-  @Post('crm/sync')
+  @Post(':salonId/crm/sync')
   @ApiOperation({ summary: 'Pull salon from CRM and return new/pending changes' })
   @ApiOkResponse(envelopeArrayRef(CrmSalonChangeDto))
-  @UseGuards(OwnerRolesGuard)
-  async syncSalon(
-    @Req() req: Request & { user: { id: string } },
-  ) {
-    const changes = await this.salonService.pullSalonForOwnerUser(req.user.id);
+  @UseGuards(OwnerRolesGuard, SalonAccessGuard)
+  async syncSalon(@Param('salonId') salonId: string) {
+    const changes = await this.salonService.pullSalon(salonId);
     return changes.map(CrmSalonChangeMapper.toDto);
   }
 
-  @Post('crm/sync/async')
+  @Post(':salonId/crm/sync/async')
   @ApiOperation({ summary: 'Schedule async salon sync job' })
   @ApiOkResponse(envelopeRef(SyncSalonJobResponseDto))
-  @UseGuards(OwnerRolesGuard)
-  async syncSalonAsync(
-    @Req() req: Request & { user: { id: string } },
-  ) {
-    const salon = await this.salonService.findByOwnerUserId(req.user.id);
-    if (!salon?.id) {
-      throw new NotFoundException('Salon not found');
-    }
-    const { jobId } = await this.crmIntegration.enqueueSalonSync(salon.id);
+  @UseGuards(OwnerRolesGuard, SalonAccessGuard)
+  async syncSalonAsync(@Param('salonId') salonId: string) {
+    const { jobId } = await this.crmIntegration.enqueueSalonSync(salonId);
     return { jobId };
   }
 

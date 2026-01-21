@@ -7,7 +7,7 @@ import { BookingSyncService } from '../../src/booking/booking-sync.service';
 import { CrmIntegrationService } from '../../src/crm-integration/core/crm-integration.service';
 import { JwtAuthGuard } from '../../src/shared/guards/jwt-auth.guard';
 import { OwnerRolesGuard } from '../../src/shared/guards/roles.guard';
-import { SalonOwnerGuard } from '../../src/shared/guards/salon-owner.guard';
+import { SalonAccessGuard } from '../../src/brand/guards/salon-access.guard';
 import { TransformInterceptor } from '../../src/shared/interceptors/transform.interceptor';
 
 describe('Owner bookings API (e2e)', () => {
@@ -34,7 +34,7 @@ describe('Owner bookings API (e2e)', () => {
     getForSalon: jest.fn().mockResolvedValue({ id: bookingId }),
   };
   const bookingSyncMock = {
-    rebaseFromCrm: jest.fn().mockResolvedValue({ synced: 2 }),
+    rebaseFromCrm: jest.fn().mockResolvedValue([{ id: bookingId }]),
   };
   const crmIntegrationMock = {
     enqueueBookingsSync: jest.fn().mockResolvedValue({ jobId: 'job-e2e' }),
@@ -55,7 +55,7 @@ describe('Owner bookings API (e2e)', () => {
       .useValue(mockJwtGuard)
       .overrideGuard(OwnerRolesGuard)
       .useValue(allowGuard)
-      .overrideGuard(SalonOwnerGuard)
+      .overrideGuard(SalonAccessGuard)
       .useValue(allowGuard)
       .compile();
 
@@ -92,7 +92,7 @@ describe('Owner bookings API (e2e)', () => {
       .set('Authorization', 'Bearer token')
       .expect(201);
 
-    expect(res.body?.data?.synced).toBe(2);
+    expect(res.body?.data?.[0]?.id).toBe(bookingId);
   });
 
   it('enqueues async sync', async () => {

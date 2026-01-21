@@ -4,9 +4,10 @@ import { ServicesModule } from '../services/services.module';
 import { WorkersModule } from '../workers/workers.module';
 import { CrmIntegrationModule } from '../crm-integration/core/crm-integration.module';
 import { SalonService } from './salon.service';
+import { forwardRef } from '@nestjs/common';
 
 @Module({
-  imports: [SharedModule, ServicesModule, WorkersModule, CrmIntegrationModule],
+  imports: [SharedModule, forwardRef(() =>  ServicesModule), WorkersModule, forwardRef(() =>  CrmIntegrationModule)],
   providers: [SalonService],
   exports: [SalonService],
 })

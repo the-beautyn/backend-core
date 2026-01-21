@@ -13,15 +13,18 @@ import { ApiExcludeController } from '@nestjs/swagger';
 import { envelopeErrorSchema, envelopeSuccessOnly } from '../../../shared/utils/swagger-envelope.util';
 import { AltegioConfirmDto } from '../../../crm-integration/webhooks/dto/altegio-confirm.dto';
 import { AltegioWebhookService } from '../../../crm-integration/webhooks/altegio-webhook.service';
+import { createChildLogger } from '@shared/logger';
 
 @ApiExcludeController()
 @Controller('api/v1/webhooks/altegio')
 export class AltegioWebhookController {
+  private readonly log = createChildLogger('altegio-webhook.controller');
   constructor(private readonly service: AltegioWebhookService) {}
 
   @Get('redirect')
   async redirect(@Query() query: any, @Res() res: Response, @Req() req: Request) {
-    const pickSalonId = (q: any): string => {
+    const pickSalonIds = (q: any): string[] => {
+      const results: string[] = [];
       const candidates: unknown[] = [];
       if (q && q.salon_id != null) {
         candidates.push(q.salon_id);
@@ -60,11 +63,15 @@ export class AltegioWebhookController {
       }
       for (const candidate of candidates) {
         const str = String(candidate).trim();
-        if (/^[1-9]\d*$/.test(str)) return str;
+        if (/^[1-9]\d*$/.test(str)) {
+          // preserve order while de-duping
+          if (!results.includes(str)) results.push(str);
+        }
       }
-      return '';
+      return results;
     };
-    const salonId = pickSalonId(query);
+    const salonIds = pickSalonIds(query);
+    this.log.info('Redirecting to Altegio confirm page', { salonIds });
     const esc = (s: string) =>
       String(s)
         .replace(/&/g, '&amp;')
@@ -72,13 +79,15 @@ export class AltegioWebhookController {
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#39;');
-    const safeSalonId = esc(salonId || '');
     const base = `${req.protocol}://${req.get('host')}`; //process.env.APP_URL || `${req.protocol}://${req.get('host')}`;
     const action = `${base.replace(/\/$/, '')}/api/v1/webhooks/altegio/confirm`;
+    const salonInputs = salonIds
+      .map((salonId) => `<input type="hidden" name="salon_ids[]" value="${esc(salonId)}"/>`)
+      .join('');
     const html = [
       '<!doctype html><html><body>',
       `<form method="POST" action="${action}">`,
-      `<input type="hidden" name="salon_id" value="${safeSalonId}"/>`,
+      salonInputs,
       '<input type="text" name="code"/>',
       '<button type="submit">Connect</button>',
       '</form></body></html>',
@@ -88,7 +97,8 @@ export class AltegioWebhookController {
 
   @Post('confirm')
   async confirm(@Body() dto: AltegioConfirmDto) {
-    const result = await this.service.confirm({ code: dto.code, externalSalonId: dto.salon_id });
+    this.log.info('Confirming Altegio registration', { dto });
+    const result = await this.service.confirm({ code: dto.code, externalSalonIds: dto.salon_ids });
     if (result !== 'ok') {
       throw new BadRequestException('Invalid or expired code');
     }

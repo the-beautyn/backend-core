@@ -36,18 +36,18 @@ describe('OnboardingService EasyWeek', () => {
 
   it('finalizeEasyWeekLink links and enqueues', async () => {
     crm.linkEasyWeek.mockResolvedValue(undefined);
-    await service.finalizeEasyWeekLink('user-1', 'token', 'slug', 'external-1');
+    await service.finalizeEasyWeekLink('user-1', 'token', 'slug', ['external-1']);
     expect(crm.linkEasyWeek).toHaveBeenCalledWith({
       userId: 'user-1',
       authToken: 'token',
       workspaceSlug: 'slug',
-      externalSalonId: 'external-1',
+      externalSalonIds: ['external-1'],
     });
   });
 
   it('finalizeEasyWeekLink propagates CRM error', async () => {
     crm.linkEasyWeek.mockRejectedValue(new BadRequestException());
-    await expect(service.finalizeEasyWeekLink('user-1', 'token', 'slug', 'external-1'))
+    await expect(service.finalizeEasyWeekLink('user-1', 'token', 'slug', ['external-1']))
       .rejects.toBeInstanceOf(BadRequestException);
   });
 });

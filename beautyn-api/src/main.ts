@@ -22,7 +22,6 @@ import { WorkerDto } from './workers/dto/worker.dto';
 import { SalonDto } from './salon/dto/salon.dto';
 import { SalonListResponseDto } from './salon/dto/salon-list.response.dto';
 import { SalonImageDto } from './salon/dto/salon-image.dto';
-import { CrmSalonPreviewDto } from './onboarding/dto/crm-salon-preview.dto';
 import { CrmSalonChangeDto } from './crm-salon-changes/dto/crm-salon-change.dto';
 import { CrmCategoryDto, CrmCategoryPageDto } from './categories/dto/categories-sync-result.dto';
 import { AppCategoryResponseDto } from './app-categories/dto/app-category-response.dto';
@@ -100,7 +99,6 @@ async function bootstrap() {
       SalonDto,
       SalonListResponseDto,
       SalonImageDto,
-      CrmSalonPreviewDto,
       CrmSalonChangeDto,
       CrmCategoryDto,
       CrmCategoryPageDto,

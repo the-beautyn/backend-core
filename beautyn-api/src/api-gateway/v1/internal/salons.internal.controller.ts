@@ -15,11 +15,14 @@ import { SalonService } from '../../../salon/salon.service';
 import { SalonImagesSyncDto } from '../../../salon/dto/salon-images-sync.dto';
 import { InternalApiKeyGuard } from '../../../shared/guards/internal-api-key.guard';
 import { SalonPullDto } from '../../../salon/dto/salon-pull.dto';
+import { SalonInternalSyncDto } from '../../../salon/dto/salon-internal-sync.dto';
 
 @ApiExcludeController()
 @Controller('api/v1/internal/salons')
 export class SalonsInternalController {
-  constructor(private readonly salonService: SalonService) {}
+  constructor(
+    private readonly salonService: SalonService,
+  ) {}
 
   @Post(':id/images/sync')
   @UseGuards(InternalApiKeyGuard)
@@ -33,5 +36,12 @@ export class SalonsInternalController {
   @HttpCode(HttpStatus.OK)
   async pullSalon(@Body() dto: SalonPullDto) {
     return this.salonService.pullSalon(dto.salon_id);
+  }
+
+  @Post('sync')
+  @UseGuards(InternalApiKeyGuard)
+  @HttpCode(HttpStatus.OK)
+  async syncSalon(@Body() dto: SalonInternalSyncDto) {
+    return this.salonService.upsertFromCrm(dto);
   }
 }
