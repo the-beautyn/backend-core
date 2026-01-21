@@ -8,7 +8,7 @@ import { WorkersCategory } from './category/workers.category';
 import { forwardRef } from '@nestjs/common';
 
 @Module({
-  imports: [SharedModule, forwardRef(() =>  CrmIntegrationModule), CapabilityRegistryModule],
+  imports: [SharedModule, forwardRef(() => CrmIntegrationModule), CapabilityRegistryModule],
   providers: [WorkersService, WorkersRepository, WorkersCategory],
   exports: [WorkersService, WorkersRepository, WorkersCategory],
 })
