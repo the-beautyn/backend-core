@@ -1,13 +1,13 @@
-import { Body, Controller, Get, Param, Patch, Query, UseGuards, ForbiddenException, Req } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../../shared/guards/jwt-auth.guard';
 import { AdminRolesGuard, OwnerRolesGuard } from '../../../shared/guards/roles.guard';
 import { CategoryOwnerGuard } from '../../../categories/guards/category-owner.guard';
 import { UpdateSalonCategoryMappingDto } from '../../../app-categories/dto/update-salon-category-mapping.dto';
-import { SalonAppCategoryMappingDto, SalonCategoryMappingResponseDto } from '../../../app-categories/dto/salon-category-mapping-response.dto';
+import { SalonCategoryMappingResponseDto } from '../../../app-categories/dto/salon-category-mapping-response.dto';
 import { envelopeArrayRef, envelopeRef } from '../../../shared/utils/swagger-envelope.util';
 import { SalonCategoryMappingsService } from '../../../app-categories/salon-category-mappings.service';
-import { PrismaService } from '../../../shared/database/prisma.service';
+import { SalonAccessGuard } from '../../../brand/guards/salon-access.guard';
 import { createChildLogger } from '@shared/logger';
 
 @ApiTags('App Categories')
@@ -15,7 +15,6 @@ import { createChildLogger } from '@shared/logger';
 export class AppCategoryMappingsController {
   constructor(
     private readonly mappings: SalonCategoryMappingsService,
-    private readonly prisma: PrismaService,
   ) {}
 
   private readonly log = createChildLogger('AppCategoryMappingsController');
@@ -30,22 +29,13 @@ export class AppCategoryMappingsController {
     return this.mappings.listBySalonIds([id]);
   }
 
-  @Get('by-salon/:id')
+  @Get('by-salon/:salonId')
   @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard, OwnerRolesGuard)
+  @UseGuards(JwtAuthGuard, OwnerRolesGuard, SalonAccessGuard)
   @ApiOperation({ summary: 'Get mapping for an owner (only their salons)' })
   @ApiOkResponse(envelopeRef(SalonCategoryMappingResponseDto))
-  async getMappingForOwner(@Param('id') id: string, @Req() req: any) {
-    const user = req.user;
-    const owned = await (this.prisma as any).salon.findMany({
-      where: { ownerUserId: user?.id, deletedAt: null },
-      select: { id: true },
-    });
-    const ids = owned.map((s: any) => s.id);
-    if (!ids.includes(id)) {
-      throw new ForbiddenException('You do not own this salon');
-    }
-    return this.mappings.listBySalonIds([id]);
+  async getMappingForOwner(@Param('salonId') salonId: string) {
+    return this.mappings.listBySalonIds([salonId]);
   }
 
   @Get(':id')

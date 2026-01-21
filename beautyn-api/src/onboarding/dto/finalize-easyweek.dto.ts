@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty } from 'class-validator';
+import { ArrayNotEmpty, IsArray, IsNotEmpty, IsString, IsUUID } from 'class-validator';
 export class FinalizeEasyWeekDto {
   @IsString()
   @IsNotEmpty()
@@ -8,7 +8,8 @@ export class FinalizeEasyWeekDto {
   @IsNotEmpty()
   workspace_slug!: string;
 
-  @IsString()
-  @IsNotEmpty()
-  salon_uuid!: string;
+  @IsArray()
+  @ArrayNotEmpty()
+  @IsUUID('4', { each: true })
+  salon_uuids!: string[];
 }

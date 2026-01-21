@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Query, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiAcceptedResponse, ApiBearerAuth, ApiConflictResponse, ApiCreatedResponse, ApiNoContentResponse, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CategoriesService } from '../../../categories/categories.service';
 import { OwnerListQueryDto } from '../../../categories/dto/list-query.dto';
@@ -9,30 +9,32 @@ import { CrmCategoryPageDto, CategoriesSyncJobResponseDto, CategoriesSyncResultD
 import { envelopeErrorSchema, envelopeRef } from '../../../shared/utils/swagger-envelope.util';
 import { JwtAuthGuard } from '../../../shared/guards/jwt-auth.guard';
 import { OwnerRolesGuard } from '../../../shared/guards/roles.guard';
-import { CategoryOwnerGuard } from '../../../categories/guards/category-owner.guard';
-import type { Request } from 'express';
+import { SalonAccessGuard } from '../../../brand/guards/salon-access.guard';
 
 @ApiTags('Categories')
-@Controller('api/v1/categories')
+@Controller('api/v1/salons/:salonId/categories')
 export class CategoriesAuthenticatedController {
   constructor(private readonly service: CategoriesService) {}
 
-  @Get('my')
+  @Get()
   @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard, OwnerRolesGuard)
+  @UseGuards(JwtAuthGuard, OwnerRolesGuard, SalonAccessGuard)
   @ApiOperation({ summary: 'Pull categories from Beautyn database' })
   @ApiOkResponse(envelopeRef(CategoryListResponseDto))
-  async pull(@Req() req: Request & { user: { id: string } }, @Query() query: OwnerListQueryDto) {
-    return this.service.pullFromDb(req.user.id, query);
+  async pull(
+    @Param('salonId') salonId: string,
+    @Query() query: OwnerListQueryDto,
+  ) {
+    return this.service.pullFromDb(salonId, query);
   }
 
   @Get('crm')
   @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard, OwnerRolesGuard)
+  @UseGuards(JwtAuthGuard, OwnerRolesGuard, SalonAccessGuard)
   @ApiOperation({ summary: 'Pull categories directly from connected CRM' })
   @ApiOkResponse(envelopeRef(CrmCategoryPageDto))
-  async pullFromCrm(@Req() req: Request & { user: { id: string } }) {
-    const page = await this.service.pullFromCrm(req.user.id);
+  async pullFromCrm(@Param('salonId') salonId: string) {
+    const page = await this.service.pullFromCrm(salonId);
     return {
       items: page.items.map((item) => ({
         externalId: item.externalId,
@@ -51,54 +53,54 @@ export class CategoriesAuthenticatedController {
 
   @Post('crm/sync')
   @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard, OwnerRolesGuard)
+  @UseGuards(JwtAuthGuard, OwnerRolesGuard, SalonAccessGuard)
   @ApiOperation({ summary: 'Sync categories from CRM into Beautyn database' })
   @ApiOkResponse(envelopeRef(CategoriesSyncResultDto))
-  async syncFromCrm(@Req() req: Request & { user: { id: string } }) {
-    return this.service.rebaseFromCrm(req.user.id);
+  async syncFromCrm(@Param('salonId') salonId: string) {
+    return this.service.rebaseFromCrm(salonId);
   }
 
   @Post('crm/sync/async')
   @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard, OwnerRolesGuard)
+  @UseGuards(JwtAuthGuard, OwnerRolesGuard, SalonAccessGuard)
   @ApiOperation({ summary: 'Schedule background categories sync from CRM' })
   @ApiAcceptedResponse(envelopeRef(CategoriesSyncJobResponseDto))
   @HttpCode(HttpStatus.ACCEPTED)
-  async syncFromCrmAsync(@Req() req: Request & { user: { id: string } }) {
-    return this.service.rebaseFromCrmAsync(req.user.id);
+  async syncFromCrmAsync(@Param('salonId') salonId: string) {
+    return this.service.rebaseFromCrmAsync(salonId);
   }
 
   @Post()
   @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard, OwnerRolesGuard)
+  @UseGuards(JwtAuthGuard, OwnerRolesGuard, SalonAccessGuard)
   @ApiOperation({ summary: 'Create a category for the owner salon' })
   @ApiCreatedResponse(envelopeRef(CategoryResponseDto))
   @ApiConflictResponse(envelopeErrorSchema({ statusCode: 409, message: 'Category name already exists', code: 'CATEGORY_NAME_CONFLICT' }))
-  async create(@Req() req: Request & { user: { id: string } }, @Body() dto: CreateCategoryDto) {
-    return this.service.create(req.user.id, dto);
+  async create(@Param('salonId') salonId: string, @Body() dto: CreateCategoryDto) {
+    return this.service.create(salonId, dto);
   }
 
   @Patch(':id')
   @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard, OwnerRolesGuard, CategoryOwnerGuard)
+  @UseGuards(JwtAuthGuard, OwnerRolesGuard, SalonAccessGuard)
   @ApiOperation({ summary: 'Update a category in the owner salon' })
   @ApiOkResponse(envelopeRef(CategoryResponseDto))
   @ApiConflictResponse(envelopeErrorSchema({ statusCode: 409, message: 'Category has linked services', code: 'CATEGORY_HAS_SERVICES' }))
   async update(
-    @Req() req: Request & { user: { id: string } },
+    @Param('salonId') salonId: string,
     @Param('id') id: string,
     @Body() dto: UpdateCategoryDto,
   ) {
-    return this.service.update(req.user.id, id, dto);
+    return this.service.update(salonId, id, dto);
   }
 
   @Delete(':id')
   @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard, OwnerRolesGuard, CategoryOwnerGuard)
+  @UseGuards(JwtAuthGuard, OwnerRolesGuard, SalonAccessGuard)
   @ApiOperation({ summary: 'Delete a category in the owner salon' })
   @ApiNoContentResponse({ description: 'Category deleted' })
   @HttpCode(204)
-  async remove(@Req() req: Request & { user: { id: string } }, @Param('id') id: string): Promise<void> {
-    await this.service.delete(req.user.id, id);
+  async remove(@Param('salonId') salonId: string, @Param('id') id: string): Promise<void> {
+    await this.service.delete(salonId, id);
   }
 }

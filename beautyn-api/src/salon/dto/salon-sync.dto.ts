@@ -17,6 +17,10 @@ export class SalonSyncDto {
 
   @IsOptional()
   @IsString()
+  description?: string;
+
+  @IsOptional()
+  @IsString()
   address_line?: string;
 
   @IsOptional()
@@ -43,6 +47,14 @@ export class SalonSyncDto {
   @IsOptional()
   @IsEmail()
   email?: string;
+
+  @IsOptional()
+  @IsString()
+  timezone?: string;
+
+  @IsOptional()
+  @IsString()
+  working_schedule?: string;
 
   @IsOptional()
   @IsNumber()

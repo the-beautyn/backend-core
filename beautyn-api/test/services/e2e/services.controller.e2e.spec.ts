@@ -9,6 +9,7 @@ import { JwtAuthGuard } from '../../../src/shared/guards/jwt-auth.guard';
 import { OwnerRolesGuard } from '../../../src/shared/guards/roles.guard';
 import { InternalApiKeyGuard } from '../../../src/shared/guards/internal-api-key.guard';
 import { TransformInterceptor } from '../../../src/shared/interceptors/transform.interceptor';
+import { SalonAccessGuard } from '../../../src/brand/guards/salon-access.guard';
 
 describe('ServicesController (e2e)', () => {
   let app: INestApplication;
@@ -65,6 +66,10 @@ describe('ServicesController (e2e)', () => {
     }),
   };
 
+  const mockSalonAccessGuard = {
+    canActivate: jest.fn().mockReturnValue(true),
+  };
+
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       controllers: [ServicesController, ServicesAuthenticatedController, ServicesInternalController],
@@ -74,6 +79,8 @@ describe('ServicesController (e2e)', () => {
       .useValue(mockJwtGuard)
       .overrideGuard(OwnerRolesGuard)
       .useValue(mockOwnerRolesGuard)
+      .overrideGuard(SalonAccessGuard)
+      .useValue(mockSalonAccessGuard)
       .overrideGuard(InternalApiKeyGuard)
       .useValue(mockInternalApiKeyGuard)
       .compile();
@@ -107,37 +114,40 @@ describe('ServicesController (e2e)', () => {
     expect(res.body).toHaveProperty('message');
   });
 
-  it('GET /api/v1/services/my returns owner list', async () => {
+  it('GET /api/v1/salons/:salonId/services returns owner list', async () => {
     service.pullFromDb.mockResolvedValue({ items: [], page: 1, limit: 50, total: 0 });
     const res = await request(app.getHttpServer())
-      .get('/api/v1/services/my')
+      .get('/api/v1/salons/salon-1/services')
       .set('Authorization', 'Bearer owner-token')
       .expect(200);
     expect(res.body.success).toBe(true);
+    expect(service.pullFromDb).toHaveBeenCalledWith('salon-1', expect.any(Object));
   });
 
-  it('GET /api/v1/services/crm returns CRM page', async () => {
+  it('GET /api/v1/salons/:salonId/services/crm returns CRM page', async () => {
     service.pullFromCrm.mockResolvedValue({ items: [], fetched: 0, total: 0, nextCursor: undefined } as any);
     const res = await request(app.getHttpServer())
-      .get('/api/v1/services/crm')
+      .get('/api/v1/salons/salon-1/services/crm')
       .set('Authorization', 'Bearer owner-token')
       .expect(200);
     expect(res.body.success).toBe(true);
+    expect(service.pullFromCrm).toHaveBeenCalledWith('salon-1');
   });
 
-  it('POST /api/v1/services/crm/sync returns sync result', async () => {
+  it('POST /api/v1/salons/:salonId/services/crm/sync returns sync result', async () => {
     service.rebaseFromCrm.mockResolvedValue({ services: [], upserted: 0, deleted: 0 } as any);
     const res = await request(app.getHttpServer())
-      .post('/api/v1/services/crm/sync')
+      .post('/api/v1/salons/salon-1/services/crm/sync')
       .set('Authorization', 'Bearer owner-token')
       .expect(201);
     expect(res.body.success).toBe(true);
+    expect(service.rebaseFromCrm).toHaveBeenCalledWith('salon-1');
   });
 
-  it('POST /api/v1/services/crm/sync/async returns 202 and jobId', async () => {
+  it('POST /api/v1/salons/:salonId/services/crm/sync/async returns 202 and jobId', async () => {
     service.rebaseFromCrmAsync.mockResolvedValue({ jobId: 'job-1' });
     const res = await request(app.getHttpServer())
-      .post('/api/v1/services/crm/sync/async')
+      .post('/api/v1/salons/salon-1/services/crm/sync/async')
       .set('Authorization', 'Bearer owner-token')
       .expect(202);
     expect(res.body.data.jobId).toBe('job-1');
@@ -158,5 +168,4 @@ describe('ServicesController (e2e)', () => {
     expect(res.body.success).toBe(true);
   });
 });
-
 

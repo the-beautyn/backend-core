@@ -53,7 +53,7 @@ describe('OwnerBookingsController (unit)', () => {
       .useValue({ canActivate: () => true })
       .overrideGuard(require('../src/shared/guards/roles.guard').OwnerRolesGuard)
       .useValue({ canActivate: () => true })
-      .overrideGuard(require('../src/shared/guards/salon-owner.guard').SalonOwnerGuard)
+      .overrideGuard(require('../src/brand/guards/salon-access.guard').SalonAccessGuard)
       .useValue({ canActivate: () => true });
 
     const module: TestingModule = await moduleBuilder.compile();

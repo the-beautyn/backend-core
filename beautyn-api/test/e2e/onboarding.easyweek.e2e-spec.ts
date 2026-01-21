@@ -27,7 +27,7 @@ describe('Onboarding EasyWeek (e2e)', () => {
 
     const mockEw = {
       listLocations: jest.fn().mockResolvedValue([
-        { uuid: 'ext-1', name: 'Salon 1' },
+        { uuid: '11111111-1111-1111-1111-111111111111', name: 'Salon 1' },
       ]),
     };
 
@@ -98,7 +98,7 @@ describe('Onboarding EasyWeek (e2e)', () => {
       .expect(200);
     expect(res.body).toEqual({
       success: true,
-      data: { salons: [{ uuid: 'ext-1', name: 'Salon 1' }] },
+      data: { salons: [{ uuid: '11111111-1111-1111-1111-111111111111', name: 'Salon 1' }] },
     });
   });
 
@@ -113,7 +113,7 @@ describe('Onboarding EasyWeek (e2e)', () => {
     const res = await request(app.getHttpServer())
       .post('/api/v1/onboarding/easyweek/connect')
       .set('Authorization', 'Bearer valid')
-      .send({ auth_token: 't', workspace_slug: 'ws', salon_uuid: 'ext-1' })
+      .send({ auth_token: 't', workspace_slug: 'ws', salon_uuids: ['11111111-1111-1111-1111-111111111111'] })
       .expect(202);
     expect(res.body).toEqual({ success: true });
   });

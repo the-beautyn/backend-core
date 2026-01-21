@@ -5,6 +5,7 @@ import { SalonCategoryMappingsService } from '../../src/app-categories/salon-cat
 import { JwtAuthGuard } from '../../src/shared/guards/jwt-auth.guard';
 import { OwnerRolesGuard, AdminRolesGuard } from '../../src/shared/guards/roles.guard';
 import { CategoryOwnerGuard } from '../../src/categories/guards/category-owner.guard';
+import { SalonAccessGuard } from '../../src/brand/guards/salon-access.guard';
 import { PrismaService } from '../../src/shared/database/prisma.service';
 import { SupabaseClient } from '@supabase/supabase-js';
 
@@ -46,6 +47,10 @@ describe('AppCategoryMappingsController (e2e)', () => {
     canActivate: jest.fn().mockReturnValue(true),
   };
 
+  const mockSalonAccessGuard = {
+    canActivate: jest.fn().mockReturnValue(true),
+  };
+
   const mockAdminRolesGuard = {
     canActivate: jest.fn().mockReturnValue(true),
   };
@@ -80,6 +85,8 @@ describe('AppCategoryMappingsController (e2e)', () => {
       .useValue(mockAdminRolesGuard)
       .overrideGuard(OwnerRolesGuard)
       .useValue(mockOwnerRolesGuard)
+      .overrideGuard(SalonAccessGuard)
+      .useValue(mockSalonAccessGuard)
       .overrideGuard(CategoryOwnerGuard)
       .useValue(mockCategoryOwnerGuard)
       .compile();

@@ -40,7 +40,7 @@ model Users {
   updatedAt             DateTime          @default(now()) @map("updated_at") @db.Timestamptz(6)
   subscriptionPlan      SubscriptionPlan? @relation(fields: [subscriptionId], references: [id])
   onboardingStep        OnboardingStep?
-  salon                 Salon?            @relation("UserSalons")
+  brandMemberships      BrandMember[]
   searchHistory         SearchHistory[]
 
   @@map("users")
@@ -57,7 +57,7 @@ enum UserRole {
 
 enum OnboardingStepState {
   CRM
-  SALON_PROFILE
+  BRAND
   SUBSCRIPTION
   COMPLETED
 
@@ -73,11 +73,19 @@ enum CrmSalonChangeStatus {
   @@map("crm_salon_change_status")
 }
 
+enum BrandMemberRole {
+  owner   @map("owner")
+  manager @map("manager")
+  support @map("support")
+
+  @@map("brand_member_role")
+}
+
 model OnboardingStep {
   id              String              @id @default(uuid()) @db.Uuid
   userId          String              @unique @map("user_id") @db.Uuid
   crmConnected    Boolean             @default(false) @map("crm_connected")
-  salonCreated    Boolean             @default(false) @map("salon_created")
+  brandCreated    Boolean             @default(false) @map("brand_created")
   subscriptionSet Boolean             @default(false) @map("subscription_set")
   currentStep     OnboardingStepState @default(CRM) @map("current_step")
   completed       Boolean             @default(false)
@@ -89,6 +97,36 @@ model OnboardingStep {
   @@map("onboarding_step")
 }
 
+model Brand {
+  id        String        @id @default(uuid()) @db.Uuid
+  name      String        @db.VarChar(160)
+  createdAt DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  members BrandMember[]
+  salons  Salon[]
+
+  @@map("brands")
+}
+
+model BrandMember {
+  id                   String           @id @default(uuid()) @db.Uuid
+  brandId              String           @map("brand_id") @db.Uuid
+  userId               String           @map("user_id") @db.Uuid
+  role                 BrandMemberRole  @default(owner) @map("role")
+  lastSelectedSalonId  String?          @map("last_selected_salon_id") @db.Uuid
+  createdAt            DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  brand Brand @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  user  Users @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lastSelectedSalon Salon? @relation("BrandMemberLastSelectedSalon", fields: [lastSelectedSalonId], references: [id], onDelete: SetNull)
+
+  @@unique([brandId, userId], map: "brand_members_brand_user_unique")
+  @@index([userId], map: "brand_members_user_idx")
+  @@map("brand_members")
+}
+
 model Salon {
   id              String    @id @default(uuid()) @db.Uuid
   // CRM link (draft onboarding support)
@@ -96,9 +134,9 @@ model Salon {
   externalSalonId String?   @map("external_salon_id")
   // provider stores which CRM this salon is linked to (e.g., 'ALTEGIO' | 'EASYWEEK')
   provider        String?   @map("provider")
+  brandId         String?   @map("brand_id") @db.Uuid
   // owner user link (used for onboarding flows)
   ownerUserId     String?   @map("owner_user_id") @db.Uuid
-  owner           Users?    @relation("UserSalons", fields: [ownerUserId], references: [id], onDelete: SetNull)
   name            String?
   description     String?   @map("description")
   addressLine     String?   @map("address_line")
@@ -130,10 +168,15 @@ model Salon {
   crmChangeProposals CrmSalonChangeProposal[]
   crmSnapshots       CrmSalonSnapshot[]
   searchHistory      SearchHistory[]
+  brand             Brand? @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  lastSelectedByMembers BrandMember[] @relation("BrandMemberLastSelectedSalon")
+  crmAccounts        CrmAccount[]
+  crmCredentials     CrmCredential[]
 
-  @@unique([ownerUserId], map: "uniq_salon_owner")
+  @@unique([provider, externalSalonId], map: "uniq_salon_provider_external")
   @@index([latitude, longitude])
   @@index([ownerUserId], map: "idx_salon_owner")
+  @@index([brandId], map: "idx_salon_brand")
   @@map("salons")
 }
 
@@ -605,6 +648,7 @@ model CrmCredential {
   authTag    Bytes
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+  salon      Salon    @relation(fields: [salonId], references: [id], onDelete: Cascade)
 
   @@unique([salonId, provider])
 }
@@ -617,6 +661,7 @@ model CrmAccount {
   data      Json
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  salon     Salon    @relation(fields: [salonId], references: [id], onDelete: Cascade)
 
   @@unique([salonId, provider])
   @@index([provider])

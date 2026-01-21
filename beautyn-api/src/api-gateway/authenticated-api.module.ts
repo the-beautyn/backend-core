@@ -26,10 +26,12 @@ import { EasyweekBookingAuthenticatedController } from './v1/authenticated/easyw
 import { ClientBookingsController } from './v1/authenticated/bookings.client.controller';
 import { OwnerBookingsController } from './v1/authenticated/bookings.owner.controller';
 import { CrmIntegrationModule } from '../crm-integration/core/crm-integration.module';
+import { BrandModule } from '../brand/brand.module';
+import { BrandController } from './v1/authenticated/brand.controller';
 
 
 @Module({
-  imports: [UserModule, OnboardingModule, CrmSalonChangesModule, SalonModule, CategoriesModule, ServicesModule, WorkersModule, AppCategoriesModule, SearchModule, AltegioBookingModule, BookingModule, EasyweekBookingModule, CrmIntegrationModule],
+  imports: [UserModule, OnboardingModule, CrmSalonChangesModule, SalonModule, CategoriesModule, ServicesModule, WorkersModule, AppCategoriesModule, SearchModule, AltegioBookingModule, BookingModule, EasyweekBookingModule, CrmIntegrationModule, BrandModule],
   controllers: [
     UserAuthenticatedController,
     OnboardingController,
@@ -45,6 +47,7 @@ import { CrmIntegrationModule } from '../crm-integration/core/crm-integration.mo
     EasyweekBookingAuthenticatedController,
     ClientBookingsController,
     OwnerBookingsController,
+    BrandController,
   ],
 })
 export class AuthenticatedApiModule {}

@@ -3,7 +3,6 @@ import { CrmSalonChangeStatus, Prisma, Salon as SalonModel, SalonImage as SalonI
 import { PrismaService } from '../shared/database/prisma.service';
 import { SalonDto } from './dto/salon.dto';
 import { SalonListQuery } from './dto/salon-list.query';
-import { SalonSyncDto } from './dto/salon-sync.dto';
 import { SalonImagesSyncDto } from './dto/salon-images-sync.dto';
 import { SalonMapper } from './mappers/salon.mapper';
 import { ServicesRepository } from '../services/repositories/services.repo';
@@ -12,6 +11,9 @@ import { WorkersRepository } from '../workers/repositories/workers.repository';
 import { WorkerMapper } from '../workers/mappers/worker.mapper';
 import { toCategoryResponse } from '../categories/mappers/category.mapper';
 import { CrmIntegrationService } from '../crm-integration/core/crm-integration.service';
+import { SalonInternalSyncDto } from './dto/salon-internal-sync.dto';
+import type { SalonData } from '@crm/provider-core';
+import { Inject, forwardRef } from '@nestjs/common';
 
 export interface SalonIncludeOptions {
   services?: boolean;
@@ -26,19 +28,11 @@ export class SalonService {
     private readonly prisma: PrismaService,
     private readonly servicesRepo: ServicesRepository,
     private readonly workersRepo: WorkersRepository,
-    private readonly crmIntegration: CrmIntegrationService,
+    @Inject(forwardRef(() => CrmIntegrationService)) private readonly crmIntegration: CrmIntegrationService,
   ) {}
 
   async findById(id: string, include?: SalonIncludeOptions): Promise<SalonDto | null> {
     const salon = await this.prisma.salon.findFirst({ where: { id, deletedAt: null } });
-    if (!salon) return null;
-    const dto = SalonMapper.toDto(salon);
-    await this.applyIncludes(dto, include);
-    return dto;
-  }
-
-  async findByOwnerUserId(ownerUserId: string, include?: SalonIncludeOptions): Promise<SalonDto | null> {
-    const salon = await this.prisma.salon.findFirst({ where: { ownerUserId, deletedAt: null } });
     if (!salon) return null;
     const dto = SalonMapper.toDto(salon);
     await this.applyIncludes(dto, include);
@@ -76,19 +70,27 @@ export class SalonService {
     };
   }
 
-  async upsertFromCrm(input: SalonSyncDto): Promise<SalonDto> {
-    const data = this.mapSyncDto(input);
+  async listByBrand(brandId: string, include?: SalonIncludeOptions): Promise<SalonDto[]> {
+    const salons = await this.prisma.salon.findMany({
+      where: { brandId, deletedAt: null },
+      orderBy: { createdAt: 'asc' },
+    });
+    const items = salons.map(SalonMapper.toDto);
+    if (include) {
+      await Promise.all(items.map((dto) => this.applyIncludes(dto, include)));
+    }
+    return items;
+  }
+
+  async upsertFromCrm(input: SalonInternalSyncDto): Promise<SalonDto> {
+    const data = this.mapSyncDto(input.salon);
     let salon: SalonModel;
 
-    if (input.id) {
-      salon = await this.prisma.salon.upsert({
-        where: { id: input.id },
-        update: data,
-        create: { id: input.id, ...data },
-      });
-    } else {
-      salon = await this.prisma.salon.create({ data });
-    }
+    salon = await this.prisma.salon.upsert({
+      where: { id: input.salon_id },
+      update: data,
+      create: { id: input.salon_id, ...data },
+    });
 
     return SalonMapper.toDto(salon);
   }
@@ -207,21 +209,21 @@ export class SalonService {
     await Promise.all(tasks);
   }
 
-  private mapSyncDto(input: SalonSyncDto): Prisma.SalonUncheckedCreateInput {
+  private mapSyncDto(input: SalonData): Prisma.SalonUncheckedCreateInput {
     return {
       name: input.name,
-      addressLine: input.address_line,
-      city: input.city,
-      country: input.country,
-      latitude: input.latitude !== undefined ? new Prisma.Decimal(input.latitude) : undefined,
-      longitude: input.longitude !== undefined ? new Prisma.Decimal(input.longitude) : undefined,
+      addressLine: input.location?.addressLine,
+      city: input.location?.city,
+      country: input.location?.country,
+      latitude: input.location?.lat !== undefined ? new Prisma.Decimal(input.location?.lat) : undefined,
+      longitude: input.location?.lon !== undefined ? new Prisma.Decimal(input.location?.lon) : undefined,
       phone: input.phone,
       email: input.email,
-      ratingAvg: input.rating_avg !== undefined ? new Prisma.Decimal(input.rating_avg) : undefined,
-      ratingCount: input.rating_count,
-      openHoursJson: input.open_hours_json as any,
-      imagesCount: input.images_count,
-      coverImageUrl: input.cover_image_url,
+      ratingAvg: null,
+      ratingCount: null,
+      openHoursJson: input.workingSchedule as any,
+      imagesCount: input.imageUrls?.length ?? 0,
+      coverImageUrl: input.mainImageUrl,
     };
   }
 }

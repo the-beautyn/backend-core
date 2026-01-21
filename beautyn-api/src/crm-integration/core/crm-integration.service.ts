@@ -1,4 +1,5 @@
 import { BadGatewayException, BadRequestException, HttpException, HttpStatus, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../shared/database/prisma.service';
 import { CrmError, CrmType, ErrorKind } from '@crm/shared';
 import { AccountRegistryService } from '@crm/account-registry';
@@ -7,6 +8,7 @@ import { CrmAdapterService } from '@crm/adapter';
 import { CrmSalonDiffService } from '../../crm-salon-changes/crm-salon-diff.service';
 import { createChildLogger } from '@shared/logger';
 import type { BookingDto } from '../../booking/dto/booking.response.dto';
+import { SalonSyncDto } from '../../salon/dto/salon-sync.dto';
 
 import {
   CategoryData,
@@ -47,52 +49,98 @@ export class CrmIntegrationService {
   
   // Creates a draft Salon linked to Altegio by external id and provider.
   // Further metadata and tokens should be stored in AccountRegistry/TokenStorage.
-  async linkAltegio({ userId, externalSalonId }: { userId: string; externalSalonId: string }): Promise<{ salonId: string }> {
-    const ext = String(externalSalonId);
-    const existing = await this.prisma.salon.findFirst({ where: { ownerUserId: userId } });
-    if (existing) {
-      if (existing.externalSalonId === ext && existing.provider === CrmType.ALTEGIO) {
-        return { salonId: existing.id };
+  async linkAltegio({
+    userId,
+    externalSalonIds,
+  }: {
+    userId: string;
+    externalSalonIds: string[];
+  }): Promise<{ salonIds: string[] }> {
+    const salonIds: string[] = [];
+    for (const externalSalonId of externalSalonIds) {
+      const ext = String(externalSalonId);
+      const existing = await this.prisma.salon.findFirst({
+        where: { provider: CrmType.ALTEGIO, externalSalonId: ext },
+        select: { id: true, ownerUserId: true },
+      });
+      if (existing) {
+        if (existing.ownerUserId && existing.ownerUserId !== userId) {
+          throw new BadRequestException('Altegio salon already linked to another user');
+        }
+        if (!existing.ownerUserId) {
+          await this.prisma.salon.update({
+            where: { id: existing.id },
+            data: { ownerUserId: userId },
+          });
+        }
+        salonIds.push(existing.id);
+        continue;
       }
-      await this.prisma.salon.delete({ where: { id: existing.id } });
-    }
-    const salon = await this.prisma.salon.create({
-      data: { ownerUserId: userId, externalSalonId: ext, provider: CrmType.ALTEGIO },
-      select: { id: true },
-    });
 
-    // Persist non-secret account identifiers in Account Registry
-    await this.accounts.setAltegio(salon.id, { externalSalonId: Number(ext) });
+      const salon = await this.prisma.salon.create({
+        data: { ownerUserId: userId, externalSalonId: ext, provider: CrmType.ALTEGIO },
+        select: { id: true },
+      });
 
-    // If global env tokens are configured, persist them as per-salon tokens
-    const envBearer = process.env.ALTEGIO_BEARER?.trim();
-    const envUser = process.env.ALTEGIO_USER?.trim();
-    if (envBearer && envUser) {
-      await this.tokens.store(salon.id, CrmType.ALTEGIO, { accessToken: envBearer, userToken: envUser });
+      // Persist non-secret account identifiers in Account Registry
+      await this.accounts.setAltegio(salon.id, { externalSalonId: Number(ext) });
+
+      // If global env tokens are configured, persist them as per-salon tokens
+      const envBearer = process.env.ALTEGIO_BEARER?.trim();
+      const envUser = process.env.ALTEGIO_USER?.trim();
+      if (envBearer && envUser) {
+        await this.tokens.store(salon.id, CrmType.ALTEGIO, { accessToken: envBearer, userToken: envUser });
+      }
+      salonIds.push(salon.id);
     }
-    return { salonId: salon.id };
+    return { salonIds };
   }
 
   // Creates a draft Salon linked to EasyWeek by external id and provider.
   // workspaceSlug/auth are handled by AccountRegistry/TokenStorage; here we just persist the link anchor.
-  async linkEasyWeek({ userId, authToken, workspaceSlug, externalSalonId }: { userId: string; authToken: string; workspaceSlug: string; externalSalonId: string }): Promise<{ salonId: string }> {
-    const ext = String(externalSalonId);
-    const existing = await this.prisma.salon.findFirst({ where: { ownerUserId: userId } });
-    if (existing) {
-      if (existing.externalSalonId === ext && existing.provider === CrmType.EASYWEEK) {
-        return { salonId: existing.id };
+  async linkEasyWeek({
+    userId,
+    authToken,
+    workspaceSlug,
+    externalSalonIds,
+  }: {
+    userId: string;
+    authToken: string;
+    workspaceSlug: string;
+    externalSalonIds: string[];
+  }): Promise<{ salonIds: string[] }> {
+    const salonIds: string[] = [];
+    for (const externalSalonId of externalSalonIds) {
+      const ext = String(externalSalonId);
+      const existing = await this.prisma.salon.findFirst({
+        where: { provider: CrmType.EASYWEEK, externalSalonId: ext },
+        select: { id: true, ownerUserId: true },
+      });
+      if (existing) {
+        if (existing.ownerUserId && existing.ownerUserId !== userId) {
+          throw new BadRequestException('EasyWeek salon already linked to another user');
+        }
+        if (!existing.ownerUserId) {
+          await this.prisma.salon.update({
+            where: { id: existing.id },
+            data: { ownerUserId: userId },
+          });
+        }
+        salonIds.push(existing.id);
+        continue;
       }
-      await this.prisma.salon.delete({ where: { id: existing.id } });
+
+      const salon = await this.prisma.salon.create({
+        data: { ownerUserId: userId, externalSalonId: ext, provider: CrmType.EASYWEEK },
+        select: { id: true },
+      });
+      // Persist non-secret identifiers
+      await this.accounts.setEasyWeek(salon.id, { workspaceSlug, locationId: ext });
+      // Store secret/API key in Token Storage
+      await this.tokens.store(salon.id, CrmType.EASYWEEK, { apiKey: authToken });
+      salonIds.push(salon.id);
     }
-    const salon = await this.prisma.salon.create({
-      data: { ownerUserId: userId, externalSalonId: ext, provider: CrmType.EASYWEEK },
-      select: { id: true },
-    });
-    // Persist non-secret identifiers
-    await this.accounts.setEasyWeek(salon.id, { workspaceSlug, locationId: ext });
-    // Store secret/API key in Token Storage
-    await this.tokens.store(salon.id, CrmType.EASYWEEK, { apiKey: authToken });
-    return { salonId: salon.id };
+    return { salonIds };
   }
 
   //** CRM Sync Scheduler **//
@@ -105,12 +153,14 @@ export class CrmIntegrationService {
   async runInitialPullNow(
     salonId: string,
   ): Promise<{
+    salon: SalonData;
     categories: { items: any[]; upserted: number; deleted: number };
     services: { items: any[]; upserted: number; deleted: number };
     workers: { items: any[]; upserted: number; deleted: number };
   }> {
     const provider = await this.resolveSalonProvider(salonId);
 
+    const salonSnapshot = await this.rebaseSalonNow(salonId, provider);
     const categoriesResult = await this.rebaseCategoriesNow(salonId, provider);
     const servicesResult = await this.rebaseServicesNow(salonId, provider);
     const workersResult = await this.rebaseWorkersNow(salonId, provider);
@@ -122,6 +172,7 @@ export class CrmIntegrationService {
     ]);
 
     return {
+      salon: salonSnapshot,
       categories: {
         items: categoriesSnapshot,
         upserted: categoriesResult.upserted ?? 0,
@@ -142,6 +193,16 @@ export class CrmIntegrationService {
 
   //*** Salon Sync ***//
 
+  async syncSalonNow(salonId: string, provider?: CrmType): Promise<SalonData> {
+    const resolvedProvider = provider ?? (await this.resolveSalonProvider(salonId));
+    const salon = await this.adapter.pullSalon(salonId, resolvedProvider);
+    return this.pushSalonToInternal(salonId, salon);
+  }
+
+  async rebaseSalonNow(salonId: string, provider?: CrmType): Promise<SalonData> {
+    return this.syncSalonNow(salonId, provider);
+  }
+
   async pullSalonAndDetectChanges(salonId: string): Promise<SalonData> {
     const salon = await this.prisma.salon.findUnique({
       where: { id: salonId },
@@ -158,6 +219,18 @@ export class CrmIntegrationService {
     });
     await this.salonDiff.detectChanges(salonId, provider, detectionPayload);
     return remote;
+  }
+
+  async pullSalonRaw(salonId: string): Promise<SalonData> {
+    const salon = await this.prisma.salon.findUnique({
+      where: { id: salonId },
+      select: { provider: true },
+    });
+    if (!salon?.provider) {
+      throw new BadRequestException('Salon is not linked to a CRM provider');
+    }
+    const provider = salon.provider as CrmType;
+    return this.adapter.pullSalon(salonId, provider);
   }
 
   async enqueueSalonSync(salonId: string, provider?: CrmType): Promise<{ jobId: string }> {
@@ -509,6 +582,24 @@ export class CrmIntegrationService {
       throw new BadRequestException('Salon is not linked to a CRM provider');
     }
     return salon.provider as CrmType;
+  }
+
+  private async pushSalonToInternal(salonId: string, salon: SalonData): Promise<SalonData> {
+    const base = process.env.INTERNAL_API_BASE_URL?.trim();
+    const key = process.env.INTERNAL_API_KEY?.trim();
+    if (!base || !key) {
+      throw new BadRequestException('Internal API base URL or key not configured');
+    }
+    const res = await fetch(`${base}/api/v1/internal/salons/sync`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-internal-key': key },
+      body: JSON.stringify({ salon_id: salonId, salon }),
+    } as any);
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      throw new BadRequestException(`Salon sync failed: ${res.status} ${text?.slice(0, 500)}`);
+    }
+    return res.json().catch(() => ({} as any));
   }
 
   private prepareCategoriesSyncPayload(categories: CategoryData[]): Array<{ crm_category_id: string; name: string; color?: string | null; sort_order?: number | null }> {

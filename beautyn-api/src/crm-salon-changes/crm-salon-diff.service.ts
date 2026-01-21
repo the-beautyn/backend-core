@@ -1,6 +1,7 @@
 import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Prisma, CrmSalonChangeStatus } from '@prisma/client';
 import { PrismaService } from '../shared/database/prisma.service';
+import { BrandService } from '../brand/brand.service';
 import { canonicalHash, canonicalize, equalCanonical, CanonicalValue } from './crm-salon-normalizer';
 import { SalonData } from '@crm/provider-core';
 
@@ -82,7 +83,10 @@ const TRACKED_FIELDS: TrackedField[] = [
 export class CrmSalonDiffService {
   private readonly logger = new Logger(CrmSalonDiffService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly brandService: BrandService,
+  ) {}
 
   async detectChanges(salonId: string, provider: string, crmPayload: SalonData | null): Promise<void> {
     if (!salonId) throw new BadRequestException('salonId required');
@@ -232,7 +236,6 @@ export class CrmSalonDiffService {
     await this.prisma.$transaction(async (tx) => {
       const proposal = await tx.crmSalonChangeProposal.findUnique({
         where: { id },
-        include: { salon: { select: { ownerUserId: true } } },
       });
       if (!proposal) throw new NotFoundException('Proposal not found');
       if (proposal.status !== CrmSalonChangeStatus.pending) {
@@ -241,9 +244,7 @@ export class CrmSalonDiffService {
       if (proposal.fieldPath === 'externalId') {
         throw new BadRequestException('Cannot accept changes to externalId');
       }
-      if (proposal.salon.ownerUserId !== actorId) {
-        throw new ForbiddenException('Access denied');
-      }
+      await this.brandService.assertUserCanAccessSalon(actorId, proposal.salonId);
 
       await applyFieldPatch(tx, proposal.salonId, proposal.fieldPath, proposal.newValue);
 
@@ -264,15 +265,12 @@ export class CrmSalonDiffService {
     await this.prisma.$transaction(async (tx) => {
       const proposal = await tx.crmSalonChangeProposal.findUnique({
         where: { id },
-        include: { salon: { select: { ownerUserId: true } } },
       });
       if (!proposal) throw new NotFoundException('Proposal not found');
       if (proposal.status !== CrmSalonChangeStatus.pending) {
         throw new BadRequestException('Proposal already resolved');
       }
-      if (proposal.salon.ownerUserId !== actorId) {
-        throw new ForbiddenException('Access denied');
-      }
+      await this.brandService.assertUserCanAccessSalon(actorId, proposal.salonId);
 
       await tx.crmSalonChangeProposal.update({
         where: { id },
@@ -289,12 +287,7 @@ export class CrmSalonDiffService {
     if (!actorId) throw new BadRequestException('actorId required');
     if (!salonId) throw new BadRequestException('salonId required');
 
-    const salon = await this.prisma.salon.findUnique({
-      where: { id: salonId },
-      select: { ownerUserId: true },
-    });
-    if (!salon) throw new NotFoundException('Salon not found');
-    if (salon.ownerUserId !== actorId) throw new ForbiddenException('Access denied');
+    await this.brandService.assertUserCanAccessSalon(actorId, salonId);
 
     const proposals = await this.prisma.crmSalonChangeProposal.findMany({
       where: {

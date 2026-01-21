@@ -6,6 +6,8 @@ import { JwtAuthGuard } from '../../src/shared/guards/jwt-auth.guard';
 import { PrismaService } from '../../src/shared/database/prisma.service';
 import { TransformInterceptor } from '../../src/shared/interceptors/transform.interceptor';
 import { AltegioPartnerClient } from '../../src/crm-integration/clients/altegio-partner.client';
+import { ACCOUNT_REGISTRY_REPOSITORY } from '@crm/account-registry';
+import { TOKEN_STORAGE_REPOSITORY } from '@crm/token-storage';
 
 describe('Altegio linking (e2e)', () => {
   let app: INestApplication;
@@ -52,7 +54,25 @@ describe('Altegio linking (e2e)', () => {
       onboardingStep: {
         upsert: jest.fn().mockResolvedValue(undefined),
       },
+      salon: {
+        findFirst: jest.fn().mockResolvedValue(null),
+        create: jest.fn().mockResolvedValue({ id: 'salon-1' }),
+      },
     } as Partial<PrismaService> as any;
+
+    const memAccounts = new (class {
+      private store = new Map<string, any>();
+      private key(s: string, p: string) { return `${s}|${p}`; }
+      async find(salonId: string, provider: string) { return this.store.get(this.key(salonId, provider)) ?? null; }
+      async upsert(payload: any) { this.store.set(this.key(payload.salonId, payload.provider), { ...payload }); }
+    })();
+    const memTokens = new (class {
+      private store = new Map<string, any>();
+      private key(s: string, p: string) { return `${s}|${p}`; }
+      async findUnique(salonId: string, provider: string) { return this.store.get(this.key(salonId, provider)) ?? null; }
+      async upsert(data: any) { this.store.set(this.key(data.salonId, data.provider), { ...data, id: 'id' }); }
+      async delete(salonId: string, provider: string) { this.store.delete(this.key(salonId, provider)); }
+    })();
 
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
@@ -63,6 +83,10 @@ describe('Altegio linking (e2e)', () => {
       .useValue(prismaMock)
       .overrideProvider(AltegioPartnerClient)
       .useValue({ confirmRegistration: jest.fn().mockResolvedValue(undefined) })
+      .overrideProvider(ACCOUNT_REGISTRY_REPOSITORY)
+      .useValue(memAccounts as any)
+      .overrideProvider(TOKEN_STORAGE_REPOSITORY)
+      .useValue(memTokens as any)
       .compile();
 
     app = moduleFixture.createNestApplication();
@@ -89,14 +113,14 @@ describe('Altegio linking (e2e)', () => {
     // Get redirect page
     const rd = await request(app.getHttpServer())
       .get('/api/v1/webhooks/altegio/redirect')
-      .query({ salon_id: '1234' })
+      .query({ salon_ids: ['1234'] })
       .expect(200);
     expect(String(rd.text || '')).toContain('<form');
 
     // Confirm with code
     await request(app.getHttpServer())
       .post('/api/v1/webhooks/altegio/confirm')
-      .send({ code, salon_id: '1234' })
+      .send({ code, salon_ids: ['1234'] })
       .expect(201)
       .expect({ success: true });
 
@@ -106,5 +130,4 @@ describe('Altegio linking (e2e)', () => {
     );
   });
 });
-
 

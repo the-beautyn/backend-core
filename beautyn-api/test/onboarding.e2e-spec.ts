@@ -36,12 +36,12 @@ describe('Onboarding (e2e)', () => {
       } as any,
       onboardingStep: {
         findUnique: jest.fn().mockImplementation(({ where }: any) => steps.find((s) => s.userId === where.userId) || null),
-        create: jest.fn().mockImplementation(({ data }: any) => { const row = { crmConnected: false, subscriptionSet: false, completed: false, currentStep: 'CRM', ...data }; steps.push(row); return row; }),
+        create: jest.fn().mockImplementation(({ data }: any) => { const row = { crmConnected: false, brandCreated: false, subscriptionSet: false, completed: false, currentStep: 'CRM', ...data }; steps.push(row); return row; }),
         deleteMany: jest.fn().mockImplementation(() => { steps.length = 0; return { count: 0 }; }),
         upsert: jest.fn().mockImplementation(({ where, create, update }: any) => {
           const idx = steps.findIndex((s) => s.userId === where.userId);
           if (idx >= 0) { steps[idx] = { ...steps[idx], ...(update || {}) }; return steps[idx]; }
-          const row = { crmConnected: false, subscriptionSet: false, completed: false, currentStep: 'CRM', ...(create || {}), userId: where.userId };
+          const row = { crmConnected: false, brandCreated: false, subscriptionSet: false, completed: false, currentStep: 'CRM', ...(create || {}), userId: where.userId };
           steps.push(row); return row;
         }),
       } as any,
@@ -93,6 +93,7 @@ describe('Onboarding (e2e)', () => {
       success: true,
       data: {
         crm_connected: false,
+        brand_created: false,
         subscription_set: false,
         completed: false,
         current_step: 'CRM',

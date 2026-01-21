@@ -7,7 +7,7 @@ import { CategoriesAuthenticatedController } from '../../../src/api-gateway/v1/a
 import { CategoriesInternalController } from '../../../src/api-gateway/v1/internal/categories.internal.controller';
 import { JwtAuthGuard } from '../../../src/shared/guards/jwt-auth.guard';
 import { OwnerRolesGuard } from '../../../src/shared/guards/roles.guard';
-import { CategoryOwnerGuard } from '../../../src/categories/guards/category-owner.guard';
+import { SalonAccessGuard } from '../../../src/brand/guards/salon-access.guard';
 import { InternalApiKeyGuard } from '../../../src/shared/guards/internal-api-key.guard';
 import { TransformInterceptor } from '../../../src/shared/interceptors/transform.interceptor';
 
@@ -55,7 +55,7 @@ describe('CategoriesController (e2e)', () => {
     }),
   };
 
-  const mockCategoryOwnerGuard = {
+  const mockSalonAccessGuard = {
     canActivate: jest.fn().mockReturnValue(true),
   };
 
@@ -79,8 +79,8 @@ describe('CategoriesController (e2e)', () => {
       .useValue(mockJwtGuard)
       .overrideGuard(OwnerRolesGuard)
       .useValue(mockOwnerRolesGuard)
-      .overrideGuard(CategoryOwnerGuard)
-      .useValue(mockCategoryOwnerGuard)
+      .overrideGuard(SalonAccessGuard)
+      .useValue(mockSalonAccessGuard)
       .overrideGuard(InternalApiKeyGuard)
       .useValue(mockInternalApiKeyGuard)
       .compile();
@@ -109,20 +109,20 @@ describe('CategoriesController (e2e)', () => {
     expect(service.listPublic).toHaveBeenCalledWith(expect.objectContaining({ salonId: '11111111-1111-1111-1111-111111111111' }));
   });
 
-  it('GET /api/v1/categories/my without token is unauthorized', async () => {
-    await request(app.getHttpServer()).get('/api/v1/categories/my').expect(401);
+  it('GET /api/v1/salons/:salonId/categories without token is unauthorized', async () => {
+    await request(app.getHttpServer()).get('/api/v1/salons/salon-1/categories').expect(401);
   });
 
-  it('GET /api/v1/categories/my with owner token returns data', async () => {
+  it('GET /api/v1/salons/:salonId/categories with owner token returns data', async () => {
     service.pullFromDb.mockResolvedValue({ items: [], page: 1, limit: 20, total: 0 });
 
     const res = await request(app.getHttpServer())
-      .get('/api/v1/categories/my')
+      .get('/api/v1/salons/salon-1/categories')
       .set('Authorization', 'Bearer owner-token')
       .expect(200);
 
     expect(res.body).toEqual({ success: true, data: { items: [], page: 1, limit: 20, total: 0 } });
-    expect(service.pullFromDb).toHaveBeenCalledWith('owner-1', expect.objectContaining({}));
+    expect(service.pullFromDb).toHaveBeenCalledWith('salon-1', expect.objectContaining({}));
   });
 
   it('GET /api/v1/categories without salonId returns 400', async () => {
@@ -134,16 +134,16 @@ describe('CategoriesController (e2e)', () => {
     expect(res.body).toHaveProperty('message');
   });
 
-  it('POST /api/v1/categories rejects non-owner role', async () => {
+  it('POST /api/v1/salons/:salonId/categories rejects non-owner role', async () => {
     await request(app.getHttpServer())
-      .post('/api/v1/categories')
+      .post('/api/v1/salons/salon-1/categories')
       .set('Authorization', 'Bearer client-token')
       .send({ title: 'VIP' })
       .expect(403);
     expect(service.create).not.toHaveBeenCalled();
   });
 
-  it('POST /api/v1/categories creates category for owner', async () => {
+  it('POST /api/v1/salons/:salonId/categories creates category for owner', async () => {
     service.create.mockResolvedValue({
       id: 'cat-1',
       salonId: 'salon-1',
@@ -157,77 +157,77 @@ describe('CategoriesController (e2e)', () => {
     });
 
     const res = await request(app.getHttpServer())
-      .post('/api/v1/categories')
+      .post('/api/v1/salons/salon-1/categories')
       .set('Authorization', 'Bearer owner-token')
       .send({ title: 'VIP', weight: 1, staff: [1, 2] })
       .expect(201);
 
-    expect(service.create).toHaveBeenCalledWith('owner-1', { title: 'VIP', weight: 1, staff: [1, 2] });
+    expect(service.create).toHaveBeenCalledWith('salon-1', { title: 'VIP', weight: 1, staff: [1, 2] });
     expect(res.body.success).toBe(true);
   });
 
-  it('GET /api/v1/categories/crm returns CRM page for owner', async () => {
+  it('GET /api/v1/salons/:salonId/categories/crm returns CRM page for owner', async () => {
     service.pullFromCrm.mockResolvedValue({ items: [], fetched: 0, total: 0, nextCursor: undefined });
     const res = await request(app.getHttpServer())
-      .get('/api/v1/categories/crm')
+      .get('/api/v1/salons/salon-1/categories/crm')
       .set('Authorization', 'Bearer owner-token')
       .expect(200);
     expect(res.body.success).toBe(true);
-    expect(service.pullFromCrm).toHaveBeenCalledWith('owner-1');
+    expect(service.pullFromCrm).toHaveBeenCalledWith('salon-1');
   });
 
-  it('POST /api/v1/categories/crm/sync returns sync result', async () => {
+  it('POST /api/v1/salons/:salonId/categories/crm/sync returns sync result', async () => {
     service.rebaseFromCrm.mockResolvedValue({ categories: [], upserted: 0, deleted: 0 });
     const res = await request(app.getHttpServer())
-      .post('/api/v1/categories/crm/sync')
+      .post('/api/v1/salons/salon-1/categories/crm/sync')
       .set('Authorization', 'Bearer owner-token')
       .expect(201);
     expect(res.body.success).toBe(true);
-    expect(service.rebaseFromCrm).toHaveBeenCalledWith('owner-1');
+    expect(service.rebaseFromCrm).toHaveBeenCalledWith('salon-1');
   });
 
-  it('POST /api/v1/categories/crm/sync/async returns 202 and jobId', async () => {
+  it('POST /api/v1/salons/:salonId/categories/crm/sync/async returns 202 and jobId', async () => {
     service.rebaseFromCrmAsync.mockResolvedValue({ jobId: 'job-1' });
     const res = await request(app.getHttpServer())
-      .post('/api/v1/categories/crm/sync/async')
+      .post('/api/v1/salons/salon-1/categories/crm/sync/async')
       .set('Authorization', 'Bearer owner-token')
       .expect(202);
     expect(res.body.success).toBe(true);
     expect(res.body.data.jobId).toBe('job-1');
   });
 
-  it('PATCH /api/v1/categories/:id updates category', async () => {
+  it('PATCH /api/v1/salons/:salonId/categories/:id updates category', async () => {
     service.update.mockResolvedValue({ id: 'cat-1', name: 'New', crmCategoryId: '123' } as any);
     const res = await request(app.getHttpServer())
-      .patch('/api/v1/categories/cat-1')
+      .patch('/api/v1/salons/salon-1/categories/cat-1')
       .set('Authorization', 'Bearer owner-token')
       .send({ title: 'New' })
       .expect(200);
     expect(res.body.success).toBe(true);
-    expect(service.update).toHaveBeenCalledWith('owner-1', 'cat-1', { title: 'New' });
+    expect(service.update).toHaveBeenCalledWith('salon-1', 'cat-1', { title: 'New' });
   });
 
-  it('PATCH /api/v1/categories/:id returns 409 on conflict', async () => {
+  it('PATCH /api/v1/salons/:salonId/categories/:id returns 409 on conflict', async () => {
     service.update.mockRejectedValue(new ConflictException('Category has linked services'));
     await request(app.getHttpServer())
-      .patch('/api/v1/categories/cat-1')
+      .patch('/api/v1/salons/salon-1/categories/cat-1')
       .set('Authorization', 'Bearer owner-token')
       .send({ title: 'New' })
       .expect(409);
   });
 
-  it('DELETE /api/v1/categories/:id returns 204 on success', async () => {
+  it('DELETE /api/v1/salons/:salonId/categories/:id returns 204 on success', async () => {
     service.delete.mockResolvedValue(undefined);
     await request(app.getHttpServer())
-      .delete('/api/v1/categories/cat-1')
+      .delete('/api/v1/salons/salon-1/categories/cat-1')
       .set('Authorization', 'Bearer owner-token')
       .expect(204);
   });
 
-  it('DELETE /api/v1/categories/:id returns 404 when missing', async () => {
+  it('DELETE /api/v1/salons/:salonId/categories/:id returns 404 when missing', async () => {
     service.delete.mockRejectedValue(new NotFoundException());
     await request(app.getHttpServer())
-      .delete('/api/v1/categories/cat-1')
+      .delete('/api/v1/salons/salon-1/categories/cat-1')
       .set('Authorization', 'Bearer owner-token')
       .expect(404);
   });

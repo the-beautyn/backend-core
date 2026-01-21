@@ -30,6 +30,19 @@ export function startInitialSyncWorker(container: { providerFactory: ProviderFac
       const key = process.env.INTERNAL_API_KEY;
 
       if (base && key) {
+        // Salon
+        try {
+          const salon = await executeWithRetry(() => p.pullSalon());
+          log.info('Pulled salon from CRM', { salonId, provider, jobId: job.id });
+          await fetch(`${base}/api/v1/internal/salons/sync`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json', 'x-internal-key': key },
+            body: JSON.stringify({ salon_id: salonId, salon }),
+          });
+        } catch (err) {
+          log.warn('Failed to call internal salon sync', { salonId, provider, jobId: job.id, error: (err as Error)?.message });
+        }
+
         // Categories
         try {
           const page = await executeWithRetry(() => p.pullCategories());

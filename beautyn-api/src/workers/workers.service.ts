@@ -21,11 +21,6 @@ interface PaginationParams {
   skip: number;
 }
 
-interface SalonContext {
-  salonId: string;
-  provider: CrmType;
-}
-
 @Injectable()
 export class WorkersService {
   private readonly log = createChildLogger('workers.service');
@@ -85,14 +80,13 @@ export class WorkersService {
 
   // -------- Authenticated API -------- //
 
-  async pullFromCrm(ownerId: string): Promise<WorkerDto[]> {
-    const { salonId, provider } = await this.requireOwnerSalon(ownerId);
+  async pullFromCrm(salonId: string): Promise<WorkerDto[]> {
+    const provider = await this.requireSalonProvider(salonId);
     let page = await this.crmIntegration.pullWorkers(salonId, provider);
     return page.items.map((item) => this.mapCrmWorkerToPreviewDto(item, salonId));
   }
 
-  async pull(ownerId: string, opts?: { page?: number; limit?: number; search?: string; isActive?: boolean }): Promise<{ items: WorkerDto[]; page: number; limit: number; total: number }> {
-    const { salonId } = await this.requireOwnerSalon(ownerId);
+  async pull(salonId: string, opts?: { page?: number; limit?: number; search?: string; isActive?: boolean }): Promise<{ items: WorkerDto[]; page: number; limit: number; total: number }> {
     const { page, limit, skip } = this.normalizePagination(opts?.page, opts?.limit);
     const { items, total } = await this.repository.paginate(salonId, {
       skip,
@@ -108,26 +102,26 @@ export class WorkersService {
     };
   }
 
-  async rebaseFromCrm(ownerId: string): Promise<{ workers: WorkerDto[]; upserted: number; deleted: number }> {
-    const { salonId, provider } = await this.requireOwnerSalon(ownerId);
+  async rebaseFromCrm(salonId: string): Promise<{ workers: WorkerDto[]; upserted: number; deleted: number }> {
+    const provider = await this.requireSalonProvider(salonId);
     return this.crmIntegration.rebaseWorkersNow(salonId, provider);
   }
 
-  async rebaseFromCrmAsync(ownerId: string): Promise<{ jobId: string }> {
-    const { salonId, provider } = await this.requireOwnerSalon(ownerId);
+  async rebaseFromCrmAsync(salonId: string): Promise<{ jobId: string }> {
+    const provider = await this.requireSalonProvider(salonId);
     return this.crmIntegration.enqueueWorkersSync(salonId, provider);
   }
 
-  async create(ownerId: string, dto: UpsertWorkerDto): Promise<WorkerDto> {
-    const { salonId, provider } = await this.requireOwnerSalon(ownerId);
+  async create(salonId: string, dto: UpsertWorkerDto): Promise<WorkerDto> {
+    const provider = await this.requireSalonProvider(salonId);
     const payload = this.mapUpsertDtoToEntity(dto);
     const crmWorker = await this.crmIntegration.createWorker(salonId, provider, payload);
     const saved = await this.category.create(salonId, this.mapCrmWorkerToEntity(crmWorker));
     return saved;
   }
 
-  async update(ownerId: string, workerId: string, dto: UpsertWorkerDto): Promise<WorkerDto> {
-    const { salonId, provider } = await this.requireOwnerSalon(ownerId);
+  async update(salonId: string, workerId: string, dto: UpsertWorkerDto): Promise<WorkerDto> {
+    const provider = await this.requireSalonProvider(salonId);
     const current = await this.category.requireWithinSalon(workerId, salonId);
     if (!current.crmWorkerId) {
       throw new ConflictException({ message: 'Worker is not linked to CRM', code: 'WORKER_MISSING_CRM_ID' });
@@ -138,8 +132,8 @@ export class WorkersService {
     return updated;
   }
 
-  async delete(ownerId: string, workerId: string): Promise<{ id: string }> {
-    const { salonId, provider } = await this.requireOwnerSalon(ownerId);
+  async delete(salonId: string, workerId: string): Promise<{ id: string }> {
+    const provider = await this.requireSalonProvider(salonId);
     const current = await this.category.requireWithinSalon(workerId, salonId);
     if (!current.crmWorkerId) {
       throw new ConflictException({ message: 'Worker is not linked to CRM', code: 'WORKER_MISSING_CRM_ID' });
@@ -179,18 +173,15 @@ export class WorkersService {
     return null;
   }
 
-  private async requireOwnerSalon(ownerId: string): Promise<SalonContext> {
-    const salon = await this.prisma.salon.findFirst({
-      where: { ownerUserId: ownerId },
-      select: { id: true, provider: true },
+  private async requireSalonProvider(salonId: string): Promise<CrmType> {
+    const salon = await this.prisma.salon.findUnique({
+      where: { id: salonId },
+      select: { provider: true },
     });
-    if (!salon) {
+    if (!salon?.provider) {
       throw new NotFoundException('Salon not found for owner');
     }
-    if (!salon.provider) {
-      throw new BadRequestException('Salon is not linked to a CRM provider');
-    }
-    return { salonId: salon.id, provider: salon.provider as CrmType };
+    return salon.provider as CrmType;
   }
 
   private ensureCapability(provider: CrmType, capability: keyof Capability): void {

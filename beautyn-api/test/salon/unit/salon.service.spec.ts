@@ -32,8 +32,8 @@ describe('SalonService', () => {
   });
 
   it('upsertFromCrm updates when id matches', async () => {
-    await service.upsertFromCrm({ id: 's1', name: 'First' });
-    await service.upsertFromCrm({ id: 's1', name: 'Updated' });
+    await service.upsertFromCrm({ salon_id: 's1', salon: { externalId: 'ext-1', name: 'First' } as any });
+    await service.upsertFromCrm({ salon_id: 's1', salon: { externalId: 'ext-1', name: 'Updated' } as any });
 
     const list = await prisma.salon.findMany({});
     expect(list).toHaveLength(1);
