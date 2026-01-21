@@ -67,6 +67,12 @@ export class CrmIntegrationService {
         if (existing.ownerUserId && existing.ownerUserId !== userId) {
           throw new BadRequestException('Altegio salon already linked to another user');
         }
+        if (!existing.ownerUserId) {
+          await this.prisma.salon.update({
+            where: { id: existing.id },
+            data: { ownerUserId: userId },
+          });
+        }
         salonIds.push(existing.id);
         continue;
       }
@@ -113,6 +119,12 @@ export class CrmIntegrationService {
       if (existing) {
         if (existing.ownerUserId && existing.ownerUserId !== userId) {
           throw new BadRequestException('EasyWeek salon already linked to another user');
+        }
+        if (!existing.ownerUserId) {
+          await this.prisma.salon.update({
+            where: { id: existing.id },
+            data: { ownerUserId: userId },
+          });
         }
         salonIds.push(existing.id);
         continue;

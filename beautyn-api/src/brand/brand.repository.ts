@@ -68,7 +68,7 @@ export class BrandRepository {
 
   async findSalonWithBrand(salonId: string): Promise<Pick<Salon, 'id' | 'brandId'> | null> {
     return this.prisma.salon.findUnique({
-      where: { id: salonId },
+      where: { id: salonId, deletedAt: null },
       select: { id: true, brandId: true },
     });
   }
