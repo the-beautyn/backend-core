@@ -12,6 +12,7 @@ This is the main API server for the Beautyn Marketplace platform. It handles bus
 - 🔌 Integrates with external CRMs (Altegio, EasyWeek, CleverBox)
 - 🧠 AI-assisted structure, designed for scalability
 - 📘 OpenAPI (Swagger) documentation included
+- Schema source of truth: Prisma migrations.
 
 ---
 

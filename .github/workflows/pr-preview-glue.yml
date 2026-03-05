@@ -1,0 +1,359 @@
+name: PR Preview (Supabase → Railway)
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, closed]
+    branches: [develop]
+
+jobs:
+  # ─────────────────────────────────────────────────────────────
+  # 1) Wait for Supabase to finish provisioning the preview branch
+  # ─────────────────────────────────────────────────────────────
+  wait_for_supabase_preview:
+    if: github.event.action != 'closed'
+    runs-on: ubuntu-latest
+    outputs:
+      status: ${{ steps.check.outputs.conclusion }}
+    steps:
+      - uses: fountainhead/action-wait-for-check@v1.2.0
+        id: check
+        with:
+          checkName: Supabase Preview
+          ref: ${{ github.event.pull_request.head.sha }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          timeoutSeconds: 300
+          intervalSeconds: 10
+
+  # ─────────────────────────────────────────────────────────────
+  # 2) Fetch DB URLs from Supabase + wire into Railway PR env
+  # ─────────────────────────────────────────────────────────────
+  glue:
+    if: github.event.action != 'closed' && needs.wait_for_supabase_preview.outputs.status == 'success'
+    needs: [wait_for_supabase_preview]
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_PROJECT_ID:   ${{ secrets.SUPABASE_PROJECT_ID }}
+      RAILWAY_API_TOKEN:     ${{ secrets.RAILWAY_API_TOKEN }}
+      RAILWAY_PROJECT_ID:    ${{ secrets.RAILWAY_PROJECT_ID }}
+      RAILWAY_SERVICE_ID:       ${{ secrets.RAILWAY_SERVICE_ID }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies (jq, curl)
+        run: sudo apt-get update && sudo apt-get install -y jq curl
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      # ── Resolve Railway PR environment ──────────────────────
+      - name: Get Railway PR environment
+        id: get_env
+        run: |
+          PR_NUMBER="${{ github.event.pull_request.number }}"
+
+          RESPONSE=$(curl -s -X POST https://backboard.railway.com/graphql/v2 \
+            -H "Authorization: Bearer $RAILWAY_API_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"query\": \"query { environments(projectId: \\\"$RAILWAY_PROJECT_ID\\\") { edges { node { id name } } } }\"
+            }")
+
+          # Debug: print all available environment names
+          echo "=== Available Railway environments ==="
+          echo "$RESPONSE" | jq -r '.data.environments.edges[].node.name'
+          echo "======================================"
+
+          # Try matching "pr-<number>" (Railway's default PR env naming)
+          PR_ENV_NAME=$(echo "$RESPONSE" | jq -r \
+            --arg pr "$PR_NUMBER" \
+            '.data.environments.edges[]
+             | select(.node.name | test("(?i)(pr[^0-9]*" + $pr + ")"))
+             | .node.name' | head -n 1)
+
+          PR_ENV_ID=$(echo "$RESPONSE" | jq -r \
+            --arg pr "$PR_NUMBER" \
+            '.data.environments.edges[]
+             | select(.node.name | test("(?i)(pr[^0-9]*" + $pr + ")"))
+             | .node.id' | head -n 1)
+
+          # Fallback: match by PR branch name
+          if [ -z "$PR_ENV_NAME" ] || [ "$PR_ENV_NAME" = "null" ]; then
+            BRANCH="${{ github.event.pull_request.head.ref }}"
+            echo "No pr-number match, trying branch name: $BRANCH"
+            PR_ENV_NAME=$(echo "$RESPONSE" | jq -r \
+              --arg branch "$BRANCH" \
+              '.data.environments.edges[]
+               | select(.node.name == $branch)
+               | .node.name' | head -n 1)
+            PR_ENV_ID=$(echo "$RESPONSE" | jq -r \
+              --arg branch "$BRANCH" \
+              '.data.environments.edges[]
+               | select(.node.name == $branch)
+               | .node.id' | head -n 1)
+          fi
+
+          # Hard fail if still not found
+          if [ -z "$PR_ENV_NAME" ] || [ "$PR_ENV_NAME" = "null" ]; then
+            echo "❌ ERROR: Could not find a Railway environment for PR #$PR_NUMBER"
+            echo "Make sure Railway PR environments are enabled in your project settings."
+            exit 1
+          fi
+
+          echo "✅ Found Railway env: $PR_ENV_NAME (id: $PR_ENV_ID)"
+          echo "PR_ENV=$PR_ENV_NAME"   >> "$GITHUB_ENV"
+          echo "PR_ENV_ID=$PR_ENV_ID" >> "$GITHUB_ENV"
+
+      # ── Fetch Supabase branch credentials ───────────────────
+      - name: Fetch Supabase branch DB URLs
+        run: |
+          BRANCH="${{ github.event.pull_request.head.ref }}"
+          echo "Fetching Supabase preview branch for: $BRANCH"
+          supabase --experimental branches get "$BRANCH" \
+            --project-ref "$SUPABASE_PROJECT_ID" -o env >> "$GITHUB_ENV"
+
+      # ── Build safe URLs with required Prisma params ──────────
+      - name: Build and validate connection URLs
+        run: |
+          append_params() {
+            local url="$1"
+            local params="$2"
+            if [[ "$url" == *"?"* ]]; then
+              echo "${url}&${params}"
+            else
+              echo "${url}?${params}"
+            fi
+          }
+
+          # Strip surrounding quotes from ALL Supabase values
+          CLEAN_POSTGRES_URL=$(echo "$POSTGRES_URL" | tr -d '"')
+          CLEAN_POSTGRES_URL_NON_POOLING=$(echo "$POSTGRES_URL_NON_POOLING" | tr -d '"')
+          CLEAN_SUPABASE_URL=$(echo "$SUPABASE_URL" | tr -d '"')
+          CLEAN_SUPABASE_DEFAULT_KEY=$(echo "$SUPABASE_DEFAULT_KEY" | tr -d '"')
+          CLEAN_SUPABASE_SERVICE_ROLE_KEY=$(echo "$SUPABASE_SERVICE_ROLE_KEY" | tr -d '"')
+
+          # Validate
+          for var_name in CLEAN_POSTGRES_URL CLEAN_POSTGRES_URL_NON_POOLING CLEAN_SUPABASE_URL CLEAN_SUPABASE_DEFAULT_KEY CLEAN_SUPABASE_SERVICE_ROLE_KEY; do
+            if [ -z "${!var_name}" ]; then
+              echo "❌ ERROR: $var_name is empty after cleaning."
+              exit 1
+            fi
+          done
+
+          # Build Prisma-compatible URLs
+          DATABASE_URL=$(append_params "$CLEAN_POSTGRES_URL" \
+            "pgbouncer=true&sslmode=require&connect_timeout=10&connection_limit=1&pool_timeout=30")
+          
+          # Extract project ref from SUPABASE_URL
+          PROJECT_REF=$(echo "$CLEAN_SUPABASE_URL" | sed 's|https://||' | cut -d'.' -f1)
+          # Extract password from POSTGRES_URL (between : and @)
+          DB_PASSWORD=$(echo "$CLEAN_POSTGRES_URL" | sed 's/.*postgres\.[^:]*:\(.*\)@.*/\1/')
+          # Build DIRECT_URL using pooler session mode (port 5432)
+          DIRECT_URL="postgresql://postgres.${PROJECT_REF}:${DB_PASSWORD}@aws-1-eu-central-1.pooler.supabase.com:5432/postgres?sslmode=require&schema=public"
+
+          # Mask secrets
+          echo "::add-mask::$DATABASE_URL"
+          echo "::add-mask::$DIRECT_URL"
+          echo "::add-mask::$CLEAN_SUPABASE_SERVICE_ROLE_KEY"
+          echo "::add-mask::$CLEAN_SUPABASE_DEFAULT_KEY"
+
+          echo "✅ DATABASE_URL built"
+          echo "✅ DIRECT_URL built"
+          echo "✅ SUPABASE_URL: $CLEAN_SUPABASE_URL"
+
+          echo "BUILT_DATABASE_URL=$DATABASE_URL"                       >> "$GITHUB_ENV"
+          echo "BUILT_DIRECT_URL=$DIRECT_URL"                           >> "$GITHUB_ENV"
+          echo "BUILT_SUPABASE_URL=$CLEAN_SUPABASE_URL"                 >> "$GITHUB_ENV"
+          echo "BUILT_SUPABASE_ANON_KEY=$CLEAN_SUPABASE_DEFAULT_KEY"    >> "$GITHUB_ENV"
+          echo "BUILT_SERVICE_ROLE_KEY=$CLEAN_SUPABASE_SERVICE_ROLE_KEY" >> "$GITHUB_ENV"
+
+      # ── Push variables to Railway PR env ────────────────────
+      - name: Set Railway variables (PR env)
+        run: |
+          set -e
+
+          echo "Setting variables on Railway env: $PR_ENV"
+
+          set_var() {
+            local key="$1"
+            local value="$2"
+
+            # Use jq to safely build the JSON payload — handles special chars in value
+            PAYLOAD=$(jq -n \
+              --arg projectId "$RAILWAY_PROJECT_ID" \
+              --arg environmentId "$PR_ENV_ID" \
+              --arg serviceId "$RAILWAY_SERVICE_ID" \
+              --arg name "$key" \
+              --arg value "$value" \
+              '{query: "mutation($input: VariableUpsertInput!) { variableUpsert(input: $input) }",
+                variables: {input: {projectId: $projectId, environmentId: $environmentId, serviceId: $serviceId, name: $name, value: $value}}}')
+
+            RESULT=$(curl -s -X POST https://backboard.railway.com/graphql/v2 \
+              -H "Authorization: Bearer $RAILWAY_API_TOKEN" \
+              -H "Content-Type: application/json" \
+              -d "$PAYLOAD")
+
+            SUCCESS=$(echo "$RESULT" | jq -r '.data.variableUpsert')
+            if [ "$SUCCESS" != "true" ]; then
+              echo "❌ Failed to set $key"
+              echo "$RESULT" | jq .
+              exit 1
+            fi
+            echo "✅ Set $key"
+          }
+
+          set_var "DATABASE_URL"              "$BUILT_DATABASE_URL"
+          set_var "DIRECT_URL"                "$BUILT_DIRECT_URL"
+          set_var "SUPABASE_URL"              "$BUILT_SUPABASE_URL"
+          set_var "SUPABASE_SERVICE_ROLE_KEY" "$BUILT_SERVICE_ROLE_KEY"
+
+          echo "✅ All variables set successfully"
+
+      # ── Redeploy via GraphQL API (CLI redeploy has no -e flag) ──
+      - name: Redeploy Railway service (PR env)
+        run: |
+          set -e
+
+          # Wait for deployment to be in a redeployable state (not INITIALIZING/BUILDING)
+          echo "Waiting for deployment to have a snapshot..."
+          MAX_ATTEMPTS=20
+          ATTEMPT=0
+
+          while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
+            DEPLOYMENT_RESPONSE=$(curl -s -X POST https://backboard.railway.com/graphql/v2 \
+              -H "Authorization: Bearer $RAILWAY_API_TOKEN" \
+              -H "Content-Type: application/json" \
+              -d "{
+                \"query\": \"query { deployments(input: { projectId: \\\"$RAILWAY_PROJECT_ID\\\", environmentId: \\\"$PR_ENV_ID\\\" }, first: 1) { edges { node { id status } } } }\"
+              }")
+
+            DEPLOYMENT_ID=$(echo "$DEPLOYMENT_RESPONSE" | jq -r '.data.deployments.edges[0].node.id')
+            STATUS=$(echo "$DEPLOYMENT_RESPONSE" | jq -r '.data.deployments.edges[0].node.status')
+
+            echo "Attempt $((ATTEMPT+1))/$MAX_ATTEMPTS — deployment $DEPLOYMENT_ID status: $STATUS"
+
+            # SUCCESS/FAILED states have a snapshot and can be redeployed
+            if [[ "$STATUS" == "SUCCESS" || "$STATUS" == "FAILED" || "$STATUS" == "CRASHED" ]]; then
+              echo "✅ Deployment ready to redeploy (status: $STATUS)"
+              break
+            fi
+
+            ATTEMPT=$((ATTEMPT+1))
+            sleep 15
+          done
+
+          if [ $ATTEMPT -eq $MAX_ATTEMPTS ]; then
+            echo "⚠️ Timed out waiting for deployment snapshot — skipping redeploy"
+            exit 0
+          fi
+
+          echo "Redeploying deployment ID: $DEPLOYMENT_ID"
+
+          REDEPLOY_RESPONSE=$(curl -s -X POST https://backboard.railway.com/graphql/v2 \
+            -H "Authorization: Bearer $RAILWAY_API_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"query\": \"mutation { deploymentRedeploy(id: \\\"$DEPLOYMENT_ID\\\") { id status } }\"
+            }")
+
+          echo "$REDEPLOY_RESPONSE" | jq .
+
+          STATUS=$(echo "$REDEPLOY_RESPONSE" | jq -r '.data.deploymentRedeploy.status')
+          if [ -z "$STATUS" ] || [ "$STATUS" = "null" ]; then
+            echo "❌ Redeploy failed. Check Railway dashboard."
+            exit 1
+          fi
+
+          echo "✅ Redeploy triggered — status: $STATUS"
+
+  # ─────────────────────────────────────────────────────────────
+  # 3) Cleanup when PR closes
+  # ─────────────────────────────────────────────────────────────
+  cleanup:
+    if: github.event.action == 'closed'
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_PROJECT_ID:   ${{ secrets.SUPABASE_PROJECT_ID }}
+      RAILWAY_API_TOKEN:     ${{ secrets.RAILWAY_API_TOKEN }}
+      RAILWAY_PROJECT_ID:    ${{ secrets.RAILWAY_PROJECT_ID }}
+
+    steps:
+      - name: Install dependencies (jq, curl)
+        run: sudo apt-get update && sudo apt-get install -y jq curl
+
+      # ── Find Railway PR environment ──────────────────────────
+      - name: Find Railway PR environment
+        id: find_env
+        run: |
+          PR_NUMBER="${{ github.event.pull_request.number }}"
+          BRANCH="${{ github.event.pull_request.head.ref }}"
+
+          RESPONSE=$(curl -s -X POST https://backboard.railway.com/graphql/v2 \
+            -H "Authorization: Bearer $RAILWAY_API_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"query\": \"query { environments(projectId: \\\"$RAILWAY_PROJECT_ID\\\") { edges { node { id name } } } }\"
+            }")
+
+          # Try pr-number match
+          PR_ENV_ID=$(echo "$RESPONSE" | jq -r \
+            --arg pr "$PR_NUMBER" \
+            '.data.environments.edges[]
+             | select(.node.name | test("(?i)(pr[^0-9]*" + $pr + ")"))
+             | .node.id' | head -n 1)
+
+          # Fallback: branch name match
+          if [ -z "$PR_ENV_ID" ] || [ "$PR_ENV_ID" = "null" ]; then
+            PR_ENV_ID=$(echo "$RESPONSE" | jq -r \
+              --arg branch "$BRANCH" \
+              '.data.environments.edges[]
+               | select(.node.name == $branch)
+               | .node.id' | head -n 1)
+          fi
+
+          if [ -z "$PR_ENV_ID" ] || [ "$PR_ENV_ID" = "null" ]; then
+            echo "⚠️  No Railway environment found for PR #$PR_NUMBER — nothing to delete."
+            echo "SKIP_DELETE=true" >> "$GITHUB_ENV"
+          else
+            echo "✅ Found env to delete: $PR_ENV_ID"
+            echo "PR_ENV_ID=$PR_ENV_ID" >> "$GITHUB_ENV"
+            echo "SKIP_DELETE=false"    >> "$GITHUB_ENV"
+          fi
+
+      # ── Delete Railway PR environment via API ───────────────
+      - name: Delete Railway PR environment
+        if: env.SKIP_DELETE != 'true'
+        run: |
+          DELETE_RESPONSE=$(curl -s -X POST https://backboard.railway.com/graphql/v2 \
+            -H "Authorization: Bearer $RAILWAY_API_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"query\": \"mutation { environmentDelete(id: \\\"$PR_ENV_ID\\\") }\"
+            }")
+
+          echo "$DELETE_RESPONSE" | jq .
+
+          DELETED=$(echo "$DELETE_RESPONSE" | jq -r '.data.environmentDelete')
+          if [ "$DELETED" = "true" ]; then
+            echo "✅ Railway environment deleted"
+          else
+            echo "⚠️  Could not confirm deletion — check Railway dashboard"
+          fi
+
+      # ── Delete Supabase branch ───────────────────────────────
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Delete Supabase branch
+        run: |
+          BRANCH="${{ github.event.pull_request.head.ref }}"
+          echo "Deleting Supabase branch: $BRANCH"
+          supabase --experimental branches delete "$BRANCH" \
+            --project-ref "$SUPABASE_PROJECT_ID" -y || \
+            echo "⚠️  Supabase branch delete failed or already gone — continuing"
