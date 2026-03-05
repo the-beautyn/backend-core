@@ -14,6 +14,7 @@ const userSelect = {
   name: true,
   secondName: true,
   phone: true,
+  preferredLanguage: true,
   avatarUrl: true,
   isProfileCreated: true,
   isOnboardingCompleted: true,
