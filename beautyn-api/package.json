@@ -7,6 +7,7 @@
   "license": "UNLICENSED",
   "scripts": {
     "build": "prisma generate --schema=./prisma/schema.prisma && nest build && tsc-alias -p tsconfig.json",
+    "build:railway": "prisma generate --schema=./prisma/schema.prisma && nest build && tsc-alias -p tsconfig.json",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "NODE_ENV=${NODE_ENV:-production} dotenv -e .env.${NODE_ENV:-production} -- prisma generate --schema=./prisma/schema.prisma && npm run build && NODE_ENV=${NODE_ENV:-production} node dist/src/main.js",
     "start:dev": "NODE_ENV=dev dotenv -e .env.dev -- prisma generate --schema=./prisma/schema.prisma && NODE_ENV=dev dotenv -e .env.dev -- nest start --watch",
@@ -33,6 +34,7 @@
     "db:stage:migrate": "dotenv -e .env.stage -- npx prisma migrate dev",
     "db:stage:deploy": "dotenv -e .env.stage -- npx prisma migrate deploy",
     "db:prod:deploy": "dotenv -e .env.prod -- npx prisma migrate deploy",
+    "db:deploy": "npx prisma migrate deploy",
     "db:status:dev": "dotenv -e .env.dev -- npx prisma migrate status",
     "queue:local:inspect": "NODE_ENV=local dotenv -e .env.local -- ts-node -r tsconfig-paths/register src/scripts/queue-inspect.ts",
     "queue:dev:inspect": "NODE_ENV=dev dotenv -e .env.dev -- ts-node -r tsconfig-paths/register src/scripts/queue-inspect.ts",
@@ -73,7 +75,8 @@
     "up:local": "concurrently -k -n api,workers -c cyan,magenta \"npm:start:local:redis\" \"npm:worker:local\"",
     "up:dev": "concurrently -k -n api,workers -c cyan,magenta \"npm:start:dev:redis\" \"npm:worker:dev\"",
     "up:stage": "concurrently -k -n api,workers -c cyan,magenta \"npm:start:stage:redis\" \"npm:worker:stage\"",
-    "up:prod": "concurrently -k -n api,workers -c cyan,magenta \"npm:start:prod:redis\" \"npm:worker:prod\""
+    "up:prod": "concurrently -k -n api,workers -c cyan,magenta \"npm:start:prod:redis\" \"npm:worker:prod\"",
+    "start:railway": "node dist/src/main.js"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
