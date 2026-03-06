@@ -148,6 +148,7 @@ model Salon {
   timezone        String?   @map("timezone")
   phone           String?
   email           String?
+  websiteUrl      String?   @map("website_url")
   ratingAvg       Decimal?  @map("rating_avg") @db.Decimal(2, 1)
   ratingCount     Int?      @map("rating_count")
   minPriceCents   Int?      @map("min_price_cents")
