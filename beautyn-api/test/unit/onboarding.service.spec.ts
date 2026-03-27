@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { OnboardingService } from '../../src/onboarding/onboarding.service';
 import { PrismaService } from '../../src/shared/database/prisma.service';
 import { CrmIntegrationService } from '../../src/crm-integration/core/crm-integration.service';
+import { CrmSyncOrchestratorService } from '../../src/crm-integration/sync/crm-sync-orchestrator.service';
 import { SyncSchedulerService } from '@crm/sync-scheduler';
 
 describe('OnboardingService', () => {
@@ -19,6 +20,7 @@ describe('OnboardingService', () => {
         OnboardingService,
         { provide: PrismaService, useValue: prisma },
         { provide: CrmIntegrationService, useValue: {} },
+        { provide: CrmSyncOrchestratorService, useValue: {} },
         { provide: SyncSchedulerService, useValue: {} },
       ],
     }).compile();

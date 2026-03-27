@@ -5,6 +5,7 @@ import { JwtAuthGuard } from '../../src/shared/guards/jwt-auth.guard';
 import { TransformInterceptor } from '../../src/shared/interceptors/transform.interceptor';
 import { CrmSalonChangesController } from '../../src/api-gateway/v1/authenticated/crm-salon-changes.controller';
 import { CrmSalonDiffService } from '../../src/crm-salon-changes/crm-salon-diff.service';
+import { BrandService } from '../../src/brand/brand.service';
 
 describe('CrmSalonChangesController (e2e)', () => {
   let app: INestApplication;
@@ -13,6 +14,9 @@ describe('CrmSalonChangesController (e2e)', () => {
     acceptChange: jest.fn(),
     dismissChange: jest.fn(),
   } as unknown as jest.Mocked<CrmSalonDiffService>;
+  const brandService = {
+    assertUserCanAccessSalon: jest.fn().mockResolvedValue(undefined),
+  } as unknown as jest.Mocked<BrandService>;
 
   const mockJwtGuard = {
     canActivate: jest.fn().mockImplementation((context) => {
@@ -37,7 +41,10 @@ describe('CrmSalonChangesController (e2e)', () => {
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       controllers: [CrmSalonChangesController],
-      providers: [{ provide: CrmSalonDiffService, useValue: service }],
+      providers: [
+        { provide: CrmSalonDiffService, useValue: service },
+        { provide: BrandService, useValue: brandService },
+      ],
     })
       .overrideGuard(JwtAuthGuard)
       .useValue(mockJwtGuard)
@@ -78,7 +85,8 @@ describe('CrmSalonChangesController (e2e)', () => {
 
     expect(res.body.success).toBe(true);
     expect(res.body.data[0].id).toBe('c1');
-    expect(service.listChanges).toHaveBeenCalledWith('owner-1', 'salon-1', undefined);
+    expect(brandService.assertUserCanAccessSalon).toHaveBeenCalledWith('owner-1', 'salon-1');
+    expect(service.listChanges).toHaveBeenCalledWith('salon-1', undefined);
   });
 
   it('GET /api/v1/crm/salon/changes validates query', async () => {

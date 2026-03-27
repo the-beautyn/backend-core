@@ -36,7 +36,6 @@ describe('CategoriesService', () => {
       updateCategory: jest.fn(),
       deleteCategory: jest.fn(),
       pullCategories: jest.fn(),
-      rebaseCategoriesNow: jest.fn(),
       enqueueCategoriesSync: jest.fn(),
     } as unknown as jest.Mocked<CrmIntegrationService>;
 

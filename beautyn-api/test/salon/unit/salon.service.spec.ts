@@ -4,27 +4,27 @@ import { PrismaService } from '../../../src/shared/database/prisma.service';
 import { createFakePrismaForSalon } from '../utils/fakes.prisma.salon';
 import { ServicesRepository } from '../../../src/services/repositories/services.repo';
 import { WorkersRepository } from '../../../src/workers/repositories/workers.repository';
-import { CrmIntegrationService } from '../../../src/crm-integration/core/crm-integration.service';
+import { CrmSalonDiffService } from '../../../src/crm-salon-changes/crm-salon-diff.service';
 
 describe('SalonService', () => {
   let service: SalonService;
   let prisma: ReturnType<typeof createFakePrismaForSalon>;
   let servicesRepo: { findBySalon: jest.Mock };
   let workersRepo: { listBySalon: jest.Mock };
-  let crmIntegration: { pullSalonAndDetectChanges: jest.Mock };
+  let crmSalonDiff: { pullAndDetect: jest.Mock };
 
   beforeEach(async () => {
     prisma = createFakePrismaForSalon();
     servicesRepo = { findBySalon: jest.fn() };
     workersRepo = { listBySalon: jest.fn() };
-    crmIntegration = { pullSalonAndDetectChanges: jest.fn() };
+    crmSalonDiff = { pullAndDetect: jest.fn() };
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         SalonService,
         { provide: PrismaService, useValue: prisma },
         { provide: ServicesRepository, useValue: servicesRepo },
         { provide: WorkersRepository, useValue: workersRepo },
-        { provide: CrmIntegrationService, useValue: crmIntegration },
+        { provide: CrmSalonDiffService, useValue: crmSalonDiff },
       ],
     }).compile();
 

@@ -4,6 +4,7 @@ import { Request } from 'express';
 import { JwtAuthGuard } from '../../../shared/guards/jwt-auth.guard';
 import { OwnerRolesGuard } from '../../../shared/guards/roles.guard';
 import { CrmSalonDiffService } from '../../../crm-salon-changes/crm-salon-diff.service';
+import { BrandService } from '../../../brand/brand.service';
 import { CrmSalonChangeDto } from '../../../crm-salon-changes/dto/crm-salon-change.dto';
 import { CrmSalonChangeMapper } from '../../../crm-salon-changes/mappers/crm-salon-change.mapper';
 import { GetCrmSalonChangesQuery } from '../../../crm-salon-changes/dto/get-crm-salon-changes.query';
@@ -14,7 +15,10 @@ import { envelopeArrayRef, envelopeErrorSchema } from '../../../shared/utils/swa
 @UseGuards(JwtAuthGuard)
 @Controller('api/v1/crm/salon/changes')
 export class CrmSalonChangesController {
-  constructor(private readonly service: CrmSalonDiffService) {}
+  constructor(
+    private readonly service: CrmSalonDiffService,
+    private readonly brandService: BrandService,
+  ) {}
 
   @Get()
   @ApiOperation({ summary: 'List detected CRM changes for a salon' })
@@ -24,7 +28,8 @@ export class CrmSalonChangesController {
     @Req() req: Request & { user: { id: string } },
     @Query() query: GetCrmSalonChangesQuery,
   ) {
-    const changes = await this.service.listChanges(req.user.id, query.salonId, query.status);
+    await this.brandService.assertUserCanAccessSalon(req.user.id, query.salonId);
+    const changes = await this.service.listChanges(query.salonId, query.status);
     return changes.map(CrmSalonChangeMapper.toDto);
   }
 

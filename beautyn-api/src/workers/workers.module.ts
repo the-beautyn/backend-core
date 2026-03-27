@@ -5,10 +5,8 @@ import { CapabilityRegistryModule } from '@crm/capability-registry';
 import { WorkersService } from './workers.service';
 import { WorkersRepository } from './repositories/workers.repository';
 import { WorkersCategory } from './category/workers.category';
-import { forwardRef } from '@nestjs/common';
-
 @Module({
-  imports: [SharedModule, forwardRef(() => CrmIntegrationModule), CapabilityRegistryModule],
+  imports: [SharedModule, CrmIntegrationModule, CapabilityRegistryModule],
   providers: [WorkersService, WorkersRepository, WorkersCategory],
   exports: [WorkersService, WorkersRepository, WorkersCategory],
 })

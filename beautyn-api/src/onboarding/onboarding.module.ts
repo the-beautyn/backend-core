@@ -6,11 +6,13 @@ import { EasyWeekDiscoveryClient, HttpEasyWeekDiscoveryClient } from './clients/
 import { CrmSalonChangesModule } from '../crm-salon-changes/crm-salon-changes.module';
 import { SyncSchedulerModule } from '@crm/sync-scheduler';
 import { CrmIntegrationModule } from '../crm-integration/core/crm-integration.module';
+import { CrmSyncOrchestratorModule } from '../crm-integration/sync/crm-sync-orchestrator.module';
 
 @Module({
   imports: [
     SharedModule,
     CrmIntegrationModule,
+    CrmSyncOrchestratorModule,
     SyncSchedulerModule,
     CrmSalonChangesModule,
   ],

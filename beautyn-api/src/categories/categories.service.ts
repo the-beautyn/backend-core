@@ -154,7 +154,14 @@ export class CategoriesService {
 
   async rebaseFromCrm(salonId: string): Promise<{ categories: CategoryResponseDto[]; upserted: number; deleted: number }> {
     const provider = await this.requireSalonProvider(salonId);
-    const result = await this.crmIntegration.rebaseCategoriesNow(salonId, provider);
+    const page = await this.crmIntegration.pullCategories(salonId, provider);
+    const payload = (page?.items ?? []).map((category) => ({
+      crm_category_id: String(category.externalId),
+      name: String(category.name ?? ''),
+      color: category.color ?? undefined,
+      sort_order: category.sortOrder ?? undefined,
+    }));
+    const result = await this.syncFromCrm({ salon_id: salonId, categories: payload });
     return {
       categories: (result.categories ?? []) as CategoryResponseDto[],
       upserted: result.upserted ?? 0,
