@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Prisma, CrmSalonChangeStatus } from '@prisma/client';
 import { PrismaService } from '../shared/database/prisma.service';
 import { CrmIntegrationService } from '../crm-integration/core/crm-integration.service';
@@ -263,6 +263,8 @@ export class CrmSalonDiffService {
         throw new BadRequestException('Cannot accept changes to externalId');
       }
 
+      await this.assertActorCanAccessSalon(actorId, proposal.salonId);
+
       await applyFieldPatch(tx, proposal.salonId, proposal.fieldPath, proposal.newValue);
 
       await tx.crmSalonChangeProposal.update({
@@ -288,6 +290,8 @@ export class CrmSalonDiffService {
         throw new BadRequestException('Proposal already resolved');
       }
 
+      await this.assertActorCanAccessSalon(actorId, proposal.salonId);
+
       await tx.crmSalonChangeProposal.update({
         where: { id },
         data: {
@@ -310,6 +314,18 @@ export class CrmSalonDiffService {
       orderBy: { detectedAt: 'desc' },
     });
     return proposals;
+  }
+
+  private async assertActorCanAccessSalon(userId: string, salonId: string): Promise<void> {
+    const salon = await this.prisma.salon.findUnique({
+      where: { id: salonId, deletedAt: null },
+      select: { brandId: true },
+    });
+    if (!salon?.brandId) throw new NotFoundException('Salon not found');
+    const membership = await this.prisma.brandMember.findFirst({
+      where: { userId, brandId: salon.brandId },
+    });
+    if (!membership) throw new ForbiddenException('Access denied');
   }
 
   private prepareDetectionPayload(remote: SalonData, fallback: { externalSalonId?: string | null; name?: string | null }): SalonData {

@@ -54,9 +54,11 @@ function createPrismaMock(overrides?: Partial<MockedPrisma>): { prisma: PrismaSe
     workingSchedule: null,
     timezone: null,
     externalSalonId: 'ext-1',
+    brandId: 'brand-1',
     images: [],
   });
   const salonUpdate = jest.fn().mockResolvedValue(undefined);
+  const brandMemberFindFirst = jest.fn().mockResolvedValue({ id: 'member-1', userId: 'user-1', brandId: 'brand-1' });
   const salonImageDeleteMany = jest.fn().mockResolvedValue(undefined);
   const salonImageCreateMany = jest.fn().mockResolvedValue(undefined);
 
@@ -85,6 +87,7 @@ function createPrismaMock(overrides?: Partial<MockedPrisma>): { prisma: PrismaSe
       findMany: proposalFindMany,
     },
     salonImage: { deleteMany: salonImageDeleteMany, createMany: salonImageCreateMany },
+    brandMember: { findFirst: brandMemberFindFirst },
     $transaction: jest.fn(async (cb) => cb(tx as any)),
   } as unknown as PrismaService;
 
