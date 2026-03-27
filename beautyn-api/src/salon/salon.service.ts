@@ -10,10 +10,9 @@ import { toServiceDto } from '../services/mappers/service.mapper';
 import { WorkersRepository } from '../workers/repositories/workers.repository';
 import { WorkerMapper } from '../workers/mappers/worker.mapper';
 import { toCategoryResponse } from '../categories/mappers/category.mapper';
-import { CrmIntegrationService } from '../crm-integration/core/crm-integration.service';
+import { CrmSalonDiffService } from '../crm-salon-changes/crm-salon-diff.service';
 import { SalonInternalSyncDto } from './dto/salon-internal-sync.dto';
 import type { SalonData } from '@crm/provider-core';
-import { Inject, forwardRef } from '@nestjs/common';
 
 export interface SalonIncludeOptions {
   services?: boolean;
@@ -28,7 +27,7 @@ export class SalonService {
     private readonly prisma: PrismaService,
     private readonly servicesRepo: ServicesRepository,
     private readonly workersRepo: WorkersRepository,
-    @Inject(forwardRef(() => CrmIntegrationService)) private readonly crmIntegration: CrmIntegrationService,
+    private readonly crmSalonDiff: CrmSalonDiffService,
   ) {}
 
   async findById(id: string, include?: SalonIncludeOptions): Promise<SalonDto | null> {
@@ -128,7 +127,7 @@ export class SalonService {
       select: { id: true },
     });
     const beforeIds = new Set(before.map((entry) => entry.id));
-    await this.crmIntegration.pullSalonAndDetectChanges(salonId);
+    await this.crmSalonDiff.pullAndDetect(salonId);
     const pending = await this.prisma.crmSalonChangeProposal.findMany({
       where: { salonId, status: CrmSalonChangeStatus.pending },
       orderBy: { detectedAt: 'desc' },

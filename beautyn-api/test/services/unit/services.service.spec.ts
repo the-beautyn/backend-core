@@ -20,7 +20,6 @@ describe('ServicesService', () => {
 
     integration = {
       pullServices: jest.fn(),
-      rebaseServicesNow: jest.fn(),
       enqueueServicesSync: jest.fn(),
       createService: jest.fn(),
       updateService: jest.fn(),
@@ -70,13 +69,19 @@ describe('ServicesService', () => {
       expect(res.items).toEqual([]);
     });
 
-    it('rebaseFromCrm delegates to integration', async () => {
+    it('rebaseFromCrm pulls from CRM and syncs locally', async () => {
       (prisma.salon.findUnique as any).mockResolvedValue({ id: 'salon-1', provider: 'EASYWEEK' });
-      integration.rebaseServicesNow.mockResolvedValue({ services: [], upserted: 0, deleted: 0 } as any);
+      (prisma.salon as any).findFirst = jest.fn().mockResolvedValue({ provider: 'EASYWEEK' });
+      (prisma.category as any).findMany = jest.fn().mockResolvedValue([]);
+      (prisma as any).worker = { findMany: jest.fn().mockResolvedValue([]) };
+      (prisma as any).service = { aggregate: jest.fn().mockResolvedValue({ _min: { price: null }, _max: { price: null } }), findMany: jest.fn().mockResolvedValue([]) };
+      (prisma.salon as any).update = jest.fn().mockResolvedValue({});
+      integration.pullServices.mockResolvedValue({ items: [], fetched: 0 } as any);
+      repo.findBySalon.mockResolvedValue([]);
 
       const res = await service.rebaseFromCrm('salon-1');
-      expect(integration.rebaseServicesNow).toHaveBeenCalledWith('salon-1', 'EASYWEEK');
-      expect(res).toEqual({ services: [], upserted: 0, deleted: 0 });
+      expect(integration.pullServices).toHaveBeenCalledWith('salon-1', 'EASYWEEK');
+      expect(res).toMatchObject({ upserted: 0, deleted: 0 });
     });
 
     it('rebaseFromCrmAsync enqueues sync', async () => {

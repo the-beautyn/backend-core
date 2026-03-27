@@ -7,6 +7,7 @@ import { SalonDto } from '../salon/dto/salon.dto';
 import { OnboardingMapper } from './mappers/onboarding.mapper';
 import { EasyWeekDiscoveryClient } from './clients/easyweek-discovery.client';
 import { CrmIntegrationService } from '../crm-integration/core/crm-integration.service';
+import { CrmSyncOrchestratorService } from '../crm-integration/sync/crm-sync-orchestrator.service';
 import { CrmType } from '@crm/shared';
 import { createChildLogger } from '@shared/logger';
 
@@ -17,6 +18,7 @@ export class OnboardingService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly crmIntegration: CrmIntegrationService,
+    private readonly syncOrchestrator: CrmSyncOrchestratorService,
     @Optional() private readonly ew?: EasyWeekDiscoveryClient
   ) {}
 
@@ -116,7 +118,7 @@ export class OnboardingService {
       workers: { items: any[] };
     }> = [];
     for (const salon of salons) {
-      const result = await this.crmIntegration.runInitialPullNow(salon.id);
+      const result = await this.syncOrchestrator.runInitialPullNow(salon.id);
       const refreshed = await this.prisma.salon.findUnique({ where: { id: salon.id } });
       const info = refreshed ? SalonMapper.toDto(refreshed as any) : SalonMapper.toDto(salon as any);
       items.push({

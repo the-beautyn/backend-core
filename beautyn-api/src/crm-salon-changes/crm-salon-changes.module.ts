@@ -1,10 +1,9 @@
 import { Module } from '@nestjs/common';
-import { BrandModule } from '../brand/brand.module';
+import { CrmIntegrationModule } from '../crm-integration/core/crm-integration.module';
 import { CrmSalonDiffService } from './crm-salon-diff.service';
-import { forwardRef } from '@nestjs/common';
 
 @Module({
-  imports: [forwardRef(() => BrandModule)],
+  imports: [CrmIntegrationModule],
   providers: [CrmSalonDiffService],
   exports: [CrmSalonDiffService],
 })

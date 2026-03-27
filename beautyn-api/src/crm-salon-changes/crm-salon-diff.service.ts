@@ -1,7 +1,7 @@
-import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Prisma, CrmSalonChangeStatus } from '@prisma/client';
 import { PrismaService } from '../shared/database/prisma.service';
-import { BrandService } from '../brand/brand.service';
+import { CrmIntegrationService } from '../crm-integration/core/crm-integration.service';
 import { canonicalHash, canonicalize, equalCanonical, CanonicalValue } from './crm-salon-normalizer';
 import { SalonData } from '@crm/provider-core';
 
@@ -85,8 +85,26 @@ export class CrmSalonDiffService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly brandService: BrandService,
+    private readonly crmIntegration: CrmIntegrationService,
   ) {}
+
+  async pullAndDetect(salonId: string): Promise<SalonData> {
+    const salon = await this.prisma.salon.findUnique({
+      where: { id: salonId },
+      select: { provider: true, externalSalonId: true, name: true },
+    });
+    if (!salon?.provider) {
+      throw new BadRequestException('Salon is not linked to a CRM provider');
+    }
+    const provider = salon.provider;
+    const remote = await this.crmIntegration.pullSalon(salonId, provider as any);
+    const detectionPayload = this.prepareDetectionPayload(remote, {
+      externalSalonId: salon.externalSalonId,
+      name: salon.name,
+    });
+    await this.detectChanges(salonId, provider, detectionPayload);
+    return remote;
+  }
 
   async detectChanges(salonId: string, provider: string, crmPayload: SalonData | null): Promise<void> {
     if (!salonId) throw new BadRequestException('salonId required');
@@ -244,7 +262,6 @@ export class CrmSalonDiffService {
       if (proposal.fieldPath === 'externalId') {
         throw new BadRequestException('Cannot accept changes to externalId');
       }
-      await this.brandService.assertUserCanAccessSalon(actorId, proposal.salonId);
 
       await applyFieldPatch(tx, proposal.salonId, proposal.fieldPath, proposal.newValue);
 
@@ -270,7 +287,6 @@ export class CrmSalonDiffService {
       if (proposal.status !== CrmSalonChangeStatus.pending) {
         throw new BadRequestException('Proposal already resolved');
       }
-      await this.brandService.assertUserCanAccessSalon(actorId, proposal.salonId);
 
       await tx.crmSalonChangeProposal.update({
         where: { id },
@@ -283,11 +299,8 @@ export class CrmSalonDiffService {
     });
   }
 
-  async listChanges(actorId: string, salonId: string, status?: CrmSalonChangeStatus) {
-    if (!actorId) throw new BadRequestException('actorId required');
+  async listChanges(salonId: string, status?: CrmSalonChangeStatus) {
     if (!salonId) throw new BadRequestException('salonId required');
-
-    await this.brandService.assertUserCanAccessSalon(actorId, salonId);
 
     const proposals = await this.prisma.crmSalonChangeProposal.findMany({
       where: {
@@ -297,6 +310,32 @@ export class CrmSalonDiffService {
       orderBy: { detectedAt: 'desc' },
     });
     return proposals;
+  }
+
+  private prepareDetectionPayload(remote: SalonData, fallback: { externalSalonId?: string | null; name?: string | null }): SalonData {
+    const payload: SalonData = {
+      externalId: remote.externalId ?? fallback.externalSalonId ?? '',
+      name: remote.name ?? fallback.name ?? '',
+    };
+
+    if (remote.description !== undefined) payload.description = remote.description;
+    if (remote.mainImageUrl !== undefined) payload.mainImageUrl = remote.mainImageUrl;
+    if (remote.imageUrls) payload.imageUrls = remote.imageUrls.slice();
+    if (remote.location) {
+      payload.location = {
+        country: remote.location.country,
+        city: remote.location.city,
+        addressLine: remote.location.addressLine,
+        lat: remote.location.lat,
+        lon: remote.location.lon,
+      };
+    }
+    if (remote.workingSchedule !== undefined) payload.workingSchedule = remote.workingSchedule;
+    if (remote.timezone !== undefined) payload.timezone = remote.timezone;
+    if (remote.phone !== undefined) payload.phone = remote.phone;
+    if (remote.email !== undefined) payload.email = remote.email;
+
+    return payload;
   }
 }
 

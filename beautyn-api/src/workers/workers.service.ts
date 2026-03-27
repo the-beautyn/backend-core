@@ -104,7 +104,22 @@ export class WorkersService {
 
   async rebaseFromCrm(salonId: string): Promise<{ workers: WorkerDto[]; upserted: number; deleted: number }> {
     const provider = await this.requireSalonProvider(salonId);
-    return this.crmIntegration.rebaseWorkersNow(salonId, provider);
+    const page = await this.crmIntegration.pullWorkers(salonId, provider);
+    const payload = (page?.items ?? []).map((worker) => {
+      const { firstName, lastName } = this.splitName(worker);
+      return {
+        crmWorkerId: worker.externalId ?? null,
+        firstName,
+        lastName,
+        position: worker.position ?? null,
+        description: worker.description ?? null,
+        email: worker.email ?? null,
+        phone: worker.phone ?? null,
+        photoUrl: worker.photoUrl ?? null,
+        isActive: worker.isActive ?? true,
+      };
+    });
+    return this.syncFromCrm({ salonId, workers: payload });
   }
 
   async rebaseFromCrmAsync(salonId: string): Promise<{ jobId: string }> {

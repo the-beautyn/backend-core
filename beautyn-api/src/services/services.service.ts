@@ -61,7 +61,28 @@ export class ServicesService {
 
   async rebaseFromCrm(salonId: string): Promise<ServicesSyncResultDto> {
     const provider = await this.requireSalonProvider(salonId);
-    return this.crmIntegration.rebaseServicesNow(salonId, provider);
+    const servicesPage = await this.crmIntegration.pullServices(salonId, provider);
+    const payload = (servicesPage?.items ?? []).map((svc) => {
+      const name = String(svc?.name ?? '').trim();
+      const duration = typeof svc?.duration === 'number' ? Math.max(0, Math.round(svc.duration)) : undefined;
+      const price = typeof svc?.price === 'number' ? svc.price : undefined;
+      const currency = (svc?.currency ?? 'UAH').trim();
+      return {
+        crm_service_id: svc?.externalId,
+        category_external_id: svc?.categoryExternalId ? String(svc.categoryExternalId) : undefined,
+        name,
+        description: svc?.description ?? undefined,
+        duration,
+        price,
+        currency,
+        is_active: svc?.isActive ?? undefined,
+        sort_order: typeof svc?.sortOrder === 'number' ? svc.sortOrder : undefined,
+        worker_ids: Array.isArray(svc?.workerExternalIds)
+          ? svc.workerExternalIds.map((w) => String(w))
+          : undefined,
+      };
+    });
+    return this.syncFromCrm({ salon_id: salonId, services: payload });
   }
 
   async rebaseFromCrmAsync(salonId: string): Promise<{ jobId: string }> {
