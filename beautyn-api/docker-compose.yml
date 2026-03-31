@@ -3,7 +3,8 @@ services:
   redis:
     image: redis:7-alpine
     command: ["redis-server","--appendonly","yes","--requirepass","devpass"]
-    ports: ["6379:6379"]
+    # Note: Redis is exposed on localhost:6380. Set REDIS_URL=redis://:devpass@localhost:6380/0 for local usage.
+    ports: ["6380:6379"]
     volumes:
       - redis_data:/data
 volumes:

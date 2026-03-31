@@ -52,6 +52,7 @@ async function ensureAppCategories(): Promise<Record<string, string>> {
       keywords: cat.keywords,
       sortOrder: cat.sortOrder,
       isActive: cat.isActive,
+      imageUrl: (cat as any).imageUrl ?? null,
     };
     const record = existing
       ? await prisma.appCategory.update({ where: { id: existing.id }, data: payload })

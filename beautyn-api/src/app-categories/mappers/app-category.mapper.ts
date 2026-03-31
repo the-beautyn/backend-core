@@ -7,6 +7,7 @@ export function toAppCategoryResponse(entity: AppCategory): AppCategoryResponseD
     slug: entity.slug,
     name: entity.name,
     keywords: entity.keywords ?? [],
+    imageUrl: entity.imageUrl ?? null,
     sortOrder: entity.sortOrder ?? null,
     isActive: entity.isActive,
     createdAt: entity.createdAt,

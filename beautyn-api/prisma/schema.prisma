@@ -42,6 +42,7 @@ model Users {
   onboardingStep        OnboardingStep?
   brandMemberships      BrandMember[]
   searchHistory         SearchHistory[]
+  savedSalons           SavedSalon[]
 
   @@map("users")
 }
@@ -172,6 +173,7 @@ model Salon {
   lastSelectedByMembers BrandMember[] @relation("BrandMemberLastSelectedSalon")
   crmAccounts        CrmAccount[]
   crmCredentials     CrmCredential[]
+  savedByUsers       SavedSalon[]
 
   @@unique([provider, externalSalonId], map: "uniq_salon_provider_external")
   @@index([latitude, longitude])
@@ -224,7 +226,9 @@ model AppCategory {
   createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  mappings SalonCategoryMapping[]
+  imageUrl   String?  @map("image_url")
+
+  mappings         SalonCategoryMapping[]
 
   @@index([isActive, sortOrder])
   @@map("app_categories")
@@ -795,4 +799,33 @@ model WorkerMapping {
 
   @@unique([provider, externalId])
   @@index([workerId])
+}
+
+model SavedSalon {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  salonId   String   @map("salon_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user  Users @relation(fields: [userId], references: [id], onDelete: Cascade)
+  salon Salon @relation(fields: [salonId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, salonId])
+  @@index([userId])
+  @@map("saved_salons")
+}
+
+model HomeFeedSection {
+  id        String   @id @default(uuid()) @db.Uuid
+  type      String   @db.VarChar(32)
+  title     String   @db.VarChar(200)
+  emoji     String?  @db.VarChar(10)
+  sortOrder Int      @map("sort_order")
+  limit     Int      @default(10)
+  isActive  Boolean  @default(true) @map("is_active")
+  filters   Json?
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("home_feed_sections")
 }

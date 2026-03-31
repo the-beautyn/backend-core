@@ -15,6 +15,6 @@ import { SearchSuggestionsService } from './search-suggestions.service';
     SearchHistoryService,
     SearchSuggestionsService,
   ],
-  exports: [SearchService, SearchHistoryService, SearchSuggestionsService],
+  exports: [SearchService, SearchQueryBuilderService, SearchHistoryService, SearchSuggestionsService],
 })
 export class SearchModule {}
