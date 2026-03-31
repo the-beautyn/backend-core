@@ -55,8 +55,9 @@ export class HomeFeedService {
 
     if (params.userId) {
       const allSalonIds = [...new Set(response.sections.flatMap((s) => s.items.map((i) => i.id)))];
-      if (allSalonIds.length > 0) {
-        const savedSet = await this.savedSalonsService.isSavedBatch(params.userId, allSalonIds);
+      const uniqueSalonIds = Array.from(new Set(allSalonIds));
+      if (uniqueSalonIds.length > 0) {
+        const savedSet = await this.savedSalonsService.isSavedBatch(params.userId, uniqueSalonIds);
         for (const section of response.sections) {
           for (const item of section.items) {
             item.isSaved = savedSet.has(item.id);
