@@ -20,9 +20,12 @@ export class SavedSalonsRepository {
   }
 
   async listByUser(userId: string, skip: number, take: number, nameFilter?: string) {
-    const where: any = { userId };
+    const where: any = {
+      userId,
+      salon: { deletedAt: null },
+    };
     if (nameFilter) {
-      where.salon = { name: { contains: nameFilter, mode: 'insensitive' } };
+      where.salon.name = { contains: nameFilter, mode: 'insensitive' };
     }
 
     return this.prisma.savedSalon.findMany({
@@ -47,9 +50,12 @@ export class SavedSalonsRepository {
   }
 
   async countByUser(userId: string, nameFilter?: string): Promise<number> {
-    const where: any = { userId };
+    const where: any = {
+      userId,
+      salon: { deletedAt: null },
+    };
     if (nameFilter) {
-      where.salon = { name: { contains: nameFilter, mode: 'insensitive' } };
+      where.salon.name = { contains: nameFilter, mode: 'insensitive' };
     }
 
     return this.prisma.savedSalon.count({ where });

@@ -4,6 +4,7 @@ import type { Request } from 'express';
 import { SavedSalonsService } from '../../../saved-salons/saved-salons.service';
 import { SavedSalonListQueryDto } from '../../../saved-salons/dto/saved-salon-list-query.dto';
 import { SavedSalonListResponseDto } from '../../../saved-salons/dto/saved-salon-response.dto';
+import { SavedSalonToggleResponseDto } from '../../../saved-salons/dto/saved-salon-toggle-response.dto';
 import { JwtAuthGuard } from '../../../shared/guards/jwt-auth.guard';
 import { ClientRolesGuard } from '../../../shared/guards/roles.guard';
 import { envelopeRef } from '../../../shared/utils/swagger-envelope.util';
@@ -18,7 +19,7 @@ export class SavedSalonsController {
   @Post(':salonId')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Save a salon' })
-  @ApiOkResponse(envelopeRef(Object))
+  @ApiOkResponse(envelopeRef(SavedSalonToggleResponseDto))
   async save(
     @Param('salonId', new ParseUUIDPipe()) salonId: string,
     @Req() req: Request & { user?: { id?: string } },
@@ -30,7 +31,7 @@ export class SavedSalonsController {
 
   @Delete(':salonId')
   @ApiOperation({ summary: 'Unsave a salon' })
-  @ApiOkResponse(envelopeRef(Object))
+  @ApiOkResponse(envelopeRef(SavedSalonToggleResponseDto))
   async unsave(
     @Param('salonId', new ParseUUIDPipe()) salonId: string,
     @Req() req: Request & { user?: { id?: string } },

@@ -18,6 +18,12 @@ describe('SavedSalons (e2e)', () => {
     $connect: jest.fn(),
     $disconnect: jest.fn(),
     salon: {
+      findFirst: jest.fn().mockImplementation(({ where }: any) => {
+        const salon = salons.find((s) => s.id === where?.id);
+        if (!salon) return null;
+        if (where?.deletedAt === null && salon.deletedAt != null) return null;
+        return salon;
+      }),
       findUnique: jest.fn().mockImplementation(({ where }: any) => {
         return salons.find((s) => s.id === where?.id) || null;
       }),
@@ -158,6 +164,7 @@ describe('SavedSalons (e2e)', () => {
         city: 'Kyiv',
         ratingAvg: 4.5,
         ratingCount: 100,
+        deletedAt: null,
       },
       {
         id: '00000000-0000-0000-0000-000000000002',
@@ -167,6 +174,7 @@ describe('SavedSalons (e2e)', () => {
         city: 'Lviv',
         ratingAvg: 3.8,
         ratingCount: 50,
+        deletedAt: null,
       },
       {
         id: '00000000-0000-0000-0000-000000000003',
@@ -176,6 +184,7 @@ describe('SavedSalons (e2e)', () => {
         city: null,
         ratingAvg: null,
         ratingCount: null,
+        deletedAt: null,
       },
     );
   });
@@ -206,7 +215,7 @@ describe('SavedSalons (e2e)', () => {
     const saveRes = await request(app.getHttpServer())
       .post(`/api/v1/saved-salons/${salonId}`)
       .set('Authorization', 'Bearer valid')
-      .expect(201);
+      .expect(200);
 
     expect(saveRes.body.success).toBe(true);
     expect(saveRes.body.data.saved).toBe(true);
@@ -228,12 +237,12 @@ describe('SavedSalons (e2e)', () => {
     await request(app.getHttpServer())
       .post(`/api/v1/saved-salons/${salonId}`)
       .set('Authorization', 'Bearer valid')
-      .expect(201);
+      .expect(200);
 
     await request(app.getHttpServer())
       .post(`/api/v1/saved-salons/${salonId}`)
       .set('Authorization', 'Bearer valid')
-      .expect(201);
+      .expect(200);
 
     expect(savedSalons).toHaveLength(1);
   });

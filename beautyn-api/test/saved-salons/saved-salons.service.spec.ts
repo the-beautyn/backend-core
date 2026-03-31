@@ -13,7 +13,7 @@ describe('SavedSalonsService', () => {
 
   const prisma = {
     salon: {
-      findUnique: jest.fn(),
+      findFirst: jest.fn(),
     },
   } as any;
 
@@ -24,18 +24,25 @@ describe('SavedSalonsService', () => {
   });
 
   describe('save', () => {
-    it('saves when salon exists', async () => {
-      prisma.salon.findUnique.mockResolvedValue({ id: 's1' });
+    it('saves when salon exists and is not deleted', async () => {
+      prisma.salon.findFirst.mockResolvedValue({ id: 's1', deletedAt: null });
       repo.save.mockResolvedValue({});
 
       await service.save('u1', 's1');
 
-      expect(prisma.salon.findUnique).toHaveBeenCalledWith({ where: { id: 's1' } });
+      expect(prisma.salon.findFirst).toHaveBeenCalledWith({ where: { id: 's1', deletedAt: null } });
       expect(repo.save).toHaveBeenCalledWith('u1', 's1');
     });
 
     it('throws NotFoundException when salon does not exist', async () => {
-      prisma.salon.findUnique.mockResolvedValue(null);
+      prisma.salon.findFirst.mockResolvedValue(null);
+
+      await expect(service.save('u1', 's1')).rejects.toBeInstanceOf(NotFoundException);
+      expect(repo.save).not.toHaveBeenCalled();
+    });
+
+    it('throws NotFoundException when salon is soft-deleted', async () => {
+      prisma.salon.findFirst.mockResolvedValue(null);
 
       await expect(service.save('u1', 's1')).rejects.toBeInstanceOf(NotFoundException);
       expect(repo.save).not.toHaveBeenCalled();
@@ -67,7 +74,7 @@ describe('SavedSalonsService', () => {
             coverImageUrl: 'https://img.test/1.jpg',
             addressLine: '123 Main St',
             city: 'Kyiv',
-            ratingAvg: { toNumber: () => 4.5 },
+            ratingAvg: '4.5',
             ratingCount: 120,
           },
         },
@@ -87,7 +94,7 @@ describe('SavedSalonsService', () => {
         coverImageUrl: 'https://img.test/1.jpg',
         addressLine: '123 Main St',
         city: 'Kyiv',
-        ratingAvg: expect.any(Number),
+        ratingAvg: 4.5,
         ratingCount: 120,
         savedAt: now.toISOString(),
       });
