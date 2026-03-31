@@ -22,9 +22,11 @@ import { SearchModule } from '../search/search.module';
 import { SearchPublicController } from './v1/public/search.public.controller';
 import { AltegioBookingModule } from '../booking/altegio-booking/altegio-booking.module';
 import { AltegioBookingPublicController } from './v1/public/altegio-booking.public.controller';
+import { HomeFeedModule } from '../home-feed/home-feed.module';
+import { HomeFeedController } from './v1/public/home-feed.controller';
 
 @Module({
-  imports: [SharedModule, AuthModule, ServicesModule, WorkersModule, SalonModule, OnboardingModule, CategoriesModule, AppCategoriesModule, SearchModule, AltegioBookingModule],
+  imports: [SharedModule, AuthModule, ServicesModule, WorkersModule, SalonModule, OnboardingModule, CategoriesModule, AppCategoriesModule, SearchModule, AltegioBookingModule, HomeFeedModule],
   controllers: [
     AuthPublicController,
     HealthController,
@@ -36,6 +38,7 @@ import { AltegioBookingPublicController } from './v1/public/altegio-booking.publ
     AppCategoriesPublicController,
     SearchPublicController,
     AltegioBookingPublicController,
+    HomeFeedController,
   ],
   providers: [AltegioWebhookService, SyncTriggerService, AltegioPartnerClient],
 })

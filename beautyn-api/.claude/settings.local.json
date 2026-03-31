@@ -8,7 +8,14 @@
       "Bash(npm run:*)",
       "Bash(npx nest:*)",
       "Bash(npx jest:*)",
-      "Bash(gtimeout 30 npm run start:local:redis)"
+      "Bash(gtimeout 30 npm run start:local:redis)",
+      "Bash(python3:*)",
+      "Bash(npx prisma:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npm test:*)",
+      "Bash(node:*)",
+      "Read(//private/tmp/**)",
+      "Bash(psql:*)"
     ]
   }
 }

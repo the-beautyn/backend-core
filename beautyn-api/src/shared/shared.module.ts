@@ -9,6 +9,7 @@ import { AdminRolesGuard, OwnerRolesGuard, ClientRolesGuard } from './guards/rol
 import { PrismaService } from './database/prisma.service';
 import { HashService } from './services/hash.service';
 import { SalonOwnerGuard } from './guards/salon-owner.guard';
+import { OptionalJwtAuthGuard } from './guards/optional-jwt-auth.guard';
 
 @Global()
 @Module({
@@ -31,6 +32,7 @@ import { SalonOwnerGuard } from './guards/salon-owner.guard';
     AdminRolesGuard,
     ClientRolesGuard,
     SalonOwnerGuard,
+    OptionalJwtAuthGuard,
     PrismaService,
     HashService,
     { provide: APP_FILTER, useClass: EnvelopeExceptionFilter },
@@ -43,6 +45,7 @@ import { SalonOwnerGuard } from './guards/salon-owner.guard';
     AdminRolesGuard,
     ClientRolesGuard,
     SalonOwnerGuard,
+    OptionalJwtAuthGuard,
     PrismaService,
     HashService,
   ],

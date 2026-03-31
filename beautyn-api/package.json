@@ -38,6 +38,8 @@
     "db:prod:deploy": "dotenv -e .env.prod -- npx prisma migrate deploy",
     "db:deploy": "npx prisma migrate deploy",
     "db:status:dev": "dotenv -e .env.dev -- npx prisma migrate status",
+    "seed:local": "NODE_ENV=local dotenv -e .env.local -- ts-node -r tsconfig-paths/register scripts/seed-local.ts",
+    "cleanup:local": "NODE_ENV=local dotenv -e .env.local -- ts-node -r tsconfig-paths/register scripts/cleanup-local.ts",
     "seed:search-salons:local": "NODE_ENV=local dotenv -e .env.local -- ts-node -r tsconfig-paths/register scripts/seed-search-salons.ts",
     "seed:search-salons:local:cleanup": "NODE_ENV=local dotenv -e .env.local -- ts-node -r tsconfig-paths/register scripts/cleanup-search-salons.ts",
     "queue:local:inspect": "NODE_ENV=local dotenv -e .env.local -- ts-node -r tsconfig-paths/register src/scripts/queue-inspect.ts",

@@ -28,10 +28,14 @@ import { OwnerBookingsController } from './v1/authenticated/bookings.owner.contr
 import { CrmIntegrationModule } from '../crm-integration/core/crm-integration.module';
 import { BrandModule } from '../brand/brand.module';
 import { BrandController } from './v1/authenticated/brand.controller';
+import { SavedSalonsModule } from '../saved-salons/saved-salons.module';
+import { SavedSalonsController } from './v1/authenticated/saved-salons.controller';
+import { HomeFeedModule } from '../home-feed/home-feed.module';
+import { HomeFeedSectionsAdminController } from './v1/authenticated/home-feed-sections.admin.controller';
 
 
 @Module({
-  imports: [UserModule, OnboardingModule, CrmSalonChangesModule, SalonModule, CategoriesModule, ServicesModule, WorkersModule, AppCategoriesModule, SearchModule, AltegioBookingModule, BookingModule, EasyweekBookingModule, CrmIntegrationModule, BrandModule],
+  imports: [UserModule, OnboardingModule, CrmSalonChangesModule, SalonModule, CategoriesModule, ServicesModule, WorkersModule, AppCategoriesModule, SearchModule, AltegioBookingModule, BookingModule, EasyweekBookingModule, CrmIntegrationModule, BrandModule, SavedSalonsModule, HomeFeedModule],
   controllers: [
     UserAuthenticatedController,
     OnboardingController,
@@ -48,6 +52,8 @@ import { BrandController } from './v1/authenticated/brand.controller';
     ClientBookingsController,
     OwnerBookingsController,
     BrandController,
+    SavedSalonsController,
+    HomeFeedSectionsAdminController,
   ],
 })
 export class AuthenticatedApiModule {}

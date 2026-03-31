@@ -38,6 +38,7 @@ export class SearchQueryBuilderService {
     page: number;
     limit: number;
     sortBy?: SortOptionEnum;
+    extraFilters?: Prisma.Sql[];
   }): Promise<SearchQueryResult> {
     const { dto, geoContext, radiusKm, page, limit } = params;
     const offset = (page - 1) * limit;
@@ -123,6 +124,10 @@ export class SearchQueryBuilderService {
     const openHoursFilter = this.buildOpenHoursFilter(dto.date, dto.time);
     if (openHoursFilter) {
       filters.push(openHoursFilter);
+    }
+
+    if (params.extraFilters?.length) {
+      filters.push(...params.extraFilters);
     }
 
     const whereSql = filters.length ? Prisma.sql`WHERE ${Prisma.join(filters, ' AND ')}` : Prisma.sql``;
@@ -339,6 +344,26 @@ export class SearchQueryBuilderService {
     }
     order.push(Prisma.sql`${col('created_at')} DESC`);
     return order;
+  }
+
+  buildOpenOnDateFilter(date: string): Prisma.Sql | null {
+    const parsedDate = new Date(date);
+    if (Number.isNaN(parsedDate.getTime())) return null;
+    const weekday = parsedDate.getUTCDay();
+    return Prisma.sql`
+      (
+        s.open_hours_json IS NULL
+        OR (
+          jsonb_typeof(s.open_hours_json::jsonb) = 'array'
+          AND EXISTS (
+            SELECT 1
+            FROM jsonb_array_elements(s.open_hours_json::jsonb) AS elem
+            WHERE (elem->>'day')::int = ${weekday}
+              AND jsonb_array_length(COALESCE(elem->'periods', '[]'::jsonb)) > 0
+          )
+        )
+      )
+    `;
   }
 
   private buildOpenHoursFilter(date?: string, time?: string): Prisma.Sql | null {

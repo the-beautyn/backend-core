@@ -16,6 +16,9 @@ export class AppCategoryResponseDto {
   @ApiProperty({ required: false })
   sortOrder?: number | null;
 
+  @ApiProperty({ required: false })
+  imageUrl?: string | null;
+
   @ApiProperty()
   isActive!: boolean;
 

@@ -62,6 +62,7 @@ export const APP_CATEGORIES = [
     ],
     sortOrder: 1,
     isActive: true,
+    imageUrl: 'https://placehold.co/200x200/d0deae/4c513a?text=Nails',
   },
   {
     slug: 'hair',
@@ -71,6 +72,7 @@ export const APP_CATEGORIES = [
     ],
     sortOrder: 2,
     isActive: true,
+    imageUrl: 'https://placehold.co/200x200/faf3d2/5a483a?text=Hair',
   },
   {
     slug: 'face',
@@ -80,6 +82,7 @@ export const APP_CATEGORIES = [
     ],
     sortOrder: 3,
     isActive: true,
+    imageUrl: 'https://placehold.co/200x200/fadbfa/b76ab5?text=Face',
   },
   {
     slug: 'brow',
@@ -89,6 +92,7 @@ export const APP_CATEGORIES = [
     ],
     sortOrder: 4,
     isActive: true,
+    imageUrl: 'https://placehold.co/200x200/efe8d8/5a483a?text=Brows',
   },
   {
     slug: 'makeup',
@@ -98,6 +102,7 @@ export const APP_CATEGORIES = [
     ],
     sortOrder: 5,
     isActive: true,
+    imageUrl: 'https://placehold.co/200x200/907064/ffffff?text=Makeup',
   },
   {
     slug: 'epilation',
@@ -107,6 +112,7 @@ export const APP_CATEGORIES = [
     ],
     sortOrder: 6,
     isActive: true,
+    imageUrl: 'https://placehold.co/200x200/d0deae/4c513a?text=Epilation',
   },
   {
     slug: 'spa',
@@ -116,6 +122,7 @@ export const APP_CATEGORIES = [
     ],
     sortOrder: 7,
     isActive: true,
+    imageUrl: 'https://placehold.co/200x200/faf3d2/5a483a?text=SPA',
   },
   {
     slug: 'injectables',
@@ -125,6 +132,7 @@ export const APP_CATEGORIES = [
     ],
     sortOrder: 8,
     isActive: true,
+    imageUrl: 'https://placehold.co/200x200/fadbfa/b76ab5?text=Injections',
   },
   {
     slug: 'trichology',
@@ -134,6 +142,7 @@ export const APP_CATEGORIES = [
     ],
     sortOrder: 9,
     isActive: true,
+    imageUrl: 'https://placehold.co/200x200/efe8d8/5a483a?text=Trichology',
   },
   {
     slug: 'mens',
@@ -143,5 +152,44 @@ export const APP_CATEGORIES = [
     ],
     sortOrder: 10,
     isActive: true,
+    imageUrl: 'https://placehold.co/200x200/907064/ffffff?text=Mens',
+  },
+];
+
+export const HOME_FEED_SECTIONS = [
+  {
+    type: 'popular',
+    title: 'Популярні',
+    emoji: '⭐',
+    sortOrder: 1,
+    limit: 10,
+    filters: { sortBy: 'popular' },
+  },
+  {
+    type: 'category',
+    title: 'Nails доступні сьогодні',
+    emoji: '💅',
+    sortOrder: 2,
+    limit: 10,
+    categorySlug: 'nails',
+    filters: { openToday: true },
+  },
+  {
+    type: 'category',
+    title: 'Перукар біля тебе',
+    emoji: '💇',
+    sortOrder: 3,
+    limit: 10,
+    categorySlug: 'hair',
+    filters: { sortBy: 'distance' },
+  },
+  {
+    type: 'category',
+    title: 'SPA та масаж',
+    emoji: '💆',
+    sortOrder: 4,
+    limit: 10,
+    categorySlug: 'spa',
+    filters: {},
   },
 ];
