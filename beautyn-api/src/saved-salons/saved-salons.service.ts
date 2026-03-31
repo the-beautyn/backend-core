@@ -15,7 +15,7 @@ export class SavedSalonsService {
   ) {}
 
   async save(userId: string, salonId: string): Promise<void> {
-    const salon = await (this.prisma as any).salon.findUnique({ where: { id: salonId } });
+    const salon = await this.prisma.salon.findFirst({ where: { id: salonId, deletedAt: null } });
     if (!salon) {
       throw new NotFoundException('Salon not found');
     }

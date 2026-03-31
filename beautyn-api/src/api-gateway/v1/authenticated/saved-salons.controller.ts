@@ -16,6 +16,7 @@ export class SavedSalonsController {
   constructor(private readonly savedSalons: SavedSalonsService) {}
 
   @Post(':salonId')
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Save a salon' })
   @ApiOkResponse(envelopeRef(Object))
   async save(

@@ -54,7 +54,7 @@ export class HomeFeedService {
     response.sections = sectionResults;
 
     if (params.userId) {
-      const allSalonIds = response.sections.flatMap((s) => s.items.map((i) => i.id));
+      const allSalonIds = [...new Set(response.sections.flatMap((s) => s.items.map((i) => i.id)))];
       if (allSalonIds.length > 0) {
         const savedSet = await this.savedSalonsService.isSavedBatch(params.userId, allSalonIds);
         for (const section of response.sections) {
@@ -73,6 +73,7 @@ export class HomeFeedService {
       where: {
         userId,
         datetime: { gte: new Date() },
+        status: { notIn: ['canceled', 'completed', 'deleted'] },
       },
       orderBy: { datetime: 'asc' },
       include: {

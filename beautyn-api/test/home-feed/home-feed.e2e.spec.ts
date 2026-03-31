@@ -87,13 +87,11 @@ describe('HomeFeed (e2e)', () => {
         return homeFeedSections.find((s: any) => s.id === where?.id) || null;
       }),
       create: jest.fn().mockImplementation(({ data }: any) => {
-        const appCategoryId = data.appCategory?.connect?.id ?? null;
         const section = {
           id: randomUUID(),
           type: data.type,
           title: data.title,
           emoji: data.emoji ?? null,
-          appCategoryId,
           sortOrder: data.sortOrder,
           limit: data.limit ?? 10,
           isActive: data.isActive ?? true,
@@ -108,12 +106,6 @@ describe('HomeFeed (e2e)', () => {
         const idx = homeFeedSections.findIndex((s: any) => s.id === where.id);
         if (idx < 0) return null;
         const updated = { ...homeFeedSections[idx], ...data, updatedAt: new Date() };
-        if (data.appCategory?.connect) {
-          updated.appCategoryId = data.appCategory.connect.id;
-        }
-        if (data.appCategory?.disconnect) {
-          updated.appCategoryId = null;
-        }
         homeFeedSections[idx] = updated;
         return updated;
       }),
@@ -180,7 +172,26 @@ describe('HomeFeed (e2e)', () => {
         return savedSalons.filter((ss: any) => ss.userId === where.userId).length;
       }),
     } as any,
-    $queryRaw: jest.fn().mockResolvedValue([]),
+    $queryRaw: jest.fn().mockImplementation(() => {
+      return salons
+        .filter((s: any) => !s.deletedAt)
+        .map((s: any) => ({
+          id: s.id,
+          name: s.name,
+          address_line: s.addressLine,
+          city: s.city,
+          latitude: s.latitude,
+          longitude: s.longitude,
+          cover_image_url: s.coverImageUrl,
+          rating_avg: s.ratingAvg,
+          rating_count: s.ratingCount,
+          min_price_cents: null,
+          max_price_cents: null,
+          open_hours_json: null,
+          distance_km: null,
+          total_count: salons.filter((x: any) => !x.deletedAt).length,
+        }));
+    }),
   };
 
   beforeAll(async () => {
@@ -315,7 +326,7 @@ describe('HomeFeed (e2e)', () => {
         type: 'popular',
         title: 'Popular Salons',
         emoji: '🔥',
-        appCategoryId: null,
+
         sortOrder: 0,
         limit: 10,
         isActive: true,
@@ -396,7 +407,7 @@ describe('HomeFeed (e2e)', () => {
         type: 'popular',
         title: 'Popular',
         emoji: null,
-        appCategoryId: null,
+
         sortOrder: 0,
         limit: 10,
         isActive: true,
@@ -462,7 +473,7 @@ describe('HomeFeed (e2e)', () => {
         type: 'popular',
         title: 'All Popular',
         emoji: null,
-        appCategoryId: null,
+
         sortOrder: 0,
         limit: 10,
         isActive: true,
@@ -492,25 +503,25 @@ describe('HomeFeed (e2e)', () => {
       expect(homeFeedSections).toHaveLength(1);
     });
 
-    it('POST validates category type requires appCategoryId', async () => {
+    it('POST validates filters.appCategoryId exists', async () => {
       await request(app.getHttpServer())
         .post('/api/v1/admin/home-feed-sections')
         .set('Authorization', 'Bearer admin-token')
-        .send({ type: 'category', title: 'Cat Section', sortOrder: 0 })
+        .send({ type: 'category', title: 'Cat Section', sortOrder: 0, filters: { appCategoryId: '00000000-0000-0000-0000-999999999999' } })
         .expect(400);
     });
 
-    it('POST creates category section with valid appCategoryId', async () => {
+    it('POST creates category section with valid filters.appCategoryId', async () => {
       const catId = appCategories[0].id;
 
       const res = await request(app.getHttpServer())
         .post('/api/v1/admin/home-feed-sections')
         .set('Authorization', 'Bearer admin-token')
-        .send({ type: 'category', title: 'Nails Section', sortOrder: 1, appCategoryId: catId })
+        .send({ type: 'category', title: 'Nails Section', sortOrder: 1, filters: { appCategoryId: catId } })
         .expect(201);
 
       expect(res.body.data.type).toBe('category');
-      expect(res.body.data.appCategoryId).toBe(catId);
+      expect(res.body.data.filters.appCategoryId).toBe(catId);
     });
 
     it('POST validates required fields', async () => {
@@ -527,7 +538,7 @@ describe('HomeFeed (e2e)', () => {
         type: 'popular',
         title: 'Old Title',
         emoji: null,
-        appCategoryId: null,
+
         sortOrder: 0,
         limit: 10,
         isActive: true,
@@ -567,7 +578,7 @@ describe('HomeFeed (e2e)', () => {
         type: 'popular',
         title: 'To Delete',
         emoji: null,
-        appCategoryId: null,
+
         sortOrder: 0,
         limit: 10,
         isActive: true,

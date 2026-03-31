@@ -6,7 +6,7 @@ export class SavedSalonsRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   async save(userId: string, salonId: string) {
-    return (this.prisma as any).savedSalon.upsert({
+    return this.prisma.savedSalon.upsert({
       where: { userId_salonId: { userId, salonId } },
       create: { userId, salonId },
       update: {},
@@ -14,7 +14,7 @@ export class SavedSalonsRepository {
   }
 
   async unsave(userId: string, salonId: string) {
-    await (this.prisma as any).savedSalon.deleteMany({
+    await this.prisma.savedSalon.deleteMany({
       where: { userId, salonId },
     });
   }
@@ -25,7 +25,7 @@ export class SavedSalonsRepository {
       where.salon = { name: { contains: nameFilter, mode: 'insensitive' } };
     }
 
-    return (this.prisma as any).savedSalon.findMany({
+    return this.prisma.savedSalon.findMany({
       where,
       include: {
         salon: {
@@ -52,11 +52,11 @@ export class SavedSalonsRepository {
       where.salon = { name: { contains: nameFilter, mode: 'insensitive' } };
     }
 
-    return (this.prisma as any).savedSalon.count({ where });
+    return this.prisma.savedSalon.count({ where });
   }
 
   async isSavedBatch(userId: string, salonIds: string[]): Promise<string[]> {
-    const results = await (this.prisma as any).savedSalon.findMany({
+    const results = await this.prisma.savedSalon.findMany({
       where: { userId, salonId: { in: salonIds } },
       select: { salonId: true },
     });
@@ -64,7 +64,7 @@ export class SavedSalonsRepository {
   }
 
   async findByUserAndSalon(userId: string, salonId: string) {
-    return (this.prisma as any).savedSalon.findUnique({
+    return this.prisma.savedSalon.findUnique({
       where: { userId_salonId: { userId, salonId } },
     });
   }

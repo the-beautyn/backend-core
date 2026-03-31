@@ -3323,7 +3323,7 @@
                 },
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n    \"type\": \"popular\",\n    \"title\": \"Популярні\",\n    \"emoji\": \"⭐\",\n    \"sortOrder\": 1,\n    \"limit\": 10,\n    \"isActive\": true\n}",
+                  "raw": "{\n    \"type\": \"popular\",\n    \"title\": \"Популярні\",\n    \"emoji\": \"⭐\",\n    \"sortOrder\": 1,\n    \"limit\": 10,\n    \"isActive\": true,\n    \"filters\": {\n        \"sortBy\": \"popular\"\n    }\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -3363,7 +3363,7 @@
                 },
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n    \"type\": \"category\",\n    \"title\": \"Nails доступні сьогодні\",\n    \"emoji\": \"💅\",\n    \"appCategoryId\": \"{{appCategoryId}}\",\n    \"sortOrder\": 2,\n    \"limit\": 10,\n    \"isActive\": true\n}",
+                  "raw": "{\n    \"type\": \"category\",\n    \"title\": \"Nails доступні сьогодні\",\n    \"emoji\": \"💅\",\n    \"sortOrder\": 2,\n    \"limit\": 10,\n    \"isActive\": true,\n    \"filters\": {\n        \"appCategoryId\": \"{{appCategoryId}}\",\n        \"openToday\": true\n    }\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -3403,7 +3403,7 @@
                 },
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n    \"type\": \"nearMe\",\n    \"title\": \"Перукар біля тебе\",\n    \"emoji\": \"💇\",\n    \"sortOrder\": 3,\n    \"limit\": 10,\n    \"isActive\": true,\n    \"filters\": {\n        \"radiusKm\": 10\n    }\n}",
+                  "raw": "{\n    \"type\": \"nearMe\",\n    \"title\": \"Перукар біля тебе\",\n    \"emoji\": \"💇\",\n    \"sortOrder\": 3,\n    \"limit\": 10,\n    \"isActive\": true,\n    \"filters\": {\n        \"sortBy\": \"distance\",\n        \"radiusKm\": 10\n    }\n}",
                   "options": {
                     "raw": {
                       "language": "json"
