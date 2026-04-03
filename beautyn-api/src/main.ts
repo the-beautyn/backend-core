@@ -54,6 +54,17 @@ import { ServicesListResponseDto as ServicesListDto } from './services/dto/servi
 import { PublicWorkersListResponseDto } from './workers/dto/workers-public-list.response.dto';
 import { PublicWorkerDto } from './workers/dto/worker-public.dto';
 import { SyncSalonJobResponseDto } from './api-gateway/v1/authenticated/salons.authenticated.controller';
+import { HomeFeedResponseDto } from './home-feed/dto/home-feed-response.dto';
+import { HomeFeedSectionDto } from './home-feed/dto/home-feed-section.dto';
+import { HomeFeedSalonCardDto } from './home-feed/dto/home-feed-salon-card.dto';
+import { HomeFeedNextBookingDto } from './home-feed/dto/home-feed-next-booking.dto';
+import { HomeFeedSectionResponseDto } from './home-feed/dto/home-feed-section-response.dto';
+import { HomeFeedSectionFiltersDto } from './home-feed/dto/home-feed-section-filters.dto';
+import { SavedSalonItemDto, SavedSalonListResponseDto } from './saved-salons/dto/saved-salon-response.dto';
+import { SavedSalonToggleResponseDto } from './saved-salons/dto/saved-salon-toggle-response.dto';
+import { BrandResponseDto } from './brand/dto/brand-response.dto';
+import { BrandMemberResponseDto } from './brand/dto/brand-member-response.dto';
+import { StorageUploadResponseDto } from './shared/storage/dto/upload-response.dto';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -140,6 +151,22 @@ async function bootstrap() {
       PublicWorkersListResponseDto,
       PublicWorkerDto,
       SyncSalonJobResponseDto,
+      // Home feed
+      HomeFeedResponseDto,
+      HomeFeedSectionDto,
+      HomeFeedSalonCardDto,
+      HomeFeedNextBookingDto,
+      HomeFeedSectionResponseDto,
+      HomeFeedSectionFiltersDto,
+      // Saved salons
+      SavedSalonItemDto,
+      SavedSalonListResponseDto,
+      SavedSalonToggleResponseDto,
+      // Brand
+      BrandResponseDto,
+      BrandMemberResponseDto,
+      // Storage
+      StorageUploadResponseDto,
     ],
   });
   SwaggerModule.setup('api/docs', app, doc);

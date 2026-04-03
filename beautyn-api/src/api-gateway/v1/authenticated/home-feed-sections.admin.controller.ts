@@ -5,7 +5,8 @@ import { CreateHomeFeedSectionDto } from '../../../home-feed/dto/create-home-fee
 import { UpdateHomeFeedSectionDto } from '../../../home-feed/dto/update-home-feed-section.dto';
 import { JwtAuthGuard } from '../../../shared/guards/jwt-auth.guard';
 import { AdminRolesGuard } from '../../../shared/guards/roles.guard';
-import { envelopeRef } from '../../../shared/utils/swagger-envelope.util';
+import { envelopeRef, envelopeArrayRef } from '../../../shared/utils/swagger-envelope.util';
+import { HomeFeedSectionResponseDto } from '../../../home-feed/dto/home-feed-section-response.dto';
 
 @ApiTags('Home Feed Sections (Admin)')
 @ApiBearerAuth()
@@ -16,21 +17,21 @@ export class HomeFeedSectionsAdminController {
 
   @Get()
   @ApiOperation({ summary: 'List all home feed sections' })
-  @ApiOkResponse(envelopeRef(Object))
+  @ApiOkResponse(envelopeArrayRef(HomeFeedSectionResponseDto))
   async list() {
     return this.sectionConfigService.list();
   }
 
   @Post()
   @ApiOperation({ summary: 'Create home feed section' })
-  @ApiCreatedResponse(envelopeRef(Object))
+  @ApiCreatedResponse(envelopeRef(HomeFeedSectionResponseDto))
   async create(@Body() dto: CreateHomeFeedSectionDto) {
     return this.sectionConfigService.create(dto);
   }
 
   @Patch(':id')
   @ApiOperation({ summary: 'Update home feed section' })
-  @ApiOkResponse(envelopeRef(Object))
+  @ApiOkResponse(envelopeRef(HomeFeedSectionResponseDto))
   async update(
     @Param('id', new ParseUUIDPipe()) id: string,
     @Body() dto: UpdateHomeFeedSectionDto,

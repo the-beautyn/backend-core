@@ -35,6 +35,9 @@ export class HomeFeedService {
       sections: [],
     };
 
+    const categoriesResult = await this.appCategoriesService.list({ onlyActive: true });
+    response.categories = categoriesResult.items;
+
     if (params.userId) {
       const [nextBookingResult, savedSalonsResult] = await Promise.all([
         this.fetchNextBooking(params.userId),
@@ -42,9 +45,6 @@ export class HomeFeedService {
       ]);
       response.nextBooking = nextBookingResult;
       response.savedSalons = savedSalonsResult.items;
-    } else {
-      const categoriesResult = await this.appCategoriesService.list({ onlyActive: true });
-      response.categories = categoriesResult.items;
     }
 
     const sectionResults = await Promise.all(

@@ -32,6 +32,7 @@ import { SavedSalonsModule } from '../saved-salons/saved-salons.module';
 import { SavedSalonsController } from './v1/authenticated/saved-salons.controller';
 import { HomeFeedModule } from '../home-feed/home-feed.module';
 import { HomeFeedSectionsAdminController } from './v1/authenticated/home-feed-sections.admin.controller';
+import { StorageController } from './v1/authenticated/storage.controller';
 
 
 @Module({
@@ -54,6 +55,7 @@ import { HomeFeedSectionsAdminController } from './v1/authenticated/home-feed-se
     BrandController,
     SavedSalonsController,
     HomeFeedSectionsAdminController,
+    StorageController,
   ],
 })
 export class AuthenticatedApiModule {}

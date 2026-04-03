@@ -64,6 +64,15 @@ export class AppCategoriesRepository {
     return (this.prisma as any).appCategory.findUnique({ where: { id } });
   }
 
+  async updateImageUrl(id: string, imageUrl: string | null): Promise<AppCategory | null> {
+    const existing = await (this.prisma as any).appCategory.findUnique({ where: { id } });
+    if (!existing) return null;
+    return (this.prisma as any).appCategory.update({
+      where: { id },
+      data: { imageUrl },
+    });
+  }
+
   async delete(id: string): Promise<void> {
     await (this.prisma as any).appCategory.delete({ where: { id } });
   }
