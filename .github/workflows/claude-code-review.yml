@@ -19,14 +19,47 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Find existing Claude review
+        uses: peter-evans/find-comment@v4
+        id: find_claude_comment
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          body-includes: '<!-- claude-code-review -->'
+
       - name: Run Claude Code Review
         id: claude-review
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          use_sticky_comment: true
-          display_report: true
-          show_full_output: true
-          plugin_marketplaces: 'https://github.com/anthropics/claude-code.git'
-          plugins: 'code-review@claude-code-plugins'
-          prompt: '/code-review:code-review ${{ github.repository }}/pull/${{ github.event.pull_request.number }}'
+          claude_args: |
+            --allowed-tools "Read,Glob,Grep,Bash(gh pr diff:*),Bash(gh pr view:*),Bash(git diff:*),Bash(git log:*)"
+            --json-schema '{"type":"object","properties":{"review":{"type":"string","description":"Complete markdown review starting with <!-- claude-code-review --> comment"}},"required":["review"]}'
+          prompt: |
+            Review PR #${{ github.event.pull_request.number }} in ${{ github.repository }}.
+            Base branch: ${{ github.event.pull_request.base.ref }}
+
+            Use `git diff origin/${{ github.event.pull_request.base.ref }}...HEAD` to see the changes.
+            Read relevant source files for context when needed.
+
+            Analyze the diff for:
+            - Bugs, logic errors, and edge cases
+            - Security issues
+            - Performance concerns
+            - Missing error handling
+
+            Be concise. Only report real, actionable issues. Skip nitpicks and style suggestions.
+            If the code looks good, say so briefly.
+
+            CRITICAL OUTPUT REQUIREMENTS:
+            Return a JSON object with a "review" field containing your complete markdown review.
+            The review markdown MUST start with EXACTLY this line (including the HTML comment):
+            <!-- claude-code-review -->
+            ## Claude Code Review
+
+      - name: Post or update Claude review
+        uses: peter-evans/create-or-update-comment@v5
+        with:
+          comment-id: ${{ steps.find_claude_comment.outputs.comment-id }}
+          issue-number: ${{ github.event.pull_request.number }}
+          body: ${{ fromJSON(steps.claude-review.outputs.structured_output).review }}
+          edit-mode: replace
