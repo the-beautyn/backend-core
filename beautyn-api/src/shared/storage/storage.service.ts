@@ -32,7 +32,8 @@ export class StorageService {
     const { error } = await this.supabase.storage.from(bucket).remove([path]);
 
     if (error) {
-      this.logger.warn(`Failed to delete ${bucket}/${path}: ${error.message}`);
+      this.logger.error(`Failed to delete ${bucket}/${path}: ${error.message}`);
+      throw new InternalServerErrorException('File deletion failed');
     }
   }
 
