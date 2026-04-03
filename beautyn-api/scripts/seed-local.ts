@@ -3,9 +3,21 @@ import { APP_CATEGORIES, HOME_FEED_SECTIONS, SALON_NAMES, SEARCH_SEED_PREFIX } f
 
 const prisma = new PrismaClient();
 
-const SALON_COUNT = 150;
+const SALON_COUNT = 200;
 const BASE_LAT = 50.4501;
 const BASE_LNG = 30.5234;
+
+const SALON_IMAGES = [
+  'http://127.0.0.1:54321/storage/v1/object/public/dump/865c5717-29b8-42f9-bc19-0fb75c3abae1.jpg',
+  'http://127.0.0.1:54321/storage/v1/object/public/dump/0d1d69f6-23ee-42ad-945a-0a18bd49651c.jpg',
+  'http://127.0.0.1:54321/storage/v1/object/public/dump/8633744a-d876-4d1c-91a8-7fe43efc6556.jpg',
+];
+
+const CATEGORY_IMAGES = [
+  'http://127.0.0.1:54321/storage/v1/object/public/dump/4b862e59-a3ac-4482-b16a-e6e26ccaac49.png',
+  'http://127.0.0.1:54321/storage/v1/object/public/dump/e449d225-70f3-42ca-8d82-1f7ce4665b01.png',
+  'http://127.0.0.1:54321/storage/v1/object/public/dump/59a4aba3-02a9-477a-ab6a-809aef4058a3.png',
+];
 
 function randomOffset(radiusKm = 5): { lat: number; lng: number } {
   const kmPerDegLat = 111;
@@ -44,7 +56,8 @@ async function seedAppCategories(): Promise<Record<string, string>> {
   console.log('Seeding app categories...');
   const slugToId: Record<string, string> = {};
 
-  for (const cat of APP_CATEGORIES) {
+  for (let i = 0; i < APP_CATEGORIES.length; i++) {
+    const cat = APP_CATEGORIES[i];
     const existing = await prisma.appCategory.findFirst({ where: { slug: cat.slug } });
     const payload = {
       slug: cat.slug,
@@ -52,7 +65,7 @@ async function seedAppCategories(): Promise<Record<string, string>> {
       keywords: cat.keywords,
       sortOrder: cat.sortOrder,
       isActive: cat.isActive,
-      imageUrl: (cat as any).imageUrl ?? null,
+      imageUrl: CATEGORY_IMAGES[i % CATEGORY_IMAGES.length],
     };
     const record = existing
       ? await prisma.appCategory.update({ where: { id: existing.id }, data: payload })
@@ -93,7 +106,7 @@ async function seedSalons(): Promise<void> {
       minPriceCents: prices.min,
       maxPriceCents: prices.max,
       openHoursJson: randomOpenHours() as any,
-      coverImageUrl: null,
+      coverImageUrl: SALON_IMAGES[idx % SALON_IMAGES.length],
     };
   });
 

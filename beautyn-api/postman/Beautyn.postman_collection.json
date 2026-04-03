@@ -2150,7 +2150,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"slug\": \"nails\",\n    \"name\": \"Нігті\",\n    \"keywords\": [\"nails\", \"manicure\"],\n    \"sortOrder\": 1,\n    \"isActive\": true,\n    \"imageUrl\": \"https://example.com/nails.jpg\"\n}",
+              "raw": "{\n    \"slug\": \"nails\",\n    \"name\": \"Нігті\",\n    \"keywords\": [\"nails\", \"manicure\"],\n    \"sortOrder\": 1,\n    \"isActive\": true\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -2226,6 +2226,144 @@
                 "v1",
                 "app-categories",
                 "{{appCategoryId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "upload_image",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/app-categories/{{appCategoryId}}/image",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "app-categories",
+                "{{appCategoryId}}",
+                "image"
+              ]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": ""
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "delete_image",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/app-categories/{{appCategoryId}}/image",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "app-categories",
+                "{{appCategoryId}}",
+                "image"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Storage",
+      "item": [
+        {
+          "name": "upload_image",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/storage/{{bucket}}/upload",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "storage",
+                "{{bucket}}",
+                "upload"
+              ]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": ""
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "delete_image",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/storage/{{bucket}}?path=",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "storage",
+                "{{bucket}}"
+              ],
+              "query": [
+                {
+                  "key": "path",
+                  "value": ""
+                }
               ]
             }
           },

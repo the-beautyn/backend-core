@@ -1,5 +1,10 @@
-import { Body, Controller, Delete, HttpCode, HttpStatus, Param, Patch, Post, UseGuards, NotFoundException } from '@nestjs/common';
-import { ApiBearerAuth, ApiCreatedResponse, ApiNoContentResponse, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  Body, Controller, Delete, HttpCode, HttpStatus, Param, Patch, Post,
+  UseGuards, UseInterceptors, UploadedFile, NotFoundException,
+  ParseFilePipe, MaxFileSizeValidator, FileTypeValidator,
+} from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { ApiBearerAuth, ApiConsumes, ApiCreatedResponse, ApiNoContentResponse, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { AppCategoriesService } from '../../../app-categories/app-categories.service';
 import { CreateAppCategoryDto } from '../../../app-categories/dto/create-app-category.dto';
 import { UpdateAppCategoryDto } from '../../../app-categories/dto/update-app-category.dto';
@@ -46,5 +51,36 @@ export class AppCategoriesController {
     if (!deleted) {
       throw new NotFoundException('App category not found');
     }
+  }
+
+  @Post(':id/image')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, AdminRolesGuard)
+  @UseInterceptors(FileInterceptor('file'))
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({ summary: 'Upload app category image (admin only)' })
+  @ApiOkResponse(envelopeRef(AppCategoryResponseDto))
+  async uploadImage(
+    @Param('id') id: string,
+    @UploadedFile(
+      new ParseFilePipe({
+        validators: [
+          new MaxFileSizeValidator({ maxSize: 5 * 1024 * 1024 }),
+          new FileTypeValidator({ fileType: /^image\/(jpeg|png|webp)$/ }),
+        ],
+      }),
+    )
+    file: Express.Multer.File,
+  ) {
+    return this.service.uploadImage(id, file);
+  }
+
+  @Delete(':id/image')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, AdminRolesGuard)
+  @ApiOperation({ summary: 'Delete app category image (admin only)' })
+  @ApiOkResponse(envelopeRef(AppCategoryResponseDto))
+  async deleteImage(@Param('id') id: string) {
+    return this.service.deleteImage(id);
   }
 }

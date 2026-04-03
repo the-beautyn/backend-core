@@ -15,7 +15,9 @@
       "Bash(npm test:*)",
       "Bash(node:*)",
       "Read(//private/tmp/**)",
-      "Bash(psql:*)"
+      "Bash(psql:*)",
+      "WebSearch",
+      "Bash(grep -E \"\\\\.\\(ts|js\\)$\")"
     ]
   }
 }

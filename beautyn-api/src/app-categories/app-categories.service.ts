@@ -1,15 +1,28 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { randomUUID } from 'crypto';
 import { AppCategoriesRepository } from './repositories/app-categories.repo';
 import { CreateAppCategoryDto } from './dto/create-app-category.dto';
 import { UpdateAppCategoryDto } from './dto/update-app-category.dto';
 import { AppCategoryResponseDto } from './dto/app-category-response.dto';
 import { toAppCategoryResponse } from './mappers/app-category.mapper';
 import { ListAppCategoriesQueryDto, APP_CATEGORY_MAX_LIMIT } from './dto/list-app-categories.dto';
+import { StorageService } from '../shared/storage/storage.service';
 import { AppCategory } from '@prisma/client';
+
+const BUCKET = 'categories';
+
+const MIME_TO_EXT: Record<string, string> = {
+  'image/jpeg': '.jpg',
+  'image/png': '.png',
+  'image/webp': '.webp',
+};
 
 @Injectable()
 export class AppCategoriesService {
-  constructor(private readonly repo: AppCategoriesRepository) {}
+  constructor(
+    private readonly repo: AppCategoriesRepository,
+    private readonly storage: StorageService,
+  ) {}
 
   async list(query: ListAppCategoriesQueryDto): Promise<{ items: AppCategoryResponseDto[]; page: number; limit: number; total: number }> {
     const { page, limit, skip } = this.normalizePagination(query.page, query.limit);
@@ -61,6 +74,46 @@ export class AppCategoriesService {
       }
     }
     return best;
+  }
+
+  async uploadImage(id: string, file: Express.Multer.File): Promise<AppCategoryResponseDto> {
+    const category = await this.repo.findById(id);
+    if (!category) throw new NotFoundException('App category not found');
+
+    const oldImageUrl = category.imageUrl;
+
+    const ext = MIME_TO_EXT[file.mimetype] ?? '.jpg';
+    const path = `${randomUUID()}${ext}`;
+    const publicUrl = await this.storage.upload(BUCKET, path, file.buffer, file.mimetype);
+
+    const updated = await this.repo.updateImageUrl(id, publicUrl);
+    if (!updated) throw new NotFoundException('App category not found');
+
+    // Best-effort cleanup of old image after successful upload + DB update
+    if (oldImageUrl) {
+      const oldPath = this.storage.extractPath(BUCKET, oldImageUrl);
+      if (oldPath) await this.storage.delete(BUCKET, oldPath);
+    }
+
+    return toAppCategoryResponse(updated);
+  }
+
+  async deleteImage(id: string): Promise<AppCategoryResponseDto> {
+    const category = await this.repo.findById(id);
+    if (!category) throw new NotFoundException('App category not found');
+
+    const oldImageUrl = category.imageUrl;
+
+    const updated = await this.repo.updateImageUrl(id, null);
+    if (!updated) throw new NotFoundException('App category not found');
+
+    // Best-effort cleanup after DB update
+    if (oldImageUrl) {
+      const oldPath = this.storage.extractPath(BUCKET, oldImageUrl);
+      if (oldPath) await this.storage.delete(BUCKET, oldPath);
+    }
+
+    return toAppCategoryResponse(updated);
   }
 
   private normalizePagination(page?: number, limit?: number): { page: number; limit: number; skip: number } {

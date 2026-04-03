@@ -64,6 +64,18 @@ export class AppCategoriesRepository {
     return (this.prisma as any).appCategory.findUnique({ where: { id } });
   }
 
+  async updateImageUrl(id: string, imageUrl: string | null): Promise<AppCategory | null> {
+    try {
+      return await (this.prisma as any).appCategory.update({
+        where: { id },
+        data: { imageUrl },
+      });
+    } catch (error: any) {
+      if (error?.code === 'P2025') return null;
+      throw error;
+    }
+  }
+
   async delete(id: string): Promise<void> {
     await (this.prisma as any).appCategory.delete({ where: { id } });
   }
