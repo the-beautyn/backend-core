@@ -27,6 +27,6 @@ jobs:
           show_full_output: true
           claude_args: '--dangerouslySkipPermissions'
           prompt: |
-            Review this pull request. Use `git diff origin/main...HEAD` to see the changes.
+            Review this pull request. Use `git diff origin/${{ github.event.pull_request.base.ref }}...HEAD` to see the changes.
             Analyze the diff for bugs, logic errors, edge cases, security issues, and performance concerns.
             Post your review using `gh pr review ${{ github.event.pull_request.number }} --comment --body "<your review>"`.
