@@ -3,7 +3,7 @@ import { APP_CATEGORIES, HOME_FEED_SECTIONS, SALON_NAMES, SEARCH_SEED_PREFIX } f
 
 const prisma = new PrismaClient();
 
-const SALON_COUNT = 150;
+const SALON_COUNT = 200;
 const BASE_LAT = 50.4501;
 const BASE_LNG = 30.5234;
 
