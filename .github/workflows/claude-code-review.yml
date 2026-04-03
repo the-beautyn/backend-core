@@ -17,16 +17,16 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 1
+          fetch-depth: 0
 
       - name: Run Claude Code Review
         id: claude-review
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          use_sticky_comment: true
+          display_report: true
           show_full_output: true
-          claude_args: '--dangerouslySkipPermissions'
-          prompt: |
-            Review this pull request. Use `git diff origin/${{ github.event.pull_request.base.ref }}...HEAD` to see the changes.
-            Analyze the diff for bugs, logic errors, edge cases, security issues, and performance concerns.
-            Post your review using `gh pr review ${{ github.event.pull_request.number }} --comment --body "<your review>"`.
+          plugin_marketplaces: 'https://github.com/anthropics/claude-code.git'
+          plugins: 'code-review@claude-code-plugins'
+          prompt: '/code-review:code-review ${{ github.repository }}/pull/${{ github.event.pull_request.number }}'
