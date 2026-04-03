@@ -25,13 +25,8 @@ jobs:
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           show_full_output: true
-          claude_args: '--permissionMode bypassPermissions'
+          claude_args: '--dangerouslySkipPermissions'
           prompt: |
-            Review this pull request. Analyze the diff for:
-            - Bugs, logic errors, and edge cases
-            - Security issues
-            - Performance concerns
-            - Code style and best practices
-
-            Post your review as a PR review comment with specific, actionable feedback.
-            Use `gh` CLI to post the review.
+            Review this pull request. Use `git diff origin/main...HEAD` to see the changes.
+            Analyze the diff for bugs, logic errors, edge cases, security issues, and performance concerns.
+            Post your review using `gh pr review ${{ github.event.pull_request.number }} --comment --body "<your review>"`.
