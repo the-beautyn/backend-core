@@ -1,5 +1,5 @@
 import {
-  Controller, Delete, Param, Post, Query, UploadedFile, UseGuards,
+  BadRequestException, Controller, Delete, Param, Post, Query, UploadedFile, UseGuards,
   UseInterceptors, ParseFilePipe, MaxFileSizeValidator, FileTypeValidator,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -54,6 +54,9 @@ export class StorageController {
     @Param('bucket') bucket: string,
     @Query('path') path: string,
   ) {
+    if (!path) {
+      throw new BadRequestException('path query parameter is required');
+    }
     await this.storage.delete(bucket, path);
     return { deleted: true };
   }

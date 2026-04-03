@@ -80,30 +80,40 @@ export class AppCategoriesService {
     const category = await this.repo.findById(id);
     if (!category) throw new NotFoundException('App category not found');
 
-    if (category.imageUrl) {
-      const oldPath = this.storage.extractPath(BUCKET, category.imageUrl);
-      if (oldPath) await this.storage.delete(BUCKET, oldPath);
-    }
+    const oldImageUrl = category.imageUrl;
 
     const ext = MIME_TO_EXT[file.mimetype] ?? '.jpg';
     const path = `${randomUUID()}${ext}`;
     const publicUrl = await this.storage.upload(BUCKET, path, file.buffer, file.mimetype);
 
     const updated = await this.repo.updateImageUrl(id, publicUrl);
-    return toAppCategoryResponse(updated!);
+    if (!updated) throw new NotFoundException('App category not found');
+
+    // Best-effort cleanup of old image after successful upload + DB update
+    if (oldImageUrl) {
+      const oldPath = this.storage.extractPath(BUCKET, oldImageUrl);
+      if (oldPath) await this.storage.delete(BUCKET, oldPath);
+    }
+
+    return toAppCategoryResponse(updated);
   }
 
   async deleteImage(id: string): Promise<AppCategoryResponseDto> {
     const category = await this.repo.findById(id);
     if (!category) throw new NotFoundException('App category not found');
 
-    if (category.imageUrl) {
-      const oldPath = this.storage.extractPath(BUCKET, category.imageUrl);
+    const oldImageUrl = category.imageUrl;
+
+    const updated = await this.repo.updateImageUrl(id, null);
+    if (!updated) throw new NotFoundException('App category not found');
+
+    // Best-effort cleanup after DB update
+    if (oldImageUrl) {
+      const oldPath = this.storage.extractPath(BUCKET, oldImageUrl);
       if (oldPath) await this.storage.delete(BUCKET, oldPath);
     }
 
-    const updated = await this.repo.updateImageUrl(id, null);
-    return toAppCategoryResponse(updated!);
+    return toAppCategoryResponse(updated);
   }
 
   private normalizePagination(page?: number, limit?: number): { page: number; limit: number; skip: number } {

@@ -28,34 +28,40 @@ async function main() {
   });
 
   try {
-    // 1. Update app users table
+    // 1. Verify user exists in both systems before mutating anything
     const user = await (prisma as any).users.findUnique({ where: { email } });
     if (!user) {
-      console.error(`User with email "${email}" not found in app database`);
-      process.exit(1);
+      throw new Error(`User with email "${email}" not found in app database`);
     }
 
-    await (prisma as any).users.update({
-      where: { email },
-      data: { role: 'admin' },
-    });
-    console.log(`✓ App DB: role updated to "admin" for ${email}`);
-
-    // 2. Update Supabase Auth raw_user_meta_data
-    const { data: authUsers, error: listError } = await supabase.auth.admin.listUsers();
-    if (listError) throw listError;
-
-    const authUser = authUsers.users.find((u) => u.email === email);
+    let authUser: { id: string; email?: string; user_metadata: Record<string, any> } | undefined;
+    let page = 1;
+    const perPage = 1000;
+    while (!authUser) {
+      const { data, error } = await supabase.auth.admin.listUsers({ page, perPage });
+      if (error) throw error;
+      authUser = data.users.find((u) => u.email === email);
+      if (authUser) break;
+      if (data.users.length < perPage) break;
+      page++;
+    }
     if (!authUser) {
-      console.error(`User with email "${email}" not found in Supabase Auth`);
-      process.exit(1);
+      throw new Error(`User with email "${email}" not found in Supabase Auth`);
     }
 
+    // 2. Update Supabase Auth first (harder to fix if left inconsistent)
     const { error: updateError } = await supabase.auth.admin.updateUserById(authUser.id, {
       user_metadata: { ...authUser.user_metadata, user_role: 'admin' },
     });
     if (updateError) throw updateError;
     console.log(`✓ Supabase Auth: user_role updated to "admin" for ${email}`);
+
+    // 3. Update app users table
+    await (prisma as any).users.update({
+      where: { email },
+      data: { role: 'admin' },
+    });
+    console.log(`✓ App DB: role updated to "admin" for ${email}`);
 
     console.log('\nDone. The user must log in again to get a fresh JWT.');
   } finally {
