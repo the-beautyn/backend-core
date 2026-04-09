@@ -65,6 +65,9 @@ import { SavedSalonToggleResponseDto } from './saved-salons/dto/saved-salon-togg
 import { BrandResponseDto } from './brand/dto/brand-response.dto';
 import { BrandMemberResponseDto } from './brand/dto/brand-member-response.dto';
 import { StorageUploadResponseDto } from './shared/storage/dto/upload-response.dto';
+import { CheckEmailResponseDto } from './auth/dto/v1/check-email-response.dto';
+import { OAuthResponseDto } from './auth/dto/v1/oauth-response.dto';
+import { VerifyOtpResponseDto } from './auth/dto/v1/verify-otp-response.dto';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -167,6 +170,10 @@ async function bootstrap() {
       BrandMemberResponseDto,
       // Storage
       StorageUploadResponseDto,
+      // Auth
+      CheckEmailResponseDto,
+      OAuthResponseDto,
+      VerifyOtpResponseDto,
     ],
   });
   SwaggerModule.setup('api/docs', app, doc);

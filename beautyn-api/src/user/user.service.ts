@@ -7,15 +7,20 @@ import { UserRepository } from './user.repository';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UserResponseDto } from './dto/user-response.dto';
 import { NotificationUserDto } from './dto/notification-user.dto';
-import { Users, UserRole } from '@prisma/client';
+import { Users, UserRole, AuthProvider } from '@prisma/client';
 
 export function computeProfileCreated(
   role: 'client' | 'owner' | 'admin',
   name?: string | null,
   second_name?: string | null,
   phone?: string | null,
+  isPhoneVerified?: boolean,
 ) {
   const hasNames = !!name && !!second_name;
+  const phoneVerificationEnabled = process.env.PHONE_VERIFICATION_ENABLED !== 'false';
+  if (phoneVerificationEnabled) {
+    return hasNames && !!phone && !!isPhoneVerified;
+  }
   return role === 'owner' ? hasNames && !!phone : hasNames;
 }
 
@@ -32,6 +37,8 @@ export class UserService {
       second_name: user.secondName ?? null,
       phone: user.phone ?? null,
       avatar_url: user.avatarUrl ?? null,
+      auth_provider: user.authProvider,
+      is_phone_verified: user.isPhoneVerified,
       is_profile_created: user.isProfileCreated,
       is_onboarding_completed: user.isOnboardingCompleted,
       created_at: user.createdAt,
@@ -66,6 +73,7 @@ export class UserService {
       name,
       secondName,
       phone,
+      existing.isPhoneVerified,
     );
 
     const data: Partial<Users> = {
@@ -105,6 +113,21 @@ export class UserService {
     return this.toResponse(updated);
   }
 
+  async setPhoneVerified(id: string, phone: string): Promise<void> {
+    const existing = await this.repo.findById(id);
+    if (!existing) throw new NotFoundException('User not found');
+
+    const isProfileCreated = computeProfileCreated(
+      existing.role,
+      existing.name,
+      existing.secondName,
+      phone,
+      true,
+    );
+
+    await this.repo.updateById(id, { phone, isPhoneVerified: true, isProfileCreated });
+  }
+
   async isProfileComplete(id: string): Promise<boolean> {
     const user = await this.repo.findById(id);
     return !!user?.isProfileCreated;
@@ -115,7 +138,12 @@ export class UserService {
     return this.repo.findByEmail(email);
   }
 
-  createWithId(id: string, email: string, role: UserRole) {
-    return this.repo.createWithId(id, email, role);
+  createWithId(
+    id: string,
+    email: string,
+    role: UserRole,
+    profile?: { name?: string; secondName?: string; phone?: string; authProvider?: AuthProvider },
+  ) {
+    return this.repo.createWithId(id, email, role, profile);
   }
 }

@@ -18,4 +18,10 @@ export class RegisterResponseDto {
     description: 'Expiration time in seconds',
   })
   expiresIn: number;
+
+  @ApiProperty({
+    example: true,
+    description: 'Whether phone OTP verification is required before the user can proceed',
+  })
+  phoneVerificationRequired: boolean;
 }

@@ -388,7 +388,7 @@ describe('HomeFeed (e2e)', () => {
       expect(res.body.data.nextBooking.salonName).toBe('Beauty Palace');
       expect(res.body.data.nextBooking.bookingId).toBeDefined();
       expect(res.body.data.savedSalons).toBeDefined();
-      expect(res.body.data.categories).toBeUndefined();
+      expect(res.body.data.categories).toBeDefined();
     });
 
     it('returns null nextBooking when no future bookings', async () => {

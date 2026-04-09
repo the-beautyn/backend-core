@@ -1,6 +1,6 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../shared/database/prisma.service';
-import { Users, UserRole } from '@prisma/client';
+import { Users, UserRole, AuthProvider } from '@prisma/client';
 import { randomUUID } from 'crypto';
 import { isUUID, isEmail } from 'class-validator';
 
@@ -15,6 +15,8 @@ const userSelect = {
   secondName: true,
   phone: true,
   avatarUrl: true,
+  authProvider: true,
+  isPhoneVerified: true,
   isProfileCreated: true,
   isOnboardingCompleted: true,
   subscriptionId: true,
@@ -39,7 +41,12 @@ export class UserRepository {
     return this.prisma.users.update({ where: { id }, data, select: userSelect });
   }
 
-  createWithId(id: string, email: string, role: UserRole) {
+  createWithId(
+    id: string,
+    email: string,
+    role: UserRole,
+    profile?: { name?: string; secondName?: string; phone?: string; authProvider?: AuthProvider },
+  ) {
     // Validate UUID format using class-validator
     if (!id || typeof id !== 'string') {
       throw new BadRequestException('id is required and must be a string');
@@ -60,12 +67,16 @@ export class UserRepository {
     }
 
     return this.prisma.users.create({
-      data: { 
-        id,          // Use the provided ID (from Supabase)
-        email, 
-        role 
+      data: {
+        id,
+        email,
+        role,
+        ...(profile?.name ? { name: profile.name } : {}),
+        ...(profile?.secondName ? { secondName: profile.secondName } : {}),
+        ...(profile?.phone ? { phone: profile.phone } : {}),
+        ...(profile?.authProvider ? { authProvider: profile.authProvider } : {}),
       },
-      select: userSelect
+      select: userSelect,
     });
   }
 }

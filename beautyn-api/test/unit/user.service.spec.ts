@@ -11,6 +11,8 @@ const baseUser: Users = {
   secondName: null,
   phone: null,
   avatarUrl: null,
+  authProvider: 'email',
+  isPhoneVerified: false,
   isProfileCreated: false,
   isOnboardingCompleted: false,
   subscriptionId: null,
@@ -48,17 +50,18 @@ describe('UserService', () => {
     repo = module.get(UserRepository) as unknown as UserRepoMock;
   });
 
-  it('updateProfile sets is_profile_created=true for client with name+second_name', async () => {
-    repo.findById.mockResolvedValue({ ...baseUser });
+  it('updateProfile sets is_profile_created=true for client with name+second_name+phone verified', async () => {
+    const verifiedUser = { ...baseUser, phone: '+380501234567', isPhoneVerified: true };
+    repo.findById.mockResolvedValue(verifiedUser);
     repo.updateById.mockImplementation(
       async (_id: string, data: Partial<Users>): Promise<Users> => ({
-        ...baseUser,
-        name: data.name !== undefined ? data.name : baseUser.name,
-        secondName: data.secondName !== undefined ? data.secondName : baseUser.secondName,
+        ...verifiedUser,
+        name: data.name !== undefined ? data.name : verifiedUser.name,
+        secondName: data.secondName !== undefined ? data.secondName : verifiedUser.secondName,
         isProfileCreated:
           data.isProfileCreated !== undefined
             ? data.isProfileCreated
-            : baseUser.isProfileCreated,
+            : verifiedUser.isProfileCreated,
       }),
     );
 
@@ -70,8 +73,8 @@ describe('UserService', () => {
     expect(result.is_profile_created).toBe(true);
   });
 
-  it('owner profile not complete without phone, becomes complete with phone', async () => {
-    const owner = { ...baseUser, role: UserRole.owner };
+  it('owner profile not complete without verified phone, becomes complete with verified phone', async () => {
+    const owner = { ...baseUser, role: UserRole.owner, isPhoneVerified: true };
     repo.findById.mockResolvedValue(owner);
 
     repo.updateById.mockImplementation(
@@ -101,10 +104,13 @@ describe('UserService', () => {
     expect(res2.is_profile_created).toBe(true);
   });
 
-  it('computeProfileCreated truth table', () => {
-    expect(computeProfileCreated('client', 'a', 'b')).toBe(true);
+  it('computeProfileCreated truth table (phone verification enabled)', () => {
+    // With phone verification enabled (default), all roles need name + secondName + phone + isPhoneVerified
+    expect(computeProfileCreated('client', 'a', 'b', '+12345678901', true)).toBe(true);
+    expect(computeProfileCreated('client', 'a', 'b', '+12345678901', false)).toBe(false);
+    expect(computeProfileCreated('client', 'a', 'b')).toBe(false);
     expect(computeProfileCreated('client', 'a', undefined)).toBe(false);
-    expect(computeProfileCreated('owner', 'a', 'b', '+12345678901')).toBe(true);
+    expect(computeProfileCreated('owner', 'a', 'b', '+12345678901', true)).toBe(true);
     expect(computeProfileCreated('owner', 'a', 'b')).toBe(false);
   });
 

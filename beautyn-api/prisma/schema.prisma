@@ -33,6 +33,8 @@ model Users {
   phone                 String?           @db.VarChar(30)
   avatarUrl             String?           @map("avatar_url")
   isProfileCreated      Boolean           @default(false) @map("is_profile_created")
+  authProvider          AuthProvider      @default(email) @map("auth_provider")
+  isPhoneVerified       Boolean           @default(false) @map("is_phone_verified")
   isOnboardingCompleted Boolean           @default(false) @map("is_onboarding_completed")
   subscriptionId        String?           @map("subscription_id") @db.Uuid
   crmId                 String?           @map("crm_id")
@@ -54,6 +56,14 @@ enum UserRole {
   admin  @map("admin")
 
   @@map("user_role")
+}
+
+enum AuthProvider {
+  email  @map("email")
+  apple  @map("apple")
+  google @map("google")
+
+  @@map("auth_provider")
 }
 
 enum OnboardingStepState {

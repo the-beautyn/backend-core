@@ -8,6 +8,7 @@ import { LoginDto } from '../../src/auth/dto/v1/login.dto';
 import { ForgotPasswordDto } from '../../src/auth/dto/v1/forgot-password.dto';
 import { ResetPasswordDto } from '../../src/auth/dto/v1/reset-password.dto';
 import { UserRole } from '@prisma/client';
+import { ConfigService } from '@nestjs/config';
 
 describe('AuthService', () => {
   let service: AuthService;
@@ -23,6 +24,8 @@ describe('AuthService', () => {
     secondName: null,
     phone: null,
     avatarUrl: null,
+    authProvider: 'email' as const,
+    isPhoneVerified: false,
     isProfileCreated: false,
     isOnboardingCompleted: false,
     subscriptionId: null,
@@ -79,6 +82,10 @@ describe('AuthService', () => {
           provide: SupabaseClient,
           useValue: mockSupabaseClient,
         },
+        {
+          provide: ConfigService,
+          useValue: { get: jest.fn().mockReturnValue('true') },
+        },
       ],
     }).compile();
 
@@ -96,6 +103,8 @@ describe('AuthService', () => {
       email: 'test@example.com',
       password: 'Password123!',
       role: UserRole.client,
+      name: 'John',
+      secondName: 'Doe',
     };
 
     it('should register a new user successfully with session', async () => {
@@ -120,11 +129,15 @@ describe('AuthService', () => {
         password: registerDto.password,
         options: { data: { user_role: registerDto.role } },
       });
-      expect(userService.createWithId).toHaveBeenCalledWith(mockSupabaseUser.id, registerDto.email, registerDto.role);
+      expect(userService.createWithId).toHaveBeenCalledWith(
+        mockSupabaseUser.id, registerDto.email, registerDto.role,
+        { name: 'John', secondName: 'Doe', authProvider: 'email' },
+      );
       expect(result).toEqual({
         accessToken: mockSession.access_token,
         refreshToken: mockSession.refresh_token,
         expiresIn: mockSession.expires_in,
+        phoneVerificationRequired: true,
       });
     });
 
@@ -203,6 +216,7 @@ describe('AuthService', () => {
         accessToken: mockSession.access_token,
         refreshToken: mockSession.refresh_token,
         expiresIn: mockSession.expires_in,
+        phoneVerificationRequired: true,
       });
     });
 

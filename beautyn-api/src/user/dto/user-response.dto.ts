@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { UserRole } from '@prisma/client';
+import { UserRole, AuthProvider } from '@prisma/client';
 import { Expose } from 'class-transformer';
 
 export class UserResponseDto {
@@ -30,6 +30,14 @@ export class UserResponseDto {
   @ApiProperty({ example: 'https://example.com/avatar.png', nullable: true, required: false })
   @Expose()
   avatar_url!: string | null;
+
+  @ApiProperty({ enum: ['email', 'apple', 'google'], example: 'email' })
+  @Expose()
+  auth_provider!: AuthProvider;
+
+  @ApiProperty({ example: false })
+  @Expose()
+  is_phone_verified!: boolean;
 
   @ApiProperty({ example: true })
   @Expose()

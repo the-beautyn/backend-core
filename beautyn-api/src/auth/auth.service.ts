@@ -6,19 +6,41 @@ import {
 } from '@nestjs/common';
 import { LoginDto } from './dto/v1/login.dto';
 import { RegisterDto, REGISTERABLE_ROLES } from './dto/v1/register.dto';
+import { CheckEmailDto } from './dto/v1/check-email.dto';
+import { EmailStatus } from './dto/v1/check-email-response.dto';
+import { OAuthSignInDto } from './dto/v1/oauth-sign-in.dto';
 import { ForgotPasswordDto } from './dto/v1/forgot-password.dto';
 import { ResetPasswordDto } from './dto/v1/reset-password.dto';
 import { UserService } from '../user/user.service';
+import { ConfigService } from '@nestjs/config';
 import { SupabaseClient } from '@supabase/supabase-js';
+import { AuthProvider } from '@prisma/client';
 
 @Injectable()
 export class AuthService {
+  private readonly phoneVerificationEnabled: boolean;
+
   constructor(
     private readonly users: UserService,
-    private readonly sb: SupabaseClient
-  ) {}
+    private readonly sb: SupabaseClient,
+    private readonly config: ConfigService,
+  ) {
+    this.phoneVerificationEnabled = this.config.get('PHONE_VERIFICATION_ENABLED', 'true') === 'true';
+  }
 
-  async register({ email, password, role }: RegisterDto) {
+  async checkEmail({ email }: CheckEmailDto): Promise<{ status: EmailStatus }> {
+    const user = await this.users.findByEmail(email);
+    if (!user) return { status: 'not_found' };
+
+    const providerMap: Record<AuthProvider, EmailStatus> = {
+      email: 'password',
+      apple: 'apple',
+      google: 'google',
+    };
+    return { status: providerMap[user.authProvider] ?? 'password' };
+  }
+
+  async register({ email, password, role, name, secondName }: RegisterDto) {
     if (!REGISTERABLE_ROLES.includes(role)) {
       throw new BadRequestException('Invalid role');
     }
@@ -26,21 +48,60 @@ export class AuthService {
     const { data, error } = await this.sb.auth.signUp({
       email,
       password,
-      options: { data: { user_role: role } },   // lands in JWT → RLS
+      options: { data: { user_role: role } },
     });
     if (error) throw new BadRequestException(error.message);
 
-    // When "Confirm email" is ON, session is null.
     if (!data.session)
       return { message: 'Check your inbox to confirm registration' };
 
-    // Use the SAME user ID from Supabase auth
-    const user = await this.users.createWithId(data.user!.id, email, role);
+    await this.users.createWithId(data.user!.id, email, role, {
+      name,
+      secondName,
+      authProvider: 'email',
+    });
 
     return {
       accessToken: data.session.access_token,
       refreshToken: data.session.refresh_token,
       expiresIn: data.session.expires_in,
+      phoneVerificationRequired: this.phoneVerificationEnabled,
+    };
+  }
+
+  async oauthSignIn(dto: OAuthSignInDto) {
+    const { data, error } = await this.sb.auth.signInWithIdToken({
+      provider: dto.provider,
+      token: dto.idToken,
+      ...(dto.nonce ? { nonce: dto.nonce } : {}),
+    });
+    if (error) throw new BadRequestException(error.message);
+    if (!data.session || !data.user) {
+      throw new BadRequestException('OAuth sign-in failed: no session returned');
+    }
+
+    const email = data.user.email;
+    if (!email) throw new BadRequestException('OAuth provider did not return an email');
+
+    const existingUser = await this.users.findByEmail(email);
+    let isNewUser = false;
+
+    if (!existingUser) {
+      isNewUser = true;
+      const authProvider = dto.provider === 'apple' ? 'apple' : 'google';
+      await this.users.createWithId(data.user.id, email, 'client', {
+        name: dto.name,
+        secondName: dto.secondName,
+        authProvider: authProvider as AuthProvider,
+      });
+    }
+
+    return {
+      accessToken: data.session.access_token,
+      refreshToken: data.session.refresh_token,
+      expiresIn: data.session.expires_in,
+      isNewUser,
+      phoneVerificationRequired: this.phoneVerificationEnabled && (isNewUser || !existingUser?.isPhoneVerified),
     };
   }
 
@@ -48,8 +109,27 @@ export class AuthService {
     const { data, error } = await this.sb.auth.signInWithPassword({
       email: dto.email,
       password: dto.password,
-    });                                                            // :contentReference[oaicite:2]{index=2}
+    });
     if (error) throw new UnauthorizedException(error.message);
+
+    let phoneVerificationRequired = false;
+    if (this.phoneVerificationEnabled) {
+      const user = await this.users.findByEmail(dto.email);
+      phoneVerificationRequired = !user?.isPhoneVerified;
+    }
+
+    return {
+      accessToken: data.session.access_token,
+      refreshToken: data.session.refresh_token,
+      expiresIn: data.session.expires_in,
+      phoneVerificationRequired,
+    };
+  }
+
+  async refreshSession(refreshToken: string) {
+    const { data, error } = await this.sb.auth.refreshSession({ refresh_token: refreshToken });
+    if (error) throw new UnauthorizedException(error.message);
+    if (!data.session) throw new UnauthorizedException('Failed to refresh session');
 
     return {
       accessToken: data.session.access_token,

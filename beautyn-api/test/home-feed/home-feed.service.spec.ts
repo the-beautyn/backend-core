@@ -47,6 +47,7 @@ describe('HomeFeedService', () => {
   beforeEach(() => {
     jest.resetAllMocks();
     sectionConfigRepo.listActive.mockResolvedValue([]);
+    appCategoriesService.list.mockResolvedValue({ items: [] });
   });
 
   describe('unauthorized user', () => {
@@ -98,7 +99,7 @@ describe('HomeFeedService', () => {
       expect(result.nextBooking!.salonName).toBe('Beauty Palace');
       expect(result.nextBooking!.datetime).toBe(bookingDate.toISOString());
       expect(result.savedSalons).toHaveLength(1);
-      expect(result.categories).toBeUndefined();
+      expect(result.categories).toEqual([]);
     });
 
     it('returns null nextBooking when no upcoming bookings', async () => {

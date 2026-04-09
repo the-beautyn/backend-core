@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { SharedModule } from '../shared/shared.module';
 import { AuthModule } from '../auth/auth.module';
+import { UserModule } from '../user/user.module';
 import { ServicesModule } from '../services/services.module';
 import { SalonModule } from '../salon/salon.module';
 import { AuthPublicController } from './v1/public/auth.public.controller';
@@ -26,7 +27,7 @@ import { HomeFeedModule } from '../home-feed/home-feed.module';
 import { HomeFeedController } from './v1/public/home-feed.controller';
 
 @Module({
-  imports: [SharedModule, AuthModule, ServicesModule, WorkersModule, SalonModule, OnboardingModule, CategoriesModule, AppCategoriesModule, SearchModule, AltegioBookingModule, HomeFeedModule],
+  imports: [SharedModule, AuthModule, UserModule, ServicesModule, WorkersModule, SalonModule, OnboardingModule, CategoriesModule, AppCategoriesModule, SearchModule, AltegioBookingModule, HomeFeedModule],
   controllers: [
     AuthPublicController,
     HealthController,

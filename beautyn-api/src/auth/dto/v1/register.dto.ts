@@ -1,4 +1,4 @@
-import { IsEmail, MinLength, MaxLength, IsIn } from 'class-validator';
+import { IsEmail, MinLength, MaxLength, Matches, IsIn, IsString, IsNotEmpty } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 import { UserRole } from '@prisma/client';
 
@@ -20,6 +20,12 @@ export class RegisterDto {
   })
   @MinLength(8)
   @MaxLength(50)
+  @Matches(/^[\x20-\x7E]+$/, {
+    message: 'password must contain only Latin letters, digits, and special characters',
+  })
+  @Matches(/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/, {
+    message: 'password must contain at least one uppercase letter, one lowercase letter, and one digit',
+  })
   password: string;
 
   @ApiProperty({
@@ -29,4 +35,17 @@ export class RegisterDto {
   })
   @IsIn(REGISTERABLE_ROLES)
   role: RegisterRole;
+
+  @ApiProperty({ example: 'John', description: 'First name' })
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(100)
+  name: string;
+
+  @ApiProperty({ example: 'Doe', description: 'Last name' })
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(100)
+  secondName: string;
+
 }

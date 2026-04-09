@@ -17,7 +17,12 @@
       "Read(//private/tmp/**)",
       "Bash(psql:*)",
       "WebSearch",
-      "Bash(grep -E \"\\\\.\\(ts|js\\)$\")"
+      "Bash(grep -E \"\\\\.\\(ts|js\\)$\")",
+      "mcp__figma__get_screenshot",
+      "Bash(npx dotenv:*)",
+      "Bash(npm install:*)",
+      "Bash(xargs ls:*)",
+      "Bash(xcodebuild test:*)"
     ]
   }
 }
