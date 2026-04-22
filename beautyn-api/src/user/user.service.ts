@@ -83,19 +83,26 @@ export class UserService {
     const phone = dto.phone?.trim() ?? existing.phone ?? null;
     const avatarUrl = dto.avatar_url?.trim() ?? existing.avatarUrl ?? null;
 
+    // If the user changes their phone number, any prior verification no
+    // longer applies — they must re-run OTP against the new number.
+    // Otherwise a verified user could swap to an unverified number and
+    // stay flagged as trusted.
+    const phoneChanged = dto.phone !== undefined && phone !== existing.phone;
+    const isPhoneVerified = phoneChanged ? false : existing.isPhoneVerified;
+
     const isProfileCreated = computeProfileCreated(
       this.phoneVerification.isEnabled(),
       existing.role,
       name,
       secondName,
       phone,
-      existing.isPhoneVerified,
+      isPhoneVerified,
     );
 
     const data: Partial<Users> = {
       ...(dto.name !== undefined ? { name } : {}),
       ...(dto.second_name !== undefined ? { secondName } : {}),
-      ...(dto.phone !== undefined ? { phone } : {}),
+      ...(dto.phone !== undefined ? { phone, isPhoneVerified } : {}),
       ...(dto.avatar_url !== undefined ? { avatarUrl } : {}),
       isProfileCreated,
     };

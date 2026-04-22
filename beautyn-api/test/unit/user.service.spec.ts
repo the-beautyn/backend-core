@@ -79,7 +79,7 @@ describe('UserService', () => {
     expect(result.is_profile_created).toBe(true);
   });
 
-  it('owner profile not complete without verified phone, becomes complete with verified phone', async () => {
+  it('owner profile stays incomplete until the phone is verified via OTP', async () => {
     const owner = { ...baseUser, role: UserRole.owner, isPhoneVerified: true };
     repo.findById.mockResolvedValue(owner);
 
@@ -89,6 +89,10 @@ describe('UserService', () => {
         name: data.name !== undefined ? data.name : owner.name,
         secondName: data.secondName !== undefined ? data.secondName : owner.secondName,
         phone: data.phone !== undefined ? data.phone : owner.phone,
+        isPhoneVerified:
+          data.isPhoneVerified !== undefined
+            ? data.isPhoneVerified
+            : owner.isPhoneVerified,
         isProfileCreated:
           data.isProfileCreated !== undefined
             ? data.isProfileCreated
@@ -96,18 +100,23 @@ describe('UserService', () => {
       }),
     );
 
+    // Names alone don't complete an owner profile — a verified phone is required.
     const res1 = await service.updateProfile('u1', {
       name: 'Jane',
       second_name: 'Smith',
     });
     expect(res1.is_profile_created).toBe(false);
 
+    // Supplying a phone on updateProfile does NOT grant verification. The
+    // handler resets isPhoneVerified so the user has to re-run OTP; profile
+    // stays incomplete until then.
     const res2 = await service.updateProfile('u1', {
       name: 'Jane',
       second_name: 'Smith',
       phone: '+12345678901',
     });
-    expect(res2.is_profile_created).toBe(true);
+    expect(res2.is_profile_created).toBe(false);
+    expect(res2.is_phone_verified).toBe(false);
   });
 
   it('computeProfileCreated truth table (phone verification enabled)', () => {
@@ -154,5 +163,43 @@ describe('UserService', () => {
     await expect(
       service.updateProfile('u1', { phone: '+12345678901' }),
     ).rejects.toBeInstanceOf(ConflictException);
+  });
+
+  it('updateProfile clears isPhoneVerified when phone changes', async () => {
+    const verifiedUser = { ...baseUser, phone: '+380501111111', isPhoneVerified: true };
+    repo.findById.mockResolvedValue(verifiedUser);
+    repo.updateById.mockImplementation(async (_id, data) => ({ ...verifiedUser, ...data } as Users));
+
+    await service.updateProfile('u1', { phone: '+380502222222' });
+
+    expect(repo.updateById).toHaveBeenCalledWith(
+      'u1',
+      expect.objectContaining({ phone: '+380502222222', isPhoneVerified: false }),
+    );
+  });
+
+  it('updateProfile leaves isPhoneVerified untouched when phone is not in the DTO', async () => {
+    const verifiedUser = { ...baseUser, phone: '+380501111111', isPhoneVerified: true, name: 'Old' };
+    repo.findById.mockResolvedValue(verifiedUser);
+    repo.updateById.mockImplementation(async (_id, data) => ({ ...verifiedUser, ...data } as Users));
+
+    await service.updateProfile('u1', { name: 'New' });
+
+    const [, writtenData] = repo.updateById.mock.calls[0];
+    expect(writtenData).not.toHaveProperty('phone');
+    expect(writtenData).not.toHaveProperty('isPhoneVerified');
+  });
+
+  it('updateProfile preserves isPhoneVerified when dto phone matches existing', async () => {
+    const verifiedUser = { ...baseUser, phone: '+380501111111', isPhoneVerified: true };
+    repo.findById.mockResolvedValue(verifiedUser);
+    repo.updateById.mockImplementation(async (_id, data) => ({ ...verifiedUser, ...data } as Users));
+
+    await service.updateProfile('u1', { phone: '+380501111111' });
+
+    expect(repo.updateById).toHaveBeenCalledWith(
+      'u1',
+      expect.objectContaining({ phone: '+380501111111', isPhoneVerified: true }),
+    );
   });
 });
