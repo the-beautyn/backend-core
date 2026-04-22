@@ -30,6 +30,15 @@ import { MockSmsProvider } from './sms/mock-sms.provider';
         }
 
         if (config.get('MOCK_SMS', 'false') === 'true') {
+          // Hard fail in production — MockSmsProvider.verifyOtp always returns
+          // true, so phone verification is silently bypassed for every user.
+          // Better to crash the boot than ship with no OTP enforcement.
+          if (config.get('NODE_ENV') === 'production') {
+            throw new Error(
+              'MOCK_SMS=true must not be used in production. ' +
+                'MockSmsProvider accepts any verification code — refusing to start.',
+            );
+          }
           logger.warn('Using mock SMS provider (MOCK_SMS=true) — any code accepted');
           return new MockSmsProvider();
         }

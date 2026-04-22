@@ -93,8 +93,7 @@ describe('Auth (e2e)', () => {
           signInWithPassword: jest.fn(),
           resetPasswordForEmail: jest.fn(),
           verifyOtp: jest.fn(),
-          updateUser: jest.fn(),
-          admin: { signOut: jest.fn() },
+          admin: { signOut: jest.fn(), updateUserById: jest.fn() },
         },
       })
       .overrideGuard(JwtAuthGuard)
@@ -434,7 +433,7 @@ describe('Auth (e2e)', () => {
       };
 
       (supabaseClient.auth.verifyOtp as jest.Mock).mockResolvedValue(mockVerifyOtpResponse);
-      (supabaseClient.auth.updateUser as jest.Mock).mockResolvedValue(mockUpdateUserResponse);
+      (supabaseClient.auth.admin.updateUserById as jest.Mock).mockResolvedValue(mockUpdateUserResponse);
 
       // Act & Assert
       const response = await request(app.getHttpServer())

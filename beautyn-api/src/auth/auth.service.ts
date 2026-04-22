@@ -14,7 +14,7 @@ import { ResetPasswordDto } from './dto/v1/reset-password.dto';
 import { UserService } from '../user/user.service';
 import { ConfigService } from '@nestjs/config';
 import { SupabaseClient } from '@supabase/supabase-js';
-import { AuthProvider } from '@prisma/client';
+import { AuthProvider, Prisma, UserRole } from '@prisma/client';
 import { PhoneVerificationService } from './phone-verification.service';
 
 @Injectable()
@@ -85,40 +85,32 @@ export class AuthService {
     const email = data.user.email;
     if (!email) throw new BadRequestException('OAuth provider did not return an email');
 
-    const existingUser = await this.users.findByEmail(email);
+    let storedUser = await this.users.findByEmail(email);
     let isNewUser = false;
     const incomingProvider: AuthProvider = dto.provider === 'apple' ? 'apple' : 'google';
 
-    if (!existingUser) {
-      isNewUser = true;
-      await this.users.createWithId(data.user.id, email, 'client', {
-        name: dto.name,
-        secondName: dto.secondName,
-        authProvider: incomingProvider,
-      });
+    if (storedUser) {
+      await this.reconcileOauthProvider(storedUser, data.user.id, incomingProvider);
     } else {
-      // Supabase's "Link identities by email" behavior is configurable. When
-      // it's NOT enabled, an OAuth sign-in for an already-registered email
-      // creates a *new* Supabase user with a different ID, and the JWT we'd
-      // return would have `sub` pointing at an ID we have no row for —
-      // every authenticated request downstream would fail to resolve the
-      // user. Refuse the sign-in and let the client route the user to
-      // their original method via check-email.
-      if (data.user.id !== existingUser.id) {
-        throw new ConflictException({
-          message:
-            'This email is already registered with a different sign-in method. ' +
-            'Sign in with that method, or link this provider from account settings.',
-          code: 'AUTH_PROVIDER_MISMATCH',
-          existingProvider: existingUser.authProvider,
+      try {
+        await this.users.createWithId(data.user.id, email, 'client', {
+          name: dto.name,
+          secondName: dto.secondName,
+          authProvider: incomingProvider,
         });
-      }
-      if (existingUser.authProvider !== incomingProvider) {
-        // User previously used a different method (e.g. registered via email,
-        // now signing in with Apple) and Supabase linked the identities so
-        // the user ID is stable. Track the current method so check-email
-        // routes them to the right UI next time.
-        await this.users.setAuthProvider(existingUser.id, incomingProvider);
+        await this.mirrorUserRoleToSupabase(data.user.id, 'client');
+        isNewUser = true;
+      } catch (err) {
+        // Two concurrent first-time OAuth sign-ins for the same email would
+        // both pass the findByEmail check above and race on createWithId.
+        // The loser gets P2002 on the unique email constraint — re-fetch the
+        // winner's row and continue as if it had existed all along.
+        if (!(err instanceof Prisma.PrismaClientKnownRequestError) || err.code !== 'P2002') {
+          throw err;
+        }
+        storedUser = await this.users.findByEmail(email);
+        if (!storedUser) throw err;
+        await this.reconcileOauthProvider(storedUser, data.user.id, incomingProvider);
       }
     }
 
@@ -127,8 +119,54 @@ export class AuthService {
       refresh_token: data.session.refresh_token,
       expires_in: data.session.expires_in,
       is_new_user: isNewUser,
-      phone_verification_required: this.phoneVerificationEnabled && (isNewUser || !existingUser?.isPhoneVerified),
+      phone_verification_required:
+        this.phoneVerificationEnabled && (isNewUser || !storedUser?.isPhoneVerified),
     };
+  }
+
+  /**
+   * Validates and (if needed) updates a stored user row during OAuth sign-in:
+   *
+   * - Throws `AUTH_PROVIDER_MISMATCH` if the Supabase OAuth user id doesn't
+   *   match the stored row (Supabase's "link by email" is off, so the JWT
+   *   we'd return has a `sub` we can't resolve).
+   * - Updates `authProvider` if it's stale (e.g. registered via email, now
+   *   signing in with Apple), so check-email routes the client correctly
+   *   next time.
+   */
+  private async reconcileOauthProvider(
+    storedUser: { id: string; authProvider: AuthProvider },
+    incomingUserId: string,
+    incomingProvider: AuthProvider,
+  ): Promise<void> {
+    if (incomingUserId !== storedUser.id) {
+      throw new ConflictException({
+        message:
+          'This email is already registered with a different sign-in method. ' +
+          'Sign in with that method, or link this provider from account settings.',
+        code: 'AUTH_PROVIDER_MISMATCH',
+        existingProvider: storedUser.authProvider,
+      });
+    }
+    if (storedUser.authProvider !== incomingProvider) {
+      await this.users.setAuthProvider(storedUser.id, incomingProvider);
+    }
+  }
+
+  /**
+   * Mirror the user's role into Supabase `user_metadata.user_role`.
+   *
+   * Email/password registration sets this via signUp({ options: { data }}).
+   * OAuth sign-in (signInWithIdToken) doesn't, so without this step a
+   * brand-new Apple/Google user authenticates but has `user_metadata.user_role`
+   * undefined — JwtAuthGuard sets req.user.role to null, and every endpoint
+   * protected by ClientRolesGuard / OwnerRolesGuard returns 403.
+   */
+  private async mirrorUserRoleToSupabase(userId: string, role: UserRole): Promise<void> {
+    const { error } = await this.sb.auth.admin.updateUserById(userId, {
+      user_metadata: { user_role: role },
+    });
+    if (error) throw new BadRequestException(error.message);
   }
 
   async login(dto: LoginDto) {
@@ -189,10 +227,20 @@ export class AuthService {
       token_hash: dto.otp_token,
     });
     if (error) throw new BadRequestException(error.message);
+    if (!data.user) {
+      throw new BadRequestException('OTP verification did not return a user');
+    }
 
-    const { error: updErr } = await this.sb.auth.updateUser({
-      password: dto.new_password,
-    });
+    // Update via the admin API rather than `this.sb.auth.updateUser(...)`.
+    // updateUser() reads from the shared client's _currentSession, which
+    // verifyOtp() just wrote to — a concurrent reset-password request can
+    // overwrite that session between these two awaits and cause the wrong
+    // user's password to be changed. Passing the userId explicitly to the
+    // admin API removes the race.
+    const { error: updErr } = await this.sb.auth.admin.updateUserById(
+      data.user.id,
+      { password: dto.new_password },
+    );
     if (updErr) throw new BadRequestException(updErr.message);
 
     return {

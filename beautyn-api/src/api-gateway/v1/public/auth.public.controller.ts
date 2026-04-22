@@ -55,6 +55,10 @@ export class AuthPublicController {
   ) {}
 
   @Post('check-email')
+  @UseGuards(UserThrottlerGuard)
+  @Throttle({
+    'email-check': { limit: 10, ttl: 60 * 1000 },
+  })
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Check if email is registered and how' })
   @ApiBody({ type: CheckEmailDto })
