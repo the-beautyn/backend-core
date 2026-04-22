@@ -61,11 +61,12 @@ describe('AuthService', () => {
     const mockSupabaseAuth = {
       signUp: jest.fn(),
       signInWithPassword: jest.fn(),
-      signOut: jest.fn(),
       resetPasswordForEmail: jest.fn(),
       verifyOtp: jest.fn(),
       updateUser: jest.fn(),
-      setSession: jest.fn(),
+      admin: {
+        signOut: jest.fn(),
+      },
     };
 
     const mockSupabaseClient = {
@@ -250,42 +251,19 @@ describe('AuthService', () => {
   describe('logout', () => {
     const accessToken = 'mock-access-token';
 
-    it('should logout user successfully', async () => {
-      // Arrange
-      const mockSetSessionResponse = supabaseClient.auth;
-      const mockSignOutResponse = {
-        error: null,
-      };
+    it('revokes the user\'s refresh tokens via admin.signOut', async () => {
+      (supabaseClient.auth.admin.signOut as unknown as jest.Mock).mockResolvedValue({ error: null });
 
-      (supabaseClient.auth.setSession as unknown as jest.Mock).mockReturnValue(mockSetSessionResponse);
-      (supabaseClient.auth.signOut as unknown as jest.Mock).mockResolvedValue(mockSignOutResponse);
-
-      // Act
       const result = await service.logout(accessToken);
 
-      // Assert
-      expect(supabaseClient.auth.setSession).toHaveBeenCalledWith({
-        access_token: accessToken,
-        refresh_token: '',
-      });
-      expect(supabaseClient.auth.signOut).toHaveBeenCalled();
-      expect(result).toEqual({
-        message: 'Logged out (refresh tokens revoked)',
-      });
+      expect(supabaseClient.auth.admin.signOut).toHaveBeenCalledWith(accessToken);
+      expect(result).toEqual({ message: 'Logged out' });
     });
 
-    it('should throw BadRequestException when logout fails', async () => {
-      // Arrange
+    it('throws BadRequestException when admin.signOut fails', async () => {
       const mockError = { message: 'Logout failed' };
-      const mockSetSessionResponse = supabaseClient.auth;
-      const mockSignOutResponse = {
-        error: mockError,
-      };
+      (supabaseClient.auth.admin.signOut as unknown as jest.Mock).mockResolvedValue({ error: mockError });
 
-      (supabaseClient.auth.setSession as unknown as jest.Mock).mockReturnValue(mockSetSessionResponse);
-      (supabaseClient.auth.signOut as unknown as jest.Mock).mockResolvedValue(mockSignOutResponse);
-
-      // Act & Assert
       await expect(service.logout(accessToken)).rejects.toThrow(
         new BadRequestException(mockError.message),
       );

@@ -141,14 +141,13 @@ export class AuthService {
   }
 
   async logout(accessToken: string) {
-    // Build a “scoped” client that holds the user session
-    const userSb = this.sb
-      .auth
-      .setSession({ access_token: accessToken, refresh_token: '' });
-
-    const { error } = await this.sb.auth.signOut();                 // :contentReference[oaicite:3]{index=3}
+    // The shared client uses the service role key, so call the admin API
+    // directly. Avoids mutating the shared client's session (which would
+    // race with other concurrent requests) and actually revokes the
+    // specific user's refresh tokens.
+    const { error } = await this.sb.auth.admin.signOut(accessToken);
     if (error) throw new BadRequestException(error.message);
-    return { message: 'Logged out (refresh tokens revoked)' };
+    return { message: 'Logged out' };
   }
 
   async forgotPassword({ email }: ForgotPasswordDto) {
