@@ -9,6 +9,7 @@ import { ForgotPasswordDto } from '../../src/auth/dto/v1/forgot-password.dto';
 import { ResetPasswordDto } from '../../src/auth/dto/v1/reset-password.dto';
 import { UserRole } from '@prisma/client';
 import { ConfigService } from '@nestjs/config';
+import { PhoneVerificationService } from '../../src/auth/phone-verification.service';
 
 describe('AuthService', () => {
   let service: AuthService;
@@ -90,6 +91,10 @@ describe('AuthService', () => {
               return fallback ?? 'true';
             }),
           },
+        },
+        {
+          provide: PhoneVerificationService,
+          useValue: { isEnabled: jest.fn().mockReturnValue(true) },
         },
       ],
     }).compile();

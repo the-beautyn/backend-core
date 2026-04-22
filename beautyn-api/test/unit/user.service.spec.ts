@@ -1,7 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { ConflictException } from '@nestjs/common';
 import { UserService, computeProfileCreated } from '../../src/user/user.service';
 import { UserRepository } from '../../src/user/user.repository';
-import { UserRole, Users } from '@prisma/client';
+import { PhoneVerificationService } from '../../src/auth/phone-verification.service';
+import { Prisma, UserRole, Users } from '@prisma/client';
 
 const baseUser: Users = {
   id: 'u1',
@@ -42,6 +44,10 @@ describe('UserService', () => {
             findByEmail: jest.fn(),
             updateById: jest.fn(),
           },
+        },
+        {
+          provide: PhoneVerificationService,
+          useValue: { isEnabled: jest.fn().mockReturnValue(true) },
         },
       ],
     }).compile();
@@ -105,13 +111,13 @@ describe('UserService', () => {
   });
 
   it('computeProfileCreated truth table (phone verification enabled)', () => {
-    // With phone verification enabled (default), all roles need name + secondName + phone + isPhoneVerified
-    expect(computeProfileCreated('client', 'a', 'b', '+12345678901', true)).toBe(true);
-    expect(computeProfileCreated('client', 'a', 'b', '+12345678901', false)).toBe(false);
-    expect(computeProfileCreated('client', 'a', 'b')).toBe(false);
-    expect(computeProfileCreated('client', 'a', undefined)).toBe(false);
-    expect(computeProfileCreated('owner', 'a', 'b', '+12345678901', true)).toBe(true);
-    expect(computeProfileCreated('owner', 'a', 'b')).toBe(false);
+    // With phone verification enabled, all roles need name + secondName + phone + isPhoneVerified
+    expect(computeProfileCreated(true, 'client', 'a', 'b', '+12345678901', true)).toBe(true);
+    expect(computeProfileCreated(true, 'client', 'a', 'b', '+12345678901', false)).toBe(false);
+    expect(computeProfileCreated(true, 'client', 'a', 'b')).toBe(false);
+    expect(computeProfileCreated(true, 'client', 'a', undefined)).toBe(false);
+    expect(computeProfileCreated(true, 'owner', 'a', 'b', '+12345678901', true)).toBe(true);
+    expect(computeProfileCreated(true, 'owner', 'a', 'b')).toBe(false);
   });
 
   it('setOnboardingCompleted flips flag', async () => {
@@ -119,5 +125,34 @@ describe('UserService', () => {
     repo.updateById.mockResolvedValue({ ...baseUser, isOnboardingCompleted: true });
     const result = await service.setOnboardingCompleted('u1');
     expect(result.is_onboarding_completed).toBe(true);
+  });
+
+  it('setPhoneVerified throws ConflictException when phone already verified on another account', async () => {
+    repo.findById.mockResolvedValue(baseUser);
+    repo.updateById.mockRejectedValue(
+      new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {
+        code: 'P2002',
+        clientVersion: 'test',
+        meta: { target: 'users_phone_verified_unique' },
+      }),
+    );
+
+    await expect(service.setPhoneVerified('u1', '+12345678901')).rejects.toBeInstanceOf(ConflictException);
+  });
+
+  it('updateProfile throws ConflictException when phone conflict surfaces on write', async () => {
+    const verifiedUser = { ...baseUser, phone: '+380501234567', isPhoneVerified: true };
+    repo.findById.mockResolvedValue(verifiedUser);
+    repo.updateById.mockRejectedValue(
+      new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {
+        code: 'P2002',
+        clientVersion: 'test',
+        meta: { target: 'users_phone_verified_unique' },
+      }),
+    );
+
+    await expect(
+      service.updateProfile('u1', { phone: '+12345678901' }),
+    ).rejects.toBeInstanceOf(ConflictException);
   });
 });

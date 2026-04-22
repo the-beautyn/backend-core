@@ -1,4 +1,5 @@
 import {
+  ConflictException,
   Injectable,
   NotFoundException,
   NotImplementedException,
@@ -7,9 +8,22 @@ import { UserRepository } from './user.repository';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UserResponseDto } from './dto/user-response.dto';
 import { NotificationUserDto } from './dto/notification-user.dto';
-import { Users, UserRole, AuthProvider } from '@prisma/client';
+import { Prisma, Users, UserRole, AuthProvider } from '@prisma/client';
+import { PhoneVerificationService } from '../auth/phone-verification.service';
+
+const PHONE_CONFLICT_INDEX = 'users_phone_verified_unique';
+const PHONE_CONFLICT_MESSAGE = 'Phone number is already in use';
+
+function isVerifiedPhoneConflict(err: unknown): boolean {
+  if (!(err instanceof Prisma.PrismaClientKnownRequestError)) return false;
+  if (err.code !== 'P2002') return false;
+  const target = (err.meta as { target?: string | string[] } | undefined)?.target;
+  const targets = Array.isArray(target) ? target : target ? [target] : [];
+  return targets.some((t) => t.includes(PHONE_CONFLICT_INDEX) || t === 'phone');
+}
 
 export function computeProfileCreated(
+  phoneVerificationEnabled: boolean,
   role: 'client' | 'owner' | 'admin',
   name?: string | null,
   second_name?: string | null,
@@ -17,7 +31,6 @@ export function computeProfileCreated(
   isPhoneVerified?: boolean,
 ) {
   const hasNames = !!name && !!second_name;
-  const phoneVerificationEnabled = process.env.PHONE_VERIFICATION_ENABLED !== 'false';
   if (phoneVerificationEnabled) {
     return hasNames && !!phone && !!isPhoneVerified;
   }
@@ -26,7 +39,10 @@ export function computeProfileCreated(
 
 @Injectable()
 export class UserService {
-  constructor(private readonly repo: UserRepository) {}
+  constructor(
+    private readonly repo: UserRepository,
+    private readonly phoneVerification: PhoneVerificationService,
+  ) {}
 
   private toResponse(user: Users): UserResponseDto {
     return {
@@ -69,6 +85,7 @@ export class UserService {
     const avatarUrl = dto.avatar_url?.trim() ?? existing.avatarUrl ?? null;
 
     const isProfileCreated = computeProfileCreated(
+      this.phoneVerification.isEnabled(),
       existing.role,
       name,
       secondName,
@@ -84,8 +101,13 @@ export class UserService {
       isProfileCreated,
     };
 
-    const updated = await this.repo.updateById(id, data);
-    return this.toResponse(updated);
+    try {
+      const updated = await this.repo.updateById(id, data);
+      return this.toResponse(updated);
+    } catch (err) {
+      if (isVerifiedPhoneConflict(err)) throw new ConflictException(PHONE_CONFLICT_MESSAGE);
+      throw err;
+    }
   }
 
   async findContactInfo(id: string): Promise<NotificationUserDto> {
@@ -118,6 +140,7 @@ export class UserService {
     if (!existing) throw new NotFoundException('User not found');
 
     const isProfileCreated = computeProfileCreated(
+      this.phoneVerification.isEnabled(),
       existing.role,
       existing.name,
       existing.secondName,
@@ -125,7 +148,12 @@ export class UserService {
       true,
     );
 
-    await this.repo.updateById(id, { phone, isPhoneVerified: true, isProfileCreated });
+    try {
+      await this.repo.updateById(id, { phone, isPhoneVerified: true, isProfileCreated });
+    } catch (err) {
+      if (isVerifiedPhoneConflict(err)) throw new ConflictException(PHONE_CONFLICT_MESSAGE);
+      throw err;
+    }
   }
 
   async isProfileComplete(id: string): Promise<boolean> {

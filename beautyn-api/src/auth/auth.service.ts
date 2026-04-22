@@ -15,17 +15,19 @@ import { UserService } from '../user/user.service';
 import { ConfigService } from '@nestjs/config';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { AuthProvider } from '@prisma/client';
+import { PhoneVerificationService } from './phone-verification.service';
 
 @Injectable()
 export class AuthService {
-  private readonly phoneVerificationEnabled: boolean;
-
   constructor(
     private readonly users: UserService,
     private readonly sb: SupabaseClient,
     private readonly config: ConfigService,
-  ) {
-    this.phoneVerificationEnabled = this.config.get('PHONE_VERIFICATION_ENABLED', 'true') === 'true';
+    private readonly phoneVerification: PhoneVerificationService,
+  ) {}
+
+  private get phoneVerificationEnabled(): boolean {
+    return this.phoneVerification.isEnabled();
   }
 
   async checkEmail({ email }: CheckEmailDto): Promise<{ status: EmailStatus }> {

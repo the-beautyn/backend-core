@@ -41,6 +41,8 @@ import { RegisterResponseDto } from '../../../auth/dto/v1/register-response.dto'
 import { ResetPasswordResponseDto } from '../../../auth/dto/v1/reset-password-response.dto';
 import { envelopeRef, envelopeErrorSchema, envelopeSuccessOnly } from '../../../shared/utils/swagger-envelope.util';
 import { JwtAuthGuard } from '../../../shared/guards/jwt-auth.guard';
+import { UserThrottlerGuard } from '../../../shared/guards/user-throttler.guard';
+import { Throttle } from '@nestjs/throttler';
 import { Request } from 'express';
 
 @ApiTags('Auth')
@@ -150,7 +152,11 @@ export class AuthPublicController {
   }
 
   @Post('phone/send-otp')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, UserThrottlerGuard)
+  @Throttle({
+    'otp-burst': { limit: 1, ttl: 60 * 1000 },
+    'otp-hour': { limit: 3, ttl: 60 * 60 * 1000 },
+  })
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Send phone verification OTP' })
@@ -159,13 +165,19 @@ export class AuthPublicController {
   @ApiBadRequestResponse(
     envelopeErrorSchema({ statusCode: 400, message: 'Bad Request', error: 'Bad Request' })
   )
-  async sendPhoneOtp(@Body() dto: SendOtpDto) {
-    await this.phoneVerification.sendOtp(dto.phone);
+  async sendPhoneOtp(
+    @Body() dto: SendOtpDto,
+    @Req() req: Request & { user: { id: string } },
+  ) {
+    await this.phoneVerification.sendOtp(req.user.id, dto.phone);
     return { success: true };
   }
 
   @Post('phone/verify-otp')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, UserThrottlerGuard)
+  @Throttle({
+    'otp-verify': { limit: 10, ttl: 5 * 60 * 1000 },
+  })
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Verify phone OTP code' })
@@ -178,7 +190,7 @@ export class AuthPublicController {
     @Body() dto: VerifyOtpDto,
     @Req() req: Request & { user: { id: string } },
   ) {
-    const valid = await this.phoneVerification.verifyOtp(dto.phone, dto.code);
+    const valid = await this.phoneVerification.verifyOtp(req.user.id, dto.phone, dto.code);
     if (!valid) {
       throw new BadRequestException('Invalid or expired verification code');
     }
@@ -187,14 +199,21 @@ export class AuthPublicController {
   }
 
   @Post('phone/resend-otp')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, UserThrottlerGuard)
+  @Throttle({
+    'otp-burst': { limit: 1, ttl: 60 * 1000 },
+    'otp-hour': { limit: 3, ttl: 60 * 60 * 1000 },
+  })
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Resend phone verification OTP' })
   @ApiBody({ type: SendOtpDto })
   @ApiOkResponse(envelopeSuccessOnly())
-  async resendPhoneOtp(@Body() dto: SendOtpDto) {
-    await this.phoneVerification.sendOtp(dto.phone);
+  async resendPhoneOtp(
+    @Body() dto: SendOtpDto,
+    @Req() req: Request & { user: { id: string } },
+  ) {
+    await this.phoneVerification.sendOtp(req.user.id, dto.phone);
     return { success: true };
   }
 }
