@@ -190,40 +190,66 @@ jobs:
             exit 1
           fi
 
-          # libpq (psql / pg_dump) rejects Prisma-specific query params like
-          # `schema=public`. Strip them for psql use while leaving the Prisma
-          # URLs untouched for Railway.
-          strip_prisma_params() {
-            local url="$1"
-            url="${url//&schema=public/}"
-            url="${url//\?schema=public&/\?}"
-            url="${url//\?schema=public/}"
-            url="${url//&pgbouncer=true/}"
-            url="${url//\?pgbouncer=true&/\?}"
-            url="${url//\?pgbouncer=true/}"
-            echo "$url"
+          # Parse Postgres URLs via Python into libpq-friendly parts, then
+          # invoke psql/pg_dump with flags + PGPASSWORD. This sidesteps two
+          # issues URLs have:
+          #   1. Prisma-specific query params (schema=public, pgbouncer=true)
+          #      that libpq rejects.
+          #   2. Passwords containing URL-reserved characters (@, &, ?, :, /)
+          #      that break libpq's URI parser even when those chars aren't
+          #      percent-encoded.
+          parse_url_to_env() {
+            python3 - "$1" "$2" <<'PY'
+          import sys, shlex
+          from urllib.parse import urlparse, unquote
+          url, prefix = sys.argv[1], sys.argv[2]
+          u = urlparse(url)
+          vals = {
+              'HOST':     u.hostname or '',
+              'PORT':     str(u.port or 5432),
+              'USER':     unquote(u.username or ''),
+              'PASSWORD': unquote(u.password or ''),
+              'DB':       (u.path.lstrip('/')) or 'postgres',
           }
-          SRC_URL=$(strip_prisma_params "$SOURCE_DIRECT_URL")
-          DST_URL=$(strip_prisma_params "$BUILT_DIRECT_URL")
+          for k, v in vals.items():
+              print(f'{prefix}_{k}={shlex.quote(v)}')
+          PY
+          }
+
+          eval "$(parse_url_to_env "$SOURCE_DIRECT_URL" SRC)"
+          eval "$(parse_url_to_env "$BUILT_DIRECT_URL" DST)"
+
+          export PGSSLMODE=require
+
+          psql_src() {
+            PGPASSWORD="$SRC_PASSWORD" psql -h "$SRC_HOST" -p "$SRC_PORT" \
+              -U "$SRC_USER" -d "$SRC_DB" "$@"
+          }
+          psql_dst() {
+            PGPASSWORD="$DST_PASSWORD" psql -h "$DST_HOST" -p "$DST_PORT" \
+              -U "$DST_USER" -d "$DST_DB" "$@"
+          }
+          pg_dump_src() {
+            PGPASSWORD="$SRC_PASSWORD" pg_dump -h "$SRC_HOST" -p "$SRC_PORT" \
+              -U "$SRC_USER" -d "$SRC_DB" "$@"
+          }
 
           # Refuse to propagate corruption from the source.
-          UNFINISHED=$(psql "$SRC_URL" -tAc \
+          UNFINISHED=$(psql_src -tAc \
             "SELECT count(*) FROM _prisma_migrations WHERE finished_at IS NULL AND rolled_back_at IS NULL;")
           if [ "$UNFINISHED" != "0" ]; then
             echo "❌ Source _prisma_migrations has $UNFINISHED stuck migration(s). Fix the source first."
             exit 1
           fi
 
-          # Dump only the data of _prisma_migrations (table itself already exists on the preview).
-          pg_dump --data-only --no-owner --no-privileges --column-inserts \
-            --table=public._prisma_migrations "$SRC_URL" \
+          pg_dump_src --data-only --no-owner --no-privileges --column-inserts \
+            --table=public._prisma_migrations \
             > /tmp/prisma_migrations.sql
 
-          # Clear the preview's (possibly stuck / partial) tracking and seed from source.
-          psql "$DST_URL" -c "TRUNCATE TABLE _prisma_migrations;"
-          psql "$DST_URL" -f /tmp/prisma_migrations.sql
+          psql_dst -c "TRUNCATE TABLE _prisma_migrations;"
+          psql_dst -f /tmp/prisma_migrations.sql
 
-          PREVIEW_ROWS=$(psql "$DST_URL" -tAc \
+          PREVIEW_ROWS=$(psql_dst -tAc \
             "SELECT count(*) FROM _prisma_migrations WHERE finished_at IS NOT NULL;")
           echo "✅ Seeded $PREVIEW_ROWS applied migration(s) into preview"
 
