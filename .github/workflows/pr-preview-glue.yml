@@ -176,8 +176,23 @@ jobs:
       # from scratch and crash on "type already exists". Copy the tracking
       # rows from the source branch so migrate deploy only applies the PR's
       # new migrations. Schema is no-op; only the receipts table is touched.
-      - name: Install postgresql-client
-        run: sudo apt-get install -y postgresql-client
+      - name: Install postgresql-client-17
+        # Ubuntu's default postgresql-client is 16.x and pg_dump refuses to
+        # talk to a 17.x server. Pull the official PGDG apt repo so we can
+        # install a 17-matched client.
+        run: |
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSL \
+            https://www.postgresql.org/media/keys/ACCC4CF8.asc \
+            -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" \
+            | sudo tee /etc/apt/sources.list.d/pgdg.list > /dev/null
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client-17
+          # Sanity-check the wrapper picks 17 (postgresql-client-common picks
+          # the highest installed version).
+          pg_dump --version
+          psql --version
 
       - name: Seed _prisma_migrations from source branch
         env:
