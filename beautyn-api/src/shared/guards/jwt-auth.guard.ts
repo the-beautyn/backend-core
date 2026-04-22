@@ -27,6 +27,7 @@ export class JwtAuthGuard implements CanActivate {
         ...user,                        // Include all Supabase user fields
         id: user.id,                    // Ensure user ID is available
         role: user.user_metadata?.user_role || null,  // Extract role from metadata
+        accessToken: token,             // Expose the bearer token for handlers that need to revoke it
       };
       
       return true;

@@ -87,15 +87,20 @@ export class AuthService {
 
     const existingUser = await this.users.findByEmail(email);
     let isNewUser = false;
+    const incomingProvider: AuthProvider = dto.provider === 'apple' ? 'apple' : 'google';
 
     if (!existingUser) {
       isNewUser = true;
-      const authProvider = dto.provider === 'apple' ? 'apple' : 'google';
       await this.users.createWithId(data.user.id, email, 'client', {
         name: dto.name,
         secondName: dto.secondName,
-        authProvider: authProvider as AuthProvider,
+        authProvider: incomingProvider,
       });
+    } else if (existingUser.authProvider !== incomingProvider) {
+      // User previously used a different method (e.g. registered via email,
+      // now signing in with Apple). Track the current method so check-email
+      // routes them to the right UI next time.
+      await this.users.setAuthProvider(existingUser.id, incomingProvider);
     }
 
     return {

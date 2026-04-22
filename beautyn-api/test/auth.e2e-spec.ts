@@ -91,11 +91,10 @@ describe('Auth (e2e)', () => {
         auth: {
           signUp: jest.fn(),
           signInWithPassword: jest.fn(),
-          signOut: jest.fn(),
           resetPasswordForEmail: jest.fn(),
           verifyOtp: jest.fn(),
           updateUser: jest.fn(),
-          setSession: jest.fn(),
+          admin: { signOut: jest.fn() },
         },
       })
       .overrideGuard(JwtAuthGuard)
@@ -332,23 +331,18 @@ describe('Auth (e2e)', () => {
   });
 
   describe('/api/v1/auth/logout (POST)', () => {
-    it('should logout user successfully', async () => {
-      // Arrange
-      const mockSetSessionResponse = supabaseClient.auth;
-      const mockSignOutResponse = { error: null };
+    it('revokes the bearer token via admin.signOut', async () => {
+      (supabaseClient.auth.admin.signOut as jest.Mock).mockResolvedValue({ error: null });
 
-      (supabaseClient.auth.setSession as jest.Mock).mockReturnValue(mockSetSessionResponse);
-      (supabaseClient.auth.signOut as jest.Mock).mockResolvedValue(mockSignOutResponse);
-
-      // Act & Assert
-      const response = await request(app.getHttpServer())
+      await request(app.getHttpServer())
         .post('/api/v1/auth/logout')
         .set('Authorization', 'Bearer mock-access-token')
         .expect(200);
+
+      expect(supabaseClient.auth.admin.signOut).toHaveBeenCalledWith('mock-access-token');
     });
 
     it('should return 403 when no token provided', async () => {
-      // Act & Assert
       await request(app.getHttpServer())
         .post('/api/v1/auth/logout')
         .expect(403);

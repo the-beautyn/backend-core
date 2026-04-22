@@ -11,7 +11,6 @@ import { NotificationUserDto } from './dto/notification-user.dto';
 import { Prisma, Users, UserRole, AuthProvider } from '@prisma/client';
 import { PhoneVerificationService } from '../auth/phone-verification.service';
 
-const PHONE_CONFLICT_INDEX = 'users_phone_verified_unique';
 const PHONE_CONFLICT_MESSAGE = 'Phone number is already in use';
 
 function isVerifiedPhoneConflict(err: unknown): boolean {
@@ -19,7 +18,7 @@ function isVerifiedPhoneConflict(err: unknown): boolean {
   if (err.code !== 'P2002') return false;
   const target = (err.meta as { target?: string | string[] } | undefined)?.target;
   const targets = Array.isArray(target) ? target : target ? [target] : [];
-  return targets.some((t) => t.includes(PHONE_CONFLICT_INDEX) || t === 'phone');
+  return targets.includes('phone');
 }
 
 export function computeProfileCreated(
@@ -173,5 +172,9 @@ export class UserService {
     profile?: { name?: string; secondName?: string; phone?: string; authProvider?: AuthProvider },
   ) {
     return this.repo.createWithId(id, email, role, profile);
+  }
+
+  async setAuthProvider(id: string, authProvider: AuthProvider): Promise<void> {
+    await this.repo.updateById(id, { authProvider });
   }
 }

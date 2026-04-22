@@ -56,11 +56,13 @@ describe('AuthService', () => {
       create: jest.fn(),
       createWithId: jest.fn(),
       findByEmail: jest.fn(),
+      setAuthProvider: jest.fn(),
     };
 
     const mockSupabaseAuth = {
       signUp: jest.fn(),
       signInWithPassword: jest.fn(),
+      signInWithIdToken: jest.fn(),
       resetPasswordForEmail: jest.fn(),
       verifyOtp: jest.fn(),
       updateUser: jest.fn(),
@@ -245,6 +247,57 @@ describe('AuthService', () => {
       await expect(service.login(loginDto)).rejects.toThrow(
         new UnauthorizedException(mockError.message),
       );
+    });
+  });
+
+  describe('oauthSignIn', () => {
+    const baseDto = {
+      provider: 'apple' as const,
+      idToken: 'id-token',
+      name: 'Jane',
+      secondName: 'Doe',
+    };
+
+    const mockOAuthResponse = {
+      data: { user: mockSupabaseUser, session: mockSession },
+      error: null,
+    };
+
+    it('creates a new user with the incoming auth provider', async () => {
+      (supabaseClient.auth.signInWithIdToken as unknown as jest.Mock).mockResolvedValue(mockOAuthResponse);
+      userService.findByEmail.mockResolvedValue(null);
+
+      const result = await service.oauthSignIn(baseDto);
+
+      expect(userService.createWithId).toHaveBeenCalledWith(
+        mockSupabaseUser.id,
+        mockSupabaseUser.email,
+        'client',
+        expect.objectContaining({ authProvider: 'apple' }),
+      );
+      expect(userService.setAuthProvider).not.toHaveBeenCalled();
+      expect(result.is_new_user).toBe(true);
+    });
+
+    it('updates authProvider when an existing user signs in via a different provider', async () => {
+      (supabaseClient.auth.signInWithIdToken as unknown as jest.Mock).mockResolvedValue(mockOAuthResponse);
+      userService.findByEmail.mockResolvedValue({ ...mockUser, authProvider: 'email' });
+
+      const result = await service.oauthSignIn(baseDto);
+
+      expect(userService.createWithId).not.toHaveBeenCalled();
+      expect(userService.setAuthProvider).toHaveBeenCalledWith(mockUser.id, 'apple');
+      expect(result.is_new_user).toBe(false);
+    });
+
+    it('leaves authProvider untouched when it already matches the incoming provider', async () => {
+      (supabaseClient.auth.signInWithIdToken as unknown as jest.Mock).mockResolvedValue(mockOAuthResponse);
+      userService.findByEmail.mockResolvedValue({ ...mockUser, authProvider: 'apple' });
+
+      await service.oauthSignIn(baseDto);
+
+      expect(userService.createWithId).not.toHaveBeenCalled();
+      expect(userService.setAuthProvider).not.toHaveBeenCalled();
     });
   });
 

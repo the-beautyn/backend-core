@@ -133,7 +133,7 @@ describe('UserService', () => {
       new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {
         code: 'P2002',
         clientVersion: 'test',
-        meta: { target: 'users_phone_verified_unique' },
+        meta: { target: ['phone'] },
       }),
     );
 
@@ -147,7 +147,7 @@ describe('UserService', () => {
       new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {
         code: 'P2002',
         clientVersion: 'test',
-        meta: { target: 'users_phone_verified_unique' },
+        meta: { target: ['phone'] },
       }),
     );
 

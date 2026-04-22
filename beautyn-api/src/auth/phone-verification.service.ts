@@ -21,7 +21,14 @@ export class PhoneVerificationService {
   ) {
     if (!this.smsProvider) {
       this.logger.warn('Phone verification disabled — no SMS provider configured');
+      return;
     }
+    this.logger.warn(
+      'OTP sessions are stored in-memory. This assumes a single API instance — ' +
+        'scale out will cause verify-otp to fail non-deterministically when the ' +
+        'follow-up request lands on a different replica. Migrate to a shared ' +
+        'store (e.g. Redis) before enabling horizontal scaling.',
+    );
   }
 
   async sendOtp(userId: string, phone: string): Promise<void> {
