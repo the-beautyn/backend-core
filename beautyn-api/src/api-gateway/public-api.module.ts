@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { SharedModule } from '../shared/shared.module';
 import { AuthModule } from '../auth/auth.module';
+import { UserModule } from '../user/user.module';
 import { ServicesModule } from '../services/services.module';
 import { SalonModule } from '../salon/salon.module';
 import { AuthPublicController } from './v1/public/auth.public.controller';
@@ -24,9 +25,11 @@ import { AltegioBookingModule } from '../booking/altegio-booking/altegio-booking
 import { AltegioBookingPublicController } from './v1/public/altegio-booking.public.controller';
 import { HomeFeedModule } from '../home-feed/home-feed.module';
 import { HomeFeedController } from './v1/public/home-feed.controller';
+import { WellKnownController } from './v1/public/well-known.controller';
+import { AuthResetController } from './v1/public/auth-reset.controller';
 
 @Module({
-  imports: [SharedModule, AuthModule, ServicesModule, WorkersModule, SalonModule, OnboardingModule, CategoriesModule, AppCategoriesModule, SearchModule, AltegioBookingModule, HomeFeedModule],
+  imports: [SharedModule, AuthModule, UserModule, ServicesModule, WorkersModule, SalonModule, OnboardingModule, CategoriesModule, AppCategoriesModule, SearchModule, AltegioBookingModule, HomeFeedModule],
   controllers: [
     AuthPublicController,
     HealthController,
@@ -39,6 +42,8 @@ import { HomeFeedController } from './v1/public/home-feed.controller';
     SearchPublicController,
     AltegioBookingPublicController,
     HomeFeedController,
+    WellKnownController,
+    AuthResetController,
   ],
   providers: [AltegioWebhookService, SyncTriggerService, AltegioPartnerClient],
 })

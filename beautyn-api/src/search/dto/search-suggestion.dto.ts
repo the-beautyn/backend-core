@@ -16,5 +16,5 @@ export class SearchSuggestionDto {
   subtitle?: string;
 
   @ApiPropertyOptional()
-  logoUrl?: string;
+  logo_url?: string;
 }

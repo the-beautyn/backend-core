@@ -28,9 +28,9 @@ export class SearchService {
 
     const meta: Record<string, any> = {};
     if (effectiveRadiusKm !== undefined) {
-      meta.effectiveRadiusKm = effectiveRadiusKm;
+      meta.effective_radius_km = effectiveRadiusKm;
     }
-    meta.geoSource = this.getGeoSource(geoContext);
+    meta.geo_source = this.getGeoSource(geoContext);
     if (Object.keys(meta).length) {
       response.meta = meta;
     }
@@ -89,15 +89,15 @@ export class SearchService {
     const latitude = row.latitude !== undefined && row.latitude !== null ? Number(row.latitude) : undefined;
     const longitude = row.longitude !== undefined && row.longitude !== null ? Number(row.longitude) : undefined;
     return {
-      salonId: row.id,
+      salon_id: row.id,
       name: row.name ?? '',
       address: this.composeAddress(row.city, row.address_line),
       rating,
-      distanceKm,
-      logoUrl: row.cover_image_url ?? undefined,
+      distance_km: distanceKm,
+      logo_url: row.cover_image_url ?? undefined,
       latitude,
       longitude,
-      imageUrl: row.cover_image_url ?? undefined,
+      image_url: row.cover_image_url ?? undefined,
     };
   }
 

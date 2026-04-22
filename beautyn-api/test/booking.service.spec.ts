@@ -54,8 +54,8 @@ describe('BookingService', () => {
     const first = await service.confirmEasyweekBooking(salonId, bookingUuid, userId);
     const second = await service.confirmEasyweekBooking(salonId, bookingUuid, userId);
 
-    expect(first.bookingId).toBe('booking-1');
-    expect(second.bookingId).toBe('booking-1');
+    expect(first.booking_id).toBe('booking-1');
+    expect(second.booking_id).toBe('booking-1');
     expect(bookingHandler.createEasyweekBooking).toHaveBeenCalledTimes(2);
     expect(bookingHandler.createEasyweekBooking).toHaveBeenCalledWith(
       expect.objectContaining({

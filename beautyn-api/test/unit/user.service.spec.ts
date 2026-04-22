@@ -1,7 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { ConflictException } from '@nestjs/common';
 import { UserService, computeProfileCreated } from '../../src/user/user.service';
 import { UserRepository } from '../../src/user/user.repository';
-import { UserRole, Users } from '@prisma/client';
+import { PhoneVerificationService } from '../../src/auth/phone-verification.service';
+import { Prisma, UserRole, Users } from '@prisma/client';
 
 const baseUser: Users = {
   id: 'u1',
@@ -11,6 +13,8 @@ const baseUser: Users = {
   secondName: null,
   phone: null,
   avatarUrl: null,
+  authProvider: 'email',
+  isPhoneVerified: false,
   isProfileCreated: false,
   isOnboardingCompleted: false,
   subscriptionId: null,
@@ -41,6 +45,10 @@ describe('UserService', () => {
             updateById: jest.fn(),
           },
         },
+        {
+          provide: PhoneVerificationService,
+          useValue: { isEnabled: jest.fn().mockReturnValue(true) },
+        },
       ],
     }).compile();
 
@@ -48,17 +56,18 @@ describe('UserService', () => {
     repo = module.get(UserRepository) as unknown as UserRepoMock;
   });
 
-  it('updateProfile sets is_profile_created=true for client with name+second_name', async () => {
-    repo.findById.mockResolvedValue({ ...baseUser });
+  it('updateProfile sets is_profile_created=true for client with name+second_name+phone verified', async () => {
+    const verifiedUser = { ...baseUser, phone: '+380501234567', isPhoneVerified: true };
+    repo.findById.mockResolvedValue(verifiedUser);
     repo.updateById.mockImplementation(
       async (_id: string, data: Partial<Users>): Promise<Users> => ({
-        ...baseUser,
-        name: data.name !== undefined ? data.name : baseUser.name,
-        secondName: data.secondName !== undefined ? data.secondName : baseUser.secondName,
+        ...verifiedUser,
+        name: data.name !== undefined ? data.name : verifiedUser.name,
+        secondName: data.secondName !== undefined ? data.secondName : verifiedUser.secondName,
         isProfileCreated:
           data.isProfileCreated !== undefined
             ? data.isProfileCreated
-            : baseUser.isProfileCreated,
+            : verifiedUser.isProfileCreated,
       }),
     );
 
@@ -70,8 +79,8 @@ describe('UserService', () => {
     expect(result.is_profile_created).toBe(true);
   });
 
-  it('owner profile not complete without phone, becomes complete with phone', async () => {
-    const owner = { ...baseUser, role: UserRole.owner };
+  it('owner profile stays incomplete until the phone is verified via OTP', async () => {
+    const owner = { ...baseUser, role: UserRole.owner, isPhoneVerified: true };
     repo.findById.mockResolvedValue(owner);
 
     repo.updateById.mockImplementation(
@@ -80,6 +89,10 @@ describe('UserService', () => {
         name: data.name !== undefined ? data.name : owner.name,
         secondName: data.secondName !== undefined ? data.secondName : owner.secondName,
         phone: data.phone !== undefined ? data.phone : owner.phone,
+        isPhoneVerified:
+          data.isPhoneVerified !== undefined
+            ? data.isPhoneVerified
+            : owner.isPhoneVerified,
         isProfileCreated:
           data.isProfileCreated !== undefined
             ? data.isProfileCreated
@@ -87,25 +100,33 @@ describe('UserService', () => {
       }),
     );
 
+    // Names alone don't complete an owner profile — a verified phone is required.
     const res1 = await service.updateProfile('u1', {
       name: 'Jane',
       second_name: 'Smith',
     });
     expect(res1.is_profile_created).toBe(false);
 
+    // Supplying a phone on updateProfile does NOT grant verification. The
+    // handler resets isPhoneVerified so the user has to re-run OTP; profile
+    // stays incomplete until then.
     const res2 = await service.updateProfile('u1', {
       name: 'Jane',
       second_name: 'Smith',
       phone: '+12345678901',
     });
-    expect(res2.is_profile_created).toBe(true);
+    expect(res2.is_profile_created).toBe(false);
+    expect(res2.is_phone_verified).toBe(false);
   });
 
-  it('computeProfileCreated truth table', () => {
-    expect(computeProfileCreated('client', 'a', 'b')).toBe(true);
-    expect(computeProfileCreated('client', 'a', undefined)).toBe(false);
-    expect(computeProfileCreated('owner', 'a', 'b', '+12345678901')).toBe(true);
-    expect(computeProfileCreated('owner', 'a', 'b')).toBe(false);
+  it('computeProfileCreated truth table (phone verification enabled)', () => {
+    // With phone verification enabled, all roles need name + secondName + phone + isPhoneVerified
+    expect(computeProfileCreated(true, 'client', 'a', 'b', '+12345678901', true)).toBe(true);
+    expect(computeProfileCreated(true, 'client', 'a', 'b', '+12345678901', false)).toBe(false);
+    expect(computeProfileCreated(true, 'client', 'a', 'b')).toBe(false);
+    expect(computeProfileCreated(true, 'client', 'a', undefined)).toBe(false);
+    expect(computeProfileCreated(true, 'owner', 'a', 'b', '+12345678901', true)).toBe(true);
+    expect(computeProfileCreated(true, 'owner', 'a', 'b')).toBe(false);
   });
 
   it('setOnboardingCompleted flips flag', async () => {
@@ -113,5 +134,72 @@ describe('UserService', () => {
     repo.updateById.mockResolvedValue({ ...baseUser, isOnboardingCompleted: true });
     const result = await service.setOnboardingCompleted('u1');
     expect(result.is_onboarding_completed).toBe(true);
+  });
+
+  it('setPhoneVerified throws ConflictException when phone already verified on another account', async () => {
+    repo.findById.mockResolvedValue(baseUser);
+    repo.updateById.mockRejectedValue(
+      new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {
+        code: 'P2002',
+        clientVersion: 'test',
+        meta: { target: ['phone'] },
+      }),
+    );
+
+    await expect(service.setPhoneVerified('u1', '+12345678901')).rejects.toBeInstanceOf(ConflictException);
+  });
+
+  it('updateProfile throws ConflictException when phone conflict surfaces on write', async () => {
+    const verifiedUser = { ...baseUser, phone: '+380501234567', isPhoneVerified: true };
+    repo.findById.mockResolvedValue(verifiedUser);
+    repo.updateById.mockRejectedValue(
+      new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {
+        code: 'P2002',
+        clientVersion: 'test',
+        meta: { target: ['phone'] },
+      }),
+    );
+
+    await expect(
+      service.updateProfile('u1', { phone: '+12345678901' }),
+    ).rejects.toBeInstanceOf(ConflictException);
+  });
+
+  it('updateProfile clears isPhoneVerified when phone changes', async () => {
+    const verifiedUser = { ...baseUser, phone: '+380501111111', isPhoneVerified: true };
+    repo.findById.mockResolvedValue(verifiedUser);
+    repo.updateById.mockImplementation(async (_id, data) => ({ ...verifiedUser, ...data } as Users));
+
+    await service.updateProfile('u1', { phone: '+380502222222' });
+
+    expect(repo.updateById).toHaveBeenCalledWith(
+      'u1',
+      expect.objectContaining({ phone: '+380502222222', isPhoneVerified: false }),
+    );
+  });
+
+  it('updateProfile leaves isPhoneVerified untouched when phone is not in the DTO', async () => {
+    const verifiedUser = { ...baseUser, phone: '+380501111111', isPhoneVerified: true, name: 'Old' };
+    repo.findById.mockResolvedValue(verifiedUser);
+    repo.updateById.mockImplementation(async (_id, data) => ({ ...verifiedUser, ...data } as Users));
+
+    await service.updateProfile('u1', { name: 'New' });
+
+    const [, writtenData] = repo.updateById.mock.calls[0];
+    expect(writtenData).not.toHaveProperty('phone');
+    expect(writtenData).not.toHaveProperty('isPhoneVerified');
+  });
+
+  it('updateProfile preserves isPhoneVerified when dto phone matches existing', async () => {
+    const verifiedUser = { ...baseUser, phone: '+380501111111', isPhoneVerified: true };
+    repo.findById.mockResolvedValue(verifiedUser);
+    repo.updateById.mockImplementation(async (_id, data) => ({ ...verifiedUser, ...data } as Users));
+
+    await service.updateProfile('u1', { phone: '+380501111111' });
+
+    expect(repo.updateById).toHaveBeenCalledWith(
+      'u1',
+      expect.objectContaining({ phone: '+380501111111', isPhoneVerified: true }),
+    );
   });
 });

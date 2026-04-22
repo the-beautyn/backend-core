@@ -36,11 +36,11 @@ export class SalonCategoryMappingsService {
   async listBySalonIds(salonIds: string[]): Promise<SalonAppCategoryMappingDto[]> {
     const rows = await this.repo.findMappingsBySalonIds(salonIds);
     return rows.map((row) => ({
-      salonId: row.salonId,
-      salonName: row.salonName,
-      salonCategoryId: row.salonCategoryId,
-      appCategoryId: row.appCategoryId,
-      appCategoryName: row.appCategoryName,
+      salon_id: row.salonId,
+      salon_name: row.salonName,
+      salon_category_id: row.salonCategoryId,
+      app_category_id: row.appCategoryId,
+      app_category_name: row.appCategoryName,
     }));
   }
 

@@ -701,19 +701,19 @@ export class ServicesService {
   private toServiceResponse(record: ServiceRecord): ServiceResponseDto {
     return {
       id: record.id,
-      salonId: record.salonId,
-      categoryId: record.categoryId ?? null,
-      crmServiceId: record.crmServiceId ?? null,
+      salon_id: record.salonId,
+      category_id: record.categoryId ?? null,
+      crm_service_id: record.crmServiceId ?? null,
       title: record.name,
       description: record.description ?? null,
       duration: record.duration,
       price: record.price,
       currency: record.currency,
-      sortOrder: record.sortOrder ?? null,
-      workerIds: record.workerIds ?? [],
-      isActive: record.isActive,
-      createdAt: this.toDate(record.createdAt),
-      updatedAt: this.toDate(record.updatedAt),
+      sort_order: record.sortOrder ?? null,
+      worker_ids: record.workerIds ?? [],
+      is_active: record.isActive,
+      created_at: this.toDate(record.createdAt),
+      updated_at: this.toDate(record.updatedAt),
     };
   }
 

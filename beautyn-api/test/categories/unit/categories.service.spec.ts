@@ -81,7 +81,7 @@ describe('CategoriesService', () => {
       });
       expect(result).toMatchObject({
         id: 'cat-1',
-        crmCategoryId: '123',
+        crm_category_id: '123',
         name: 'Hair',
         color: '#FFAA00',
       });
@@ -174,7 +174,7 @@ describe('CategoriesService', () => {
       expect(integration.updateCategory).toHaveBeenCalledWith('salon-1', 'ALTEGIO', 'ext-1', expect.objectContaining({ title: 'Patch Name', weight: 3 }));
       expect(repo.update).toHaveBeenCalledWith('cat-1', expect.objectContaining({ name: 'From CRM', color: '#112233', sortOrder: 5 }));
       expect(res.name).toBe('From CRM');
-      expect(res.sortOrder).toBe(5);
+      expect(res.sort_order).toBe(5);
     });
   });
 
@@ -205,7 +205,7 @@ describe('CategoriesService', () => {
       } as any);
 
       expect(prisma.category.deleteMany).toHaveBeenCalledWith({ where: { id: { in: ['cat-old'] } } });
-      expect(result).toEqual({ upserted: 1, deleted: 1, categories: [expect.objectContaining({ name: 'Hair', color: '#ABCDEF', sortOrder: 5 })] });
+      expect(result).toEqual({ upserted: 1, deleted: 1, categories: [expect.objectContaining({ name: 'Hair', color: '#ABCDEF', sort_order: 5 })] });
     });
   });
 });

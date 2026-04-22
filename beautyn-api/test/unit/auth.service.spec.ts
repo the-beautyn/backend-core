@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { BadRequestException, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, ConflictException, UnauthorizedException } from '@nestjs/common';
 import { AuthService } from '../../src/auth/auth.service';
 import { UserService } from '../../src/user/user.service';
 import { SupabaseClient } from '@supabase/supabase-js';
@@ -7,7 +7,9 @@ import { RegisterDto } from '../../src/auth/dto/v1/register.dto';
 import { LoginDto } from '../../src/auth/dto/v1/login.dto';
 import { ForgotPasswordDto } from '../../src/auth/dto/v1/forgot-password.dto';
 import { ResetPasswordDto } from '../../src/auth/dto/v1/reset-password.dto';
-import { UserRole } from '@prisma/client';
+import { Prisma, UserRole } from '@prisma/client';
+import { ConfigService } from '@nestjs/config';
+import { PhoneVerificationService } from '../../src/auth/phone-verification.service';
 
 describe('AuthService', () => {
   let service: AuthService;
@@ -23,6 +25,8 @@ describe('AuthService', () => {
     secondName: null,
     phone: null,
     avatarUrl: null,
+    authProvider: 'email' as const,
+    isPhoneVerified: false,
     isProfileCreated: false,
     isOnboardingCompleted: false,
     subscriptionId: null,
@@ -52,16 +56,19 @@ describe('AuthService', () => {
       create: jest.fn(),
       createWithId: jest.fn(),
       findByEmail: jest.fn(),
+      setAuthProvider: jest.fn(),
     };
 
     const mockSupabaseAuth = {
       signUp: jest.fn(),
       signInWithPassword: jest.fn(),
-      signOut: jest.fn(),
+      signInWithIdToken: jest.fn(),
       resetPasswordForEmail: jest.fn(),
       verifyOtp: jest.fn(),
-      updateUser: jest.fn(),
-      setSession: jest.fn(),
+      admin: {
+        signOut: jest.fn(),
+        updateUserById: jest.fn(),
+      },
     };
 
     const mockSupabaseClient = {
@@ -78,6 +85,19 @@ describe('AuthService', () => {
         {
           provide: SupabaseClient,
           useValue: mockSupabaseClient,
+        },
+        {
+          provide: ConfigService,
+          useValue: {
+            get: jest.fn().mockImplementation((key: string, fallback?: string) => {
+              if (key === 'APP_URL') return 'https://test.beautyn.com.ua';
+              return fallback ?? 'true';
+            }),
+          },
+        },
+        {
+          provide: PhoneVerificationService,
+          useValue: { isEnabled: jest.fn().mockReturnValue(true) },
         },
       ],
     }).compile();
@@ -96,6 +116,8 @@ describe('AuthService', () => {
       email: 'test@example.com',
       password: 'Password123!',
       role: UserRole.client,
+      name: 'John',
+      secondName: 'Doe',
     };
 
     it('should register a new user successfully with session', async () => {
@@ -120,11 +142,15 @@ describe('AuthService', () => {
         password: registerDto.password,
         options: { data: { user_role: registerDto.role } },
       });
-      expect(userService.createWithId).toHaveBeenCalledWith(mockSupabaseUser.id, registerDto.email, registerDto.role);
+      expect(userService.createWithId).toHaveBeenCalledWith(
+        mockSupabaseUser.id, registerDto.email, registerDto.role,
+        { name: 'John', secondName: 'Doe', authProvider: 'email' },
+      );
       expect(result).toEqual({
-        accessToken: mockSession.access_token,
-        refreshToken: mockSession.refresh_token,
-        expiresIn: mockSession.expires_in,
+        access_token: mockSession.access_token,
+        refresh_token: mockSession.refresh_token,
+        expires_in: mockSession.expires_in,
+        phone_verification_required: true,
       });
     });
 
@@ -200,9 +226,10 @@ describe('AuthService', () => {
         password: loginDto.password,
       });
       expect(result).toEqual({
-        accessToken: mockSession.access_token,
-        refreshToken: mockSession.refresh_token,
-        expiresIn: mockSession.expires_in,
+        access_token: mockSession.access_token,
+        refresh_token: mockSession.refresh_token,
+        expires_in: mockSession.expires_in,
+        phone_verification_required: true,
       });
     });
 
@@ -223,45 +250,144 @@ describe('AuthService', () => {
     });
   });
 
+  describe('oauthSignIn', () => {
+    const baseDto = {
+      provider: 'apple' as const,
+      idToken: 'id-token',
+      name: 'Jane',
+      secondName: 'Doe',
+    };
+
+    const mockOAuthResponse = {
+      data: { user: mockSupabaseUser, session: mockSession },
+      error: null,
+    };
+
+    it('creates a new user and mirrors the role into Supabase user_metadata', async () => {
+      (supabaseClient.auth.signInWithIdToken as unknown as jest.Mock).mockResolvedValue(mockOAuthResponse);
+      userService.findByEmail.mockResolvedValue(null);
+      (supabaseClient.auth.admin.updateUserById as unknown as jest.Mock).mockResolvedValue({ error: null });
+
+      const result = await service.oauthSignIn(baseDto);
+
+      expect(userService.createWithId).toHaveBeenCalledWith(
+        mockSupabaseUser.id,
+        mockSupabaseUser.email,
+        'client',
+        expect.objectContaining({ authProvider: 'apple' }),
+      );
+      // Without this mirror, subsequent requests for this user would 403 on
+      // any ClientRolesGuard/OwnerRolesGuard-protected endpoint because
+      // JwtAuthGuard reads role from user_metadata.user_role.
+      expect(supabaseClient.auth.admin.updateUserById).toHaveBeenCalledWith(
+        mockSupabaseUser.id,
+        { user_metadata: { user_role: 'client' } },
+      );
+      expect(userService.setAuthProvider).not.toHaveBeenCalled();
+      expect(result.is_new_user).toBe(true);
+    });
+
+    it('surfaces a Supabase error if the user_metadata mirror fails after user creation', async () => {
+      (supabaseClient.auth.signInWithIdToken as unknown as jest.Mock).mockResolvedValue(mockOAuthResponse);
+      userService.findByEmail.mockResolvedValue(null);
+      const metadataError = { message: 'Supabase admin update failed' };
+      (supabaseClient.auth.admin.updateUserById as unknown as jest.Mock).mockResolvedValue({ error: metadataError });
+
+      await expect(service.oauthSignIn(baseDto)).rejects.toThrow(
+        new BadRequestException(metadataError.message),
+      );
+    });
+
+    it('updates authProvider when an existing user signs in via a different provider', async () => {
+      (supabaseClient.auth.signInWithIdToken as unknown as jest.Mock).mockResolvedValue(mockOAuthResponse);
+      userService.findByEmail.mockResolvedValue({ ...mockUser, authProvider: 'email' });
+
+      const result = await service.oauthSignIn(baseDto);
+
+      expect(userService.createWithId).not.toHaveBeenCalled();
+      expect(userService.setAuthProvider).toHaveBeenCalledWith(mockUser.id, 'apple');
+      expect(result.is_new_user).toBe(false);
+    });
+
+    it('leaves authProvider untouched when it already matches the incoming provider', async () => {
+      (supabaseClient.auth.signInWithIdToken as unknown as jest.Mock).mockResolvedValue(mockOAuthResponse);
+      userService.findByEmail.mockResolvedValue({ ...mockUser, authProvider: 'apple' });
+
+      await service.oauthSignIn(baseDto);
+
+      expect(userService.createWithId).not.toHaveBeenCalled();
+      expect(userService.setAuthProvider).not.toHaveBeenCalled();
+    });
+
+    it('rejects with 409 when the OAuth user ID differs from the stored user ID', async () => {
+      // Supabase did NOT link identities — OAuth produced a new Supabase user
+      // whose ID doesn't match the email/password user we have on record.
+      // Returning this session's JWT would break all subsequent authenticated
+      // requests (sub won't match any DB row).
+      (supabaseClient.auth.signInWithIdToken as unknown as jest.Mock).mockResolvedValue(mockOAuthResponse);
+      userService.findByEmail.mockResolvedValue({
+        ...mockUser,
+        id: 'different-db-user-id',
+        authProvider: 'email',
+      });
+
+      await expect(service.oauthSignIn(baseDto)).rejects.toBeInstanceOf(ConflictException);
+      expect(userService.createWithId).not.toHaveBeenCalled();
+      expect(userService.setAuthProvider).not.toHaveBeenCalled();
+    });
+
+    it('recovers from a P2002 race: two concurrent first-time OAuth sign-ins', async () => {
+      // Simulates: findByEmail returns null (row not yet committed by the
+      // other request), createWithId races and fails with P2002, re-fetch
+      // now returns the winner's row, and we finish as !is_new_user.
+      (supabaseClient.auth.signInWithIdToken as unknown as jest.Mock).mockResolvedValue(mockOAuthResponse);
+      userService.findByEmail
+        .mockResolvedValueOnce(null) // initial check
+        .mockResolvedValueOnce({ ...mockUser, authProvider: 'apple' }); // re-fetch after P2002
+      userService.createWithId.mockRejectedValue(
+        new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {
+          code: 'P2002',
+          clientVersion: 'test',
+          meta: { target: ['email'] },
+        }),
+      );
+
+      const result = await service.oauthSignIn(baseDto);
+
+      expect(userService.createWithId).toHaveBeenCalledTimes(1);
+      expect(userService.findByEmail).toHaveBeenCalledTimes(2);
+      // Winner already had authProvider='apple' matching incoming provider —
+      // no update needed.
+      expect(userService.setAuthProvider).not.toHaveBeenCalled();
+      expect(result.is_new_user).toBe(false);
+    });
+
+    it('propagates non-P2002 errors from createWithId untouched', async () => {
+      (supabaseClient.auth.signInWithIdToken as unknown as jest.Mock).mockResolvedValue(mockOAuthResponse);
+      userService.findByEmail.mockResolvedValue(null);
+      const unexpected = new Error('DB connection refused');
+      userService.createWithId.mockRejectedValue(unexpected);
+
+      await expect(service.oauthSignIn(baseDto)).rejects.toBe(unexpected);
+    });
+  });
+
   describe('logout', () => {
     const accessToken = 'mock-access-token';
 
-    it('should logout user successfully', async () => {
-      // Arrange
-      const mockSetSessionResponse = supabaseClient.auth;
-      const mockSignOutResponse = {
-        error: null,
-      };
+    it('revokes the user\'s refresh tokens via admin.signOut', async () => {
+      (supabaseClient.auth.admin.signOut as unknown as jest.Mock).mockResolvedValue({ error: null });
 
-      (supabaseClient.auth.setSession as unknown as jest.Mock).mockReturnValue(mockSetSessionResponse);
-      (supabaseClient.auth.signOut as unknown as jest.Mock).mockResolvedValue(mockSignOutResponse);
-
-      // Act
       const result = await service.logout(accessToken);
 
-      // Assert
-      expect(supabaseClient.auth.setSession).toHaveBeenCalledWith({
-        access_token: accessToken,
-        refresh_token: '',
-      });
-      expect(supabaseClient.auth.signOut).toHaveBeenCalled();
-      expect(result).toEqual({
-        message: 'Logged out (refresh tokens revoked)',
-      });
+      expect(supabaseClient.auth.admin.signOut).toHaveBeenCalledWith(accessToken);
+      expect(result).toEqual({ message: 'Logged out' });
     });
 
-    it('should throw BadRequestException when logout fails', async () => {
-      // Arrange
+    it('throws BadRequestException when admin.signOut fails', async () => {
       const mockError = { message: 'Logout failed' };
-      const mockSetSessionResponse = supabaseClient.auth;
-      const mockSignOutResponse = {
-        error: mockError,
-      };
+      (supabaseClient.auth.admin.signOut as unknown as jest.Mock).mockResolvedValue({ error: mockError });
 
-      (supabaseClient.auth.setSession as unknown as jest.Mock).mockReturnValue(mockSetSessionResponse);
-      (supabaseClient.auth.signOut as unknown as jest.Mock).mockResolvedValue(mockSignOutResponse);
-
-      // Act & Assert
       await expect(service.logout(accessToken)).rejects.toThrow(
         new BadRequestException(mockError.message),
       );
@@ -272,10 +398,6 @@ describe('AuthService', () => {
     const forgotPasswordDto: ForgotPasswordDto = {
       email: 'test@example.com',
     };
-
-    beforeEach(() => {
-      process.env.APP_URL = 'http://localhost:3000';
-    });
 
     it('should send password reset email successfully', async () => {
       // Arrange
@@ -292,7 +414,7 @@ describe('AuthService', () => {
       expect(supabaseClient.auth.resetPasswordForEmail).toHaveBeenCalledWith(
         forgotPasswordDto.email,
         {
-          redirectTo: `${process.env.APP_URL}/auth/reset`,
+          redirectTo: 'https://test.beautyn.com.ua/auth/reset',
         },
       );
       expect(result).toEqual({
@@ -318,83 +440,74 @@ describe('AuthService', () => {
 
   describe('resetPassword', () => {
     const resetPasswordDto: ResetPasswordDto = {
-      otpToken: 'mock-otp-token',
-      newPassword: 'NewPassword123!',
+      otp_token: 'mock-otp-token',
+      new_password: 'NewPassword123!',
     };
 
-    it('should reset password successfully', async () => {
-      // Arrange
+    it('routes the update through admin.updateUserById, scoped by user id', async () => {
       const mockVerifyOtpResponse = {
-        data: {
-          user: mockSupabaseUser,
-          session: mockSession,
-        },
+        data: { user: mockSupabaseUser, session: mockSession },
         error: null,
       };
-
-      const mockUpdateUserResponse = {
+      (supabaseClient.auth.verifyOtp as unknown as jest.Mock).mockResolvedValue(mockVerifyOtpResponse);
+      (supabaseClient.auth.admin.updateUserById as unknown as jest.Mock).mockResolvedValue({
         data: { user: mockSupabaseUser },
         error: null,
-      };
+      });
 
-      (supabaseClient.auth.verifyOtp as unknown as jest.Mock).mockResolvedValue(mockVerifyOtpResponse);
-      (supabaseClient.auth.updateUser as unknown as jest.Mock).mockResolvedValue(mockUpdateUserResponse);
-
-      // Act
       const result = await service.resetPassword(resetPasswordDto);
 
-      // Assert
       expect(supabaseClient.auth.verifyOtp).toHaveBeenCalledWith({
         type: 'recovery',
-        token_hash: resetPasswordDto.otpToken,
+        token_hash: resetPasswordDto.otp_token,
       });
-      expect(supabaseClient.auth.updateUser).toHaveBeenCalledWith({
-        password: resetPasswordDto.newPassword,
-      });
+      // Critical: must pass user id explicitly, NOT fall back to the shared
+      // client's session state (which is racy under concurrent requests).
+      expect(supabaseClient.auth.admin.updateUserById).toHaveBeenCalledWith(
+        mockSupabaseUser.id,
+        { password: resetPasswordDto.new_password },
+      );
       expect(result).toEqual({
-        accessToken: mockSession.access_token,
-        refreshToken: mockSession.refresh_token,
-        expiresIn: mockSession.expires_in,
+        access_token: mockSession.access_token,
+        refresh_token: mockSession.refresh_token,
+        expires_in: mockSession.expires_in,
       });
     });
 
-    it('should throw BadRequestException when OTP verification fails', async () => {
-      // Arrange
+    it('throws BadRequestException when OTP verification fails', async () => {
       const mockError = { message: 'Invalid OTP token' };
-      const mockVerifyOtpResponse = {
+      (supabaseClient.auth.verifyOtp as unknown as jest.Mock).mockResolvedValue({
         data: { user: null, session: null },
         error: mockError,
-      };
+      });
 
-      (supabaseClient.auth.verifyOtp as unknown as jest.Mock).mockResolvedValue(mockVerifyOtpResponse);
-
-      // Act & Assert
       await expect(service.resetPassword(resetPasswordDto)).rejects.toThrow(
         new BadRequestException(mockError.message),
       );
-      expect(supabaseClient.auth.updateUser).not.toHaveBeenCalled();
+      expect(supabaseClient.auth.admin.updateUserById).not.toHaveBeenCalled();
     });
 
-    it('should throw BadRequestException when password update fails', async () => {
-      // Arrange
-      const mockVerifyOtpResponse = {
-        data: {
-          user: mockSupabaseUser,
-          session: mockSession,
-        },
+    it('throws when verifyOtp succeeds but returns no user (guards the admin call)', async () => {
+      (supabaseClient.auth.verifyOtp as unknown as jest.Mock).mockResolvedValue({
+        data: { user: null, session: null },
         error: null,
-      };
+      });
 
+      await expect(service.resetPassword(resetPasswordDto)).rejects.toThrow(BadRequestException);
+      expect(supabaseClient.auth.admin.updateUserById).not.toHaveBeenCalled();
+    });
+
+    it('throws BadRequestException when admin.updateUserById fails', async () => {
+      (supabaseClient.auth.verifyOtp as unknown as jest.Mock).mockResolvedValue({
+        data: { user: mockSupabaseUser, session: mockSession },
+        error: null,
+      });
       const mockUpdateError = { message: 'Password update failed' };
-      const mockUpdateUserResponse = {
+      (supabaseClient.auth.admin.updateUserById as unknown as jest.Mock).mockResolvedValue({
         data: { user: null },
         error: mockUpdateError,
-      };
+      });
 
-      (supabaseClient.auth.verifyOtp as unknown as jest.Mock).mockResolvedValue(mockVerifyOtpResponse);
-      (supabaseClient.auth.updateUser as unknown as jest.Mock).mockResolvedValue(mockUpdateUserResponse);
-
-      // Act & Assert
       await expect(service.resetPassword(resetPasswordDto)).rejects.toThrow(
         new BadRequestException(mockUpdateError.message),
       );

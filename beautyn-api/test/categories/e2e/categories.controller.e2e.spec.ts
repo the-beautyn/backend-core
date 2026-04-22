@@ -10,6 +10,7 @@ import { OwnerRolesGuard } from '../../../src/shared/guards/roles.guard';
 import { SalonAccessGuard } from '../../../src/brand/guards/salon-access.guard';
 import { InternalApiKeyGuard } from '../../../src/shared/guards/internal-api-key.guard';
 import { TransformInterceptor } from '../../../src/shared/interceptors/transform.interceptor';
+import { Reflector } from '@nestjs/core';
 
 describe('CategoriesController (e2e)', () => {
   let app: INestApplication;
@@ -86,7 +87,7 @@ describe('CategoriesController (e2e)', () => {
       .compile();
 
     app = moduleFixture.createNestApplication();
-    app.useGlobalInterceptors(new TransformInterceptor());
+    app.useGlobalInterceptors(new TransformInterceptor(new Reflector()));
     await app.init();
   });
 
@@ -146,14 +147,14 @@ describe('CategoriesController (e2e)', () => {
   it('POST /api/v1/salons/:salonId/categories creates category for owner', async () => {
     service.create.mockResolvedValue({
       id: 'cat-1',
-      salonId: 'salon-1',
-      crmCategoryId: '123',
+      salon_id: 'salon-1',
+      crm_category_id: '123',
       name: 'VIP',
       color: null,
-      sortOrder: null,
-      serviceIds: [],
-      createdAt: '2024-01-01T00:00:00.000Z' as unknown as Date,
-      updatedAt: '2024-01-01T00:00:00.000Z' as unknown as Date,
+      sort_order: null,
+      service_ids: [],
+      created_at: '2024-01-01T00:00:00.000Z' as unknown as Date,
+      updated_at: '2024-01-01T00:00:00.000Z' as unknown as Date,
     });
 
     const res = await request(app.getHttpServer())

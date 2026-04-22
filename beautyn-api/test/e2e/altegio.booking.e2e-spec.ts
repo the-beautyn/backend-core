@@ -172,7 +172,7 @@ describe('Altegio booking flow (e2e)', () => {
       .send({ workerId, serviceIds: [serviceId], datetime: '2025-01-02T10:00:00+03:00' })
       .expect(201);
 
-    expect(createResp.body.data.bookingId).toBe('booking-e2e');
+    expect(createResp.body.data.booking_id).toBe('booking-e2e');
     expect(providerMock.createRecord).toHaveBeenCalled();
     expect(bookingHandlerMock.createAltegioBooking).toHaveBeenCalled();
   });

@@ -7,12 +7,12 @@
   },
   "item": [
     {
-      "name": "Health",
+      "name": "Auth",
       "item": [
         {
-          "name": "health_check",
+          "name": "check_email",
           "request": {
-            "method": "GET",
+            "method": "POST",
             "header": [
               {
                 "key": "Content-Type",
@@ -21,26 +21,58 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/api/v1/health",
+              "raw": "{{baseUrl}}/api/v1/auth/check-email",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
                 "api",
                 "v1",
-                "health"
+                "auth",
+                "check-email"
               ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"email\": \"{{email}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             }
           },
           "response": []
-        }
-      ]
-    },
-    {
-      "name": "Auth",
-      "item": [
+        },
         {
           "name": "login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const response = pm.response.json();",
+                  "const data = response.data || {};",
+                  "",
+                  "pm.environment.set(\"accessToken\", data.access_token || data.accessToken || data.token);",
+                  "if (data.refresh_token || data.refreshToken) pm.environment.set(\"refreshToken\", data.refresh_token || data.refreshToken);",
+                  "if (data.expires_in || data.expiresIn) {",
+                  "  pm.environment.set(\"expiresIn\", String(Date.now() + Number(data.expires_in || data.expiresIn) * 1000));",
+                  "}"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "packages": {},
+                "type": "text/javascript"
+              }
+            }
+          ],
           "request": {
             "method": "POST",
             "header": [
@@ -72,7 +104,10 @@
               }
             }
           },
-          "response": [],
+          "response": []
+        },
+        {
+          "name": "register",
           "event": [
             {
               "listen": "test",
@@ -81,37 +116,21 @@
                   "const response = pm.response.json();",
                   "const data = response.data || {};",
                   "",
-                  "pm.environment.set(\"accessToken\", data.accessToken || data.token);",
-                  "if (data.refreshToken) pm.environment.set(\"refreshToken\", data.refreshToken);",
-                  "if (data.expiresIn) {",
-                  "  pm.environment.set(\"expiresIn\", String(Date.now() + Number(data.expiresIn) * 1000));",
+                  "pm.environment.set(\"accessToken\", data.access_token || data.accessToken || data.token);",
+                  "if (data.refresh_token || data.refreshToken) pm.environment.set(\"refreshToken\", data.refresh_token || data.refreshToken);",
+                  "if (data.expires_in || data.expiresIn) {",
+                  "  pm.environment.set(\"expiresIn\", String(Date.now() + Number(data.expires_in || data.expiresIn) * 1000));",
                   "}"
                 ],
                 "type": "text/javascript",
                 "packages": {},
                 "requests": {}
               }
-            },
-            {
-              "listen": "prerequest",
-              "script": {
-                "packages": {},
-                "type": "text/javascript"
-              }
             }
-          ]
-        },
-        {
-          "name": "register",
+          ],
           "request": {
             "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
+            "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/v1/auth/register",
               "host": [
@@ -126,7 +145,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"email\": \"{{email}}\",\n    \"password\": \"{{password}}\",\n    \"name\": \"{{name}}\",\n    \"secondName\": \"{{secondName}}\"\n}",
+              "raw": "{\n    \"email\": \"{{email}}\",\n    \"password\": \"{{password}}\",\n    \"role\": \"{{role}}\",\n    \"name\": \"John\",\n    \"secondName\": \"Doe\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -134,27 +153,77 @@
               }
             }
           },
-          "response": [],
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "const response = pm.response.json();",
-                  "const data = response.data || {};",
-                  "",
-                  "pm.environment.set(\"accessToken\", data.accessToken || data.token);",
-                  "if (data.refreshToken) pm.environment.set(\"refreshToken\", data.refreshToken);",
-                  "if (data.expiresIn) {",
-                  "  pm.environment.set(\"expiresIn\", String(Date.now() + Number(data.expiresIn) * 1000));",
-                  "}"
-                ],
-                "type": "text/javascript",
-                "packages": {},
-                "requests": {}
+          "response": []
+        },
+        {
+          "name": "oauth_sign_in",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/oauth",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "oauth"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"provider\": \"apple\",\n    \"idToken\": \"eyJraWQiOiI...\",\n    \"nonce\": \"\",\n    \"name\": \"John\",\n    \"secondName\": \"Doe\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
               }
             }
-          ]
+          },
+          "response": []
+        },
+        {
+          "name": "refresh_token",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/refresh",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "refresh"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"refresh_token\": \"{{refreshToken}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
         },
         {
           "name": "logout",
@@ -183,6 +252,15 @@
                 "auth",
                 "logout"
               ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             }
           },
           "response": []
@@ -199,7 +277,7 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/api/v1/auth/forgot",
+              "raw": "{{baseUrl}}/api/v1/auth/forgot-password",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -207,7 +285,7 @@
                 "api",
                 "v1",
                 "auth",
-                "forgot"
+                "forgot-password"
               ]
             },
             "body": {
@@ -247,7 +325,130 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"token\": \"<reset-token>\",\n    \"password\": \"NewStr0ngP@ss\"\n}",
+              "raw": "{\n    \"otp_token\": \"{{resetToken}}\",\n    \"new_password\": \"{{newPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "phone_send_otp",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/phone/send-otp",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "phone",
+                "send-otp"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"phone\": \"+380501234567\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "phone_verify_otp",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/phone/verify-otp",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "phone",
+                "verify-otp"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"phone\": \"+380501234567\",\n    \"code\": \"1234\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "phone_resend_otp",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/phone/resend-otp",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "phone",
+                "resend-otp"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"phone\": \"+380501234567\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -323,7 +524,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"name\": \"{{name}}\",\n    \"secondName\": \"{{secondName}}\",\n    \"phone\": \"{{phoneNumber}}\"\n}",
+              "raw": "{\n  \"name\": \"{{name}}\",\n  \"second_name\": \"{{secondName}}\",\n  \"phone\": \"{{$randomPhoneNumber}}\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -370,69 +571,6 @@
           "response": []
         },
         {
-          "name": "list_crms",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{accessToken}}",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/onboarding/crms",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "onboarding",
-                "crms"
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "get_crm",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{accessToken}}",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/onboarding/crms/ALTEGIO",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "onboarding",
-                "crms",
-                "ALTEGIO"
-              ]
-            }
-          },
-          "response": []
-        },
-        {
           "name": "easyweek_discover",
           "request": {
             "method": "POST",
@@ -463,7 +601,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"apiKey\": \"<easyweek-api-key>\"\n}",
+              "raw": "{\n    \"auth_token\": \"YOUR_EASYWEEK_AUTH_TOKEN\",\n    \"workspace_slug\": \"the-best-company\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -504,7 +642,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"apiKey\": \"<easyweek-api-key>\",\n    \"locationUuid\": \"<location-uuid>\"\n}",
+              "raw": "{\n    \"auth_token\": \"YOUR_EASYWEEK_AUTH_TOKEN\",\n    \"workspace_slug\": \"the-best-company\",\n    \"salon_uuids\": [\"25fd5793-3025-40db-85e9-bcb7ebbf11d7\"]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -515,7 +653,7 @@
           "response": []
         },
         {
-          "name": "altegio_pair_code",
+          "name": "crm_initial_sync_async",
           "request": {
             "method": "POST",
             "header": [
@@ -531,7 +669,7 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/api/v1/onboarding/altegio/pair-code",
+              "raw": "{{baseUrl}}/api/v1/onboarding/crm/initial/sync/async",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -539,8 +677,10 @@
                 "api",
                 "v1",
                 "onboarding",
-                "altegio",
-                "pair-code"
+                "crm",
+                "initial",
+                "sync",
+                "async"
               ]
             }
           },
@@ -580,7 +720,70 @@
           "response": []
         },
         {
-          "name": "crm_initial_sync_async",
+          "name": "crms",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/onboarding/crms",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "onboarding",
+                "crms"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "crm_by_code",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/onboarding/crms/EASYWEEK",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "onboarding",
+                "crms",
+                "EASYWEEK"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "pair-code",
           "request": {
             "method": "POST",
             "header": [
@@ -596,7 +799,7 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/api/v1/onboarding/crm/initial/sync/async",
+              "raw": "{{baseUrl}}/api/v1/onboarding/altegio/pair-code",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -604,11 +807,18 @@
                 "api",
                 "v1",
                 "onboarding",
-                "crm",
-                "initial",
-                "sync",
-                "async"
+                "altegio",
+                "pair-code"
               ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             }
           },
           "response": []
@@ -619,7 +829,10 @@
       "name": "Webhook",
       "item": [
         {
-          "name": "altegio_redirect",
+          "name": "redirect",
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          },
           "request": {
             "method": "GET",
             "header": [
@@ -630,7 +843,7 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/api/v1/webhooks/altegio/redirect?salonId[]=1234",
+              "raw": "{{baseUrl}}/api/v1/webhooks/altegio/redirect?salon_ids[]=1234&salon_ids[]=12345",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -643,16 +856,31 @@
               ],
               "query": [
                 {
-                  "key": "salonId[]",
-                  "value": "1234"
+                  "key": "salon_ids[]",
+                  "value": "1234",
+                  "type": "text"
+                },
+                {
+                  "key": "salon_ids[]",
+                  "value": "12345",
+                  "type": "text"
                 }
               ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             }
           },
           "response": []
         },
         {
-          "name": "altegio_confirm",
+          "name": "confirm",
           "request": {
             "method": "POST",
             "header": [
@@ -677,7 +905,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"code\": \"<oauth-code>\",\n    \"salon_ids\": [\"1234\"]\n}",
+              "raw": "{\n    \"code\": \"628900\",\n    \"salon_ids\": [\"12345\"]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -696,7 +924,7 @@
           "name": "Changes",
           "item": [
             {
-              "name": "list_changes",
+              "name": "salon_changes",
               "request": {
                 "method": "GET",
                 "header": [
@@ -726,12 +954,8 @@
                   "query": [
                     {
                       "key": "salonId",
-                      "value": "{{salonId}}"
-                    },
-                    {
-                      "key": "status",
-                      "value": "pending",
-                      "disabled": true
+                      "value": "{{salonId}}",
+                      "type": "text"
                     }
                   ]
                 }
@@ -739,7 +963,7 @@
               "response": []
             },
             {
-              "name": "accept_change",
+              "name": "salon_changes_accept",
               "request": {
                 "method": "POST",
                 "header": [
@@ -773,7 +997,7 @@
               "response": []
             },
             {
-              "name": "dismiss_change",
+              "name": "salon_changes_dismiss",
               "request": {
                 "method": "POST",
                 "header": [
@@ -809,7 +1033,20 @@
           ]
         },
         {
-          "name": "list_salons",
+          "name": "get",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  ""
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
           "request": {
             "method": "GET",
             "header": [
@@ -817,52 +1054,10 @@
                 "key": "Content-Type",
                 "value": "application/json",
                 "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/salons",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "salons"
-              ],
-              "query": [
-                {
-                  "key": "q",
-                  "value": "",
-                  "disabled": true
-                },
-                {
-                  "key": "city",
-                  "value": "",
-                  "disabled": true
-                },
-                {
-                  "key": "page",
-                  "value": "1",
-                  "disabled": true
-                },
-                {
-                  "key": "limit",
-                  "value": "20",
-                  "disabled": true
-                }
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "get_salon",
-          "request": {
-            "method": "GET",
-            "header": [
+              },
               {
-                "key": "Content-Type",
-                "value": "application/json",
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
                 "type": "text"
               }
             ],
@@ -879,8 +1074,15 @@
               ],
               "query": [
                 {
+                  "key": "isFromSearch",
+                  "value": "false",
+                  "type": "text",
+                  "disabled": true
+                },
+                {
                   "key": "include",
-                  "value": "services,categories,images,workers"
+                  "value": "services,categories,images,workers",
+                  "type": "text"
                 }
               ]
             }
@@ -888,7 +1090,50 @@
           "response": []
         },
         {
-          "name": "get_salon_images",
+          "name": "list",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/salons?page=1&limit=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "salons"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "type": "text"
+                },
+                {
+                  "key": "limit",
+                  "value": "20",
+                  "type": "text"
+                },
+                {
+                  "key": "city",
+                  "value": "",
+                  "type": "text",
+                  "disabled": true
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "images",
           "request": {
             "method": "GET",
             "header": [
@@ -915,50 +1160,20 @@
           "response": []
         },
         {
-          "name": "get_salon_authenticated",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{accessToken}}",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/salon/{{salonId}}?isFromSearch=true",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "salon",
-                "{{salonId}}"
-              ],
-              "query": [
-                {
-                  "key": "isFromSearch",
-                  "value": "true",
-                  "disabled": true
-                },
-                {
-                  "key": "include",
-                  "value": "services,categories,images,workers",
-                  "disabled": true
-                }
-              ]
-            }
-          },
-          "response": []
-        },
-        {
           "name": "crm_sync",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  ""
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
           "request": {
             "method": "POST",
             "header": [
@@ -992,6 +1207,19 @@
         },
         {
           "name": "crm_sync_async",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  ""
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
           "request": {
             "method": "POST",
             "header": [
@@ -1027,10 +1255,10 @@
       ]
     },
     {
-      "name": "Categories",
+      "name": "Saved Salons",
       "item": [
         {
-          "name": "list_public",
+          "name": "list",
           "request": {
             "method": "GET",
             "header": [
@@ -1038,22 +1266,33 @@
                 "key": "Content-Type",
                 "value": "application/json",
                 "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "type": "text"
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/api/v1/categories?salonId={{salonId}}",
+              "raw": "{{baseUrl}}/api/v1/saved-salons?page=1&limit=20",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
                 "api",
                 "v1",
-                "categories"
+                "saved-salons"
               ],
               "query": [
                 {
-                  "key": "salonId",
-                  "value": "{{salonId}}"
+                  "key": "page",
+                  "value": "1",
+                  "type": "text"
+                },
+                {
+                  "key": "limit",
+                  "value": "20",
+                  "type": "text"
                 }
               ]
             }
@@ -1061,7 +1300,74 @@
           "response": []
         },
         {
-          "name": "list_owner",
+          "name": "save",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/saved-salons/{{salonId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "saved-salons",
+                "{{salonId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "unsave",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/saved-salons/{{salonId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "saved-salons",
+                "{{salonId}}"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Categories",
+      "item": [
+        {
+          "name": "my_salons",
           "request": {
             "method": "GET",
             "header": [
@@ -1087,6 +1393,38 @@
                 "salons",
                 "{{salonId}}",
                 "categories"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "list",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/categories?salonId={{salonId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "categories"
+              ],
+              "query": [
+                {
+                  "key": "salonId",
+                  "value": "{{salonId}}",
+                  "type": "text"
+                }
               ]
             }
           },
@@ -1225,7 +1563,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"crmCategoryId\": \"new-cat\",\n    \"name\": \"New Category\",\n    \"color\": \"#abcdef\",\n    \"sortOrder\": 1\n}",
+              "raw": "{\n    \"title\": \"Test4 Category\",\n    \"weight\": 5,\n    \"staff\": [2886144]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -1236,7 +1574,7 @@
           "response": []
         },
         {
-          "name": "update",
+          "name": "edit",
           "request": {
             "method": "PATCH",
             "header": [
@@ -1267,7 +1605,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"name\": \"Updated Category\"\n}",
+              "raw": "{\n    \"title\": \"Hair 0\",\n    \"weight\": 50\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -1316,38 +1654,7 @@
       "name": "Services",
       "item": [
         {
-          "name": "list_public",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/services?salonId={{salonId}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "services"
-              ],
-              "query": [
-                {
-                  "key": "salonId",
-                  "value": "{{salonId}}"
-                }
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "list_owner",
+          "name": "my_salons",
           "request": {
             "method": "GET",
             "header": [
@@ -1373,6 +1680,44 @@
                 "salons",
                 "{{salonId}}",
                 "services"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "list",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/services?salonId={{salonId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "services"
+              ],
+              "query": [
+                {
+                  "key": "salonId",
+                  "value": "{{salonId}}",
+                  "type": "text"
+                },
+                {
+                  "key": "include",
+                  "value": null,
+                  "type": "text",
+                  "disabled": true
+                }
               ]
             }
           },
@@ -1511,7 +1856,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"crmServiceId\": \"new-svc\",\n    \"name\": \"New Service\",\n    \"duration\": 60,\n    \"price\": 500,\n    \"currency\": \"UAH\"\n}",
+              "raw": "{\n    \"title\": \"Test 123 active\",\n    \"category_id\": \"{{categoryId}}\",\n    \"price\": 130,\n    \"duration\": 3600,\n    \"sort_order\": 6,\n    \"is_active\": false,\n    \"worker_ids\": []\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -1522,7 +1867,7 @@
           "response": []
         },
         {
-          "name": "update",
+          "name": "edit",
           "request": {
             "method": "PATCH",
             "header": [
@@ -1553,7 +1898,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"name\": \"Updated Service\"\n}",
+              "raw": "{\n    \"title\": \"Test 123 Check\",\n    \"category_id\": \"{{categoryId}}\",\n    \"price\": 30,\n    \"sort_order\": 10,\n    \"is_active\": true,\n    \"duration\": 1800\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -1580,16 +1925,27 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/api/v1/services/{{serviceId}}",
+              "raw": "{{baseUrl}}/api/v1/salons/{{salonId}}/services/{{serviceId}}",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "salons",
+                "{{salonId}}",
                 "services",
                 "{{serviceId}}"
               ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             }
           },
           "response": []
@@ -1600,65 +1956,7 @@
       "name": "Workers",
       "item": [
         {
-          "name": "list_public",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/workers?salonId={{salonId}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "workers"
-              ],
-              "query": [
-                {
-                  "key": "salonId",
-                  "value": "{{salonId}}"
-                }
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "get_by_id",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/workers/by-id/{{workerId}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "workers",
-                "by-id",
-                "{{workerId}}"
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "list_owner",
+          "name": "my_salons",
           "request": {
             "method": "GET",
             "header": [
@@ -1684,28 +1982,65 @@
                 "salons",
                 "{{salonId}}",
                 "workers"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "list",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/workers?salonId={{salonId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "workers"
               ],
               "query": [
                 {
-                  "key": "page",
-                  "value": "1",
-                  "disabled": true
-                },
-                {
-                  "key": "limit",
-                  "value": "20",
-                  "disabled": true
-                },
-                {
-                  "key": "q",
-                  "value": "",
-                  "disabled": true
-                },
-                {
-                  "key": "active",
-                  "value": "true",
-                  "disabled": true
+                  "key": "salonId",
+                  "value": "{{salonId}}",
+                  "type": "text"
                 }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "by-id",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/workers/by-id/{{workerId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "workers",
+                "by-id",
+                "{{workerId}}"
               ]
             }
           },
@@ -1844,7 +2179,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"firstName\": \"John\",\n    \"lastName\": \"Doe\",\n    \"position\": \"Stylist\"\n}",
+              "raw": "{\n    \"first_name\": \"Test\",\n    \"last_name\": \"Create\",\n    \"position\": \"Lol\",\n    \"description\": \"Cantor\",\n    \"phone\": \"+380964873834\",\n    \"is_active\": true\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -1855,7 +2190,7 @@
           "response": []
         },
         {
-          "name": "update",
+          "name": "edit",
           "request": {
             "method": "PATCH",
             "header": [
@@ -1886,7 +2221,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"firstName\": \"Jane\"\n}",
+              "raw": "{\n    \"first_name\": \"Test2\",\n    \"last_name\": \"Create2\",\n    \"position\": \"Lol2\",\n    \"is_active\": false\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -1925,6 +2260,15 @@
                 "workers",
                 "{{workerId}}"
               ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             }
           },
           "response": []
@@ -1938,7 +2282,55 @@
           "name": "Mapping",
           "item": [
             {
+              "name": "get_mapping",
+              "protocolProfileBehavior": {
+                "disableBodyPruning": true
+              },
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/app-categories/mappings/by-salon/{{salonId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "app-categories",
+                    "mappings",
+                    "by-salon",
+                    "{{salonId}}"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": []
+            },
+            {
               "name": "get_mapping_admin",
+              "protocolProfileBehavior": {
+                "disableBodyPruning": true
+              },
               "request": {
                 "method": "GET",
                 "header": [
@@ -1967,45 +2359,24 @@
                     "admin",
                     "{{salonId}}"
                   ]
-                }
-              },
-              "response": []
-            },
-            {
-              "name": "get_mapping_owner",
-              "request": {
-                "method": "GET",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json",
-                    "type": "text"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{accessToken}}",
-                    "type": "text"
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
                   }
-                ],
-                "url": {
-                  "raw": "{{baseUrl}}/api/v1/app-categories/mappings/by-salon/{{salonId}}",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "api",
-                    "v1",
-                    "app-categories",
-                    "mappings",
-                    "by-salon",
-                    "{{salonId}}"
-                  ]
                 }
               },
               "response": []
             },
             {
               "name": "get_mapping_by_category",
+              "protocolProfileBehavior": {
+                "disableBodyPruning": true
+              },
               "request": {
                 "method": "GET",
                 "header": [
@@ -2021,7 +2392,7 @@
                   }
                 ],
                 "url": {
-                  "raw": "{{baseUrl}}/api/v1/app-categories/mappings/{{mappingId}}",
+                  "raw": "{{baseUrl}}/api/v1/app-categories/mappings/{{categoryId}}",
                   "host": [
                     "{{baseUrl}}"
                   ],
@@ -2030,8 +2401,17 @@
                     "v1",
                     "app-categories",
                     "mappings",
-                    "{{mappingId}}"
+                    "{{categoryId}}"
                   ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
                 }
               },
               "response": []
@@ -2053,7 +2433,7 @@
                   }
                 ],
                 "url": {
-                  "raw": "{{baseUrl}}/api/v1/app-categories/mappings/{{mappingId}}",
+                  "raw": "{{baseUrl}}/api/v1/app-categories/mappings/{{categoryId}}",
                   "host": [
                     "{{baseUrl}}"
                   ],
@@ -2062,12 +2442,12 @@
                     "v1",
                     "app-categories",
                     "mappings",
-                    "{{mappingId}}"
+                    "{{categoryId}}"
                   ]
                 },
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n    \"appCategoryId\": \"<app-category-uuid>\"\n}",
+                  "raw": "{\n    \"appCategoryId\": \"{{appCategoryId}}\",\n    \"autoMatched\": true\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -2099,23 +2479,6 @@
                 "api",
                 "v1",
                 "app-categories"
-              ],
-              "query": [
-                {
-                  "key": "page",
-                  "value": "1",
-                  "disabled": true
-                },
-                {
-                  "key": "limit",
-                  "value": "20",
-                  "disabled": true
-                },
-                {
-                  "key": "onlyActive",
-                  "value": "true",
-                  "disabled": true
-                }
               ]
             }
           },
@@ -2150,7 +2513,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"slug\": \"nails\",\n    \"name\": \"Нігті\",\n    \"keywords\": [\"nails\", \"manicure\"],\n    \"sortOrder\": 1,\n    \"isActive\": true\n}",
+              "raw": "{\n  \"slug\": \"spa\",\n  \"name\": \"SPA\",\n  \"keywords\": [\"massage\", \"spa\"],\n  \"sortOrder\": 7,\n  \"isActive\": true\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -2161,7 +2524,7 @@
           "response": []
         },
         {
-          "name": "update",
+          "name": "edit",
           "request": {
             "method": "PATCH",
             "header": [
@@ -2190,7 +2553,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"name\": \"Updated Name\"\n}",
+              "raw": "{\n  \"slug\": \"nails\",\n  \"name\": \"Nails\",\n  \"keywords\": [\"manicure\", \"pedicure\"],\n  \"sortOrder\": 1,\n  \"isActive\": true\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -2298,80 +2661,6 @@
       ]
     },
     {
-      "name": "Storage",
-      "item": [
-        {
-          "name": "upload_image",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{accessToken}}",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/storage/{{bucket}}/upload",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "storage",
-                "{{bucket}}",
-                "upload"
-              ]
-            },
-            "body": {
-              "mode": "formdata",
-              "formdata": [
-                {
-                  "key": "file",
-                  "type": "file",
-                  "src": ""
-                }
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "delete_image",
-          "request": {
-            "method": "DELETE",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{accessToken}}",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/storage/{{bucket}}?path=",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "storage",
-                "{{bucket}}"
-              ],
-              "query": [
-                {
-                  "key": "path",
-                  "value": ""
-                }
-              ]
-            }
-          },
-          "response": []
-        }
-      ]
-    },
-    {
       "name": "Search",
       "item": [
         {
@@ -2382,6 +2671,11 @@
               {
                 "key": "Content-Type",
                 "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
                 "type": "text"
               }
             ],
@@ -2398,7 +2692,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"query\": \"\",\n    \"lat\": 50.4501,\n    \"lon\": 30.5234,\n    \"radiusKm\": 10,\n    \"page\": 1,\n    \"limit\": 20\n}",
+              "raw": "{\n    \"query\": \"\",\n    \"centerLat\": 52.374477,\n    \"centerLng\": 9.738553,\n    \"locationType\": null,\n    \"sortBy\": \"distance\",\n    \"page\": 1,\n    \"limit\": 20\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -2410,6 +2704,9 @@
         },
         {
           "name": "suggestions",
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          },
           "request": {
             "method": "GET",
             "header": [
@@ -2438,7 +2735,8 @@
               "query": [
                 {
                   "key": "query",
-                  "value": "Al"
+                  "value": "Al",
+                  "type": "text"
                 }
               ]
             }
@@ -2447,6 +2745,9 @@
         },
         {
           "name": "history",
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          },
           "request": {
             "method": "GET",
             "header": [
@@ -2475,7 +2776,8 @@
               "query": [
                 {
                   "key": "limit",
-                  "value": "10"
+                  "value": "10",
+                  "type": "text"
                 }
               ]
             }
@@ -2514,7 +2816,7 @@
           "response": []
         },
         {
-          "name": "delete_history_item",
+          "name": "delete_history_id",
           "request": {
             "method": "DELETE",
             "header": [
@@ -2530,7 +2832,7 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/api/v1/search/history/{{searchHistoryId}}",
+              "raw": "{{baseUrl}}/api/v1/search/history/{{historyId}}",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -2539,7 +2841,58 @@
                 "v1",
                 "search",
                 "history",
-                "{{searchHistoryId}}"
+                "{{historyId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "get_salon_from_search",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  ""
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/salon/{{salonId}}?isFromSearch=true",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "salon",
+                "{{salonId}}"
+              ],
+              "query": [
+                {
+                  "key": "isFromSearch",
+                  "value": "true",
+                  "type": "text"
+                }
               ]
             }
           },
@@ -2558,6 +2911,21 @@
               "item": [
                 {
                   "name": "get_bookable_services",
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "exec": [
+                          "const response = pm.response.json();",
+                          "const data = response.data || {};",
+                          "pm.environment.set(\"salonId\", data.id);"
+                        ],
+                        "type": "text/javascript",
+                        "packages": {},
+                        "requests": {}
+                      }
+                    }
+                  ],
                   "request": {
                     "method": "GET",
                     "header": [
@@ -2565,10 +2933,15 @@
                         "key": "Content-Type",
                         "value": "application/json",
                         "type": "text"
+                      },
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{accessToken}}",
+                        "type": "text"
                       }
                     ],
                     "url": {
-                      "raw": "{{baseUrl}}/api/v1/booking/altegio/{{salonId}}/services",
+                      "raw": "{{baseUrl}}/api/v1/booking/altegio/{{salonId}}/services?workerId={{workerId}}",
                       "host": [
                         "{{baseUrl}}"
                       ],
@@ -2582,9 +2955,15 @@
                       ],
                       "query": [
                         {
+                          "key": "selectedServiceIds[]",
+                          "value": "{{serviceId}}",
+                          "type": "text",
+                          "disabled": true
+                        },
+                        {
                           "key": "workerId",
                           "value": "{{workerId}}",
-                          "disabled": true
+                          "type": "text"
                         }
                       ]
                     }
@@ -2593,6 +2972,19 @@
                 },
                 {
                   "name": "get_bookable_workers",
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "exec": [
+                          ""
+                        ],
+                        "type": "text/javascript",
+                        "packages": {},
+                        "requests": {}
+                      }
+                    }
+                  ],
                   "request": {
                     "method": "GET",
                     "header": [
@@ -2600,10 +2992,15 @@
                         "key": "Content-Type",
                         "value": "application/json",
                         "type": "text"
+                      },
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{accessToken}}",
+                        "type": "text"
                       }
                     ],
                     "url": {
-                      "raw": "{{baseUrl}}/api/v1/booking/altegio/{{salonId}}/workers",
+                      "raw": "{{baseUrl}}/api/v1/booking/altegio/{{salonId}}/workers?serviceIds[]={{serviceId}}",
                       "host": [
                         "{{baseUrl}}"
                       ],
@@ -2617,8 +3014,21 @@
                       ],
                       "query": [
                         {
+                          "key": "datetime",
+                          "value": "",
+                          "type": "text",
+                          "disabled": true
+                        },
+                        {
+                          "key": "includeSlots",
+                          "value": "true",
+                          "type": "text",
+                          "disabled": true
+                        },
+                        {
                           "key": "serviceIds[]",
-                          "value": "{{serviceId}}"
+                          "value": "{{serviceId}}",
+                          "type": "text"
                         }
                       ]
                     }
@@ -2627,6 +3037,19 @@
                 },
                 {
                   "name": "get_bookable_dates",
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "exec": [
+                          ""
+                        ],
+                        "type": "text/javascript",
+                        "packages": {},
+                        "requests": {}
+                      }
+                    }
+                  ],
                   "request": {
                     "method": "GET",
                     "header": [
@@ -2634,10 +3057,15 @@
                         "key": "Content-Type",
                         "value": "application/json",
                         "type": "text"
+                      },
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{accessToken}}",
+                        "type": "text"
                       }
                     ],
                     "url": {
-                      "raw": "{{baseUrl}}/api/v1/booking/altegio/{{salonId}}/dates",
+                      "raw": "{{baseUrl}}/api/v1/booking/altegio/{{salonId}}/dates?serviceIds[]={{serviceId}}&workerId={{workerId}}",
                       "host": [
                         "{{baseUrl}}"
                       ],
@@ -2652,11 +3080,24 @@
                       "query": [
                         {
                           "key": "serviceIds[]",
-                          "value": "{{serviceId}}"
+                          "value": "{{serviceId}}",
+                          "type": "text"
                         },
                         {
                           "key": "workerId",
                           "value": "{{workerId}}",
+                          "type": "text"
+                        },
+                        {
+                          "key": "dateFrom",
+                          "value": "",
+                          "type": "text",
+                          "disabled": true
+                        },
+                        {
+                          "key": "dateTo",
+                          "value": "",
+                          "type": "text",
                           "disabled": true
                         }
                       ]
@@ -2666,6 +3107,19 @@
                 },
                 {
                   "name": "get_bookable_timeslots",
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "exec": [
+                          ""
+                        ],
+                        "type": "text/javascript",
+                        "packages": {},
+                        "requests": {}
+                      }
+                    }
+                  ],
                   "request": {
                     "method": "GET",
                     "header": [
@@ -2673,10 +3127,15 @@
                         "key": "Content-Type",
                         "value": "application/json",
                         "type": "text"
+                      },
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{accessToken}}",
+                        "type": "text"
                       }
                     ],
                     "url": {
-                      "raw": "{{baseUrl}}/api/v1/booking/altegio/{{salonId}}/timeslots",
+                      "raw": "{{baseUrl}}/api/v1/booking/altegio/{{salonId}}/timeslots?date=2026-01-26&workerId={{workerId}}&serviceIds[]={{serviceId}}",
                       "host": [
                         "{{baseUrl}}"
                       ],
@@ -2691,16 +3150,18 @@
                       "query": [
                         {
                           "key": "date",
-                          "value": "2026-04-01"
+                          "value": "2026-01-26",
+                          "type": "text"
                         },
                         {
                           "key": "workerId",
                           "value": "{{workerId}}",
-                          "disabled": true
+                          "type": "text"
                         },
                         {
                           "key": "serviceIds[]",
-                          "value": "{{serviceId}}"
+                          "value": "{{serviceId}}",
+                          "type": "text"
                         }
                       ]
                     }
@@ -2709,6 +3170,19 @@
                 },
                 {
                   "name": "create_booking",
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "exec": [
+                          ""
+                        ],
+                        "type": "text/javascript",
+                        "packages": {},
+                        "requests": {}
+                      }
+                    }
+                  ],
                   "request": {
                     "method": "POST",
                     "header": [
@@ -2739,7 +3213,7 @@
                     },
                     "body": {
                       "mode": "raw",
-                      "raw": "{\n    \"workerId\": \"{{workerId}}\",\n    \"serviceIds\": [\"{{serviceId}}\"],\n    \"datetime\": \"2026-04-01T10:00:00\",\n    \"phone\": \"{{phoneNumber}}\",\n    \"name\": \"{{name}}\",\n    \"email\": \"{{email}}\"\n}",
+                      "raw": "{\n    \"workerId\": \"{{workerId}}\",\n    \"serviceIds\": [\"{{serviceId}}\"],\n    \"datetime\": \"2026-01-26T15:00:00+02:00\",\n    \"attendance\": 1\n}",
                       "options": {
                         "raw": {
                           "language": "json"
@@ -2755,7 +3229,20 @@
               "name": "Easyweek",
               "item": [
                 {
-                  "name": "confirm_booking",
+                  "name": "confirm_easyweek_booking",
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "exec": [
+                          ""
+                        ],
+                        "type": "text/javascript",
+                        "packages": {},
+                        "requests": {}
+                      }
+                    }
+                  ],
                   "request": {
                     "method": "POST",
                     "header": [
@@ -2785,7 +3272,7 @@
                     },
                     "body": {
                       "mode": "raw",
-                      "raw": "{\n    \"bookingUuid\": \"<booking-uuid>\"\n}",
+                      "raw": "{\n    \"salonId\": \"{{salonId}}\",\n    \"bookingUuid\": \"{{bookingUuid}}\"\n}",
                       "options": {
                         "raw": {
                           "language": "json"
@@ -2806,7 +3293,20 @@
               "name": "Client",
               "item": [
                 {
-                  "name": "list_bookings",
+                  "name": "get_bookings_list",
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "exec": [
+                          ""
+                        ],
+                        "type": "text/javascript",
+                        "packages": {},
+                        "requests": {}
+                      }
+                    }
+                  ],
                   "request": {
                     "method": "GET",
                     "header": [
@@ -2835,26 +3335,31 @@
                         {
                           "key": "status",
                           "value": "",
+                          "type": "text",
                           "disabled": true
                         },
                         {
                           "key": "from",
                           "value": "",
+                          "type": "text",
                           "disabled": true
                         },
                         {
                           "key": "to",
-                          "value": "",
+                          "value": null,
+                          "type": "text",
                           "disabled": true
                         },
                         {
                           "key": "limit",
-                          "value": "20",
+                          "value": null,
+                          "type": "text",
                           "disabled": true
                         },
                         {
                           "key": "cursor",
-                          "value": "",
+                          "value": null,
+                          "type": "text",
                           "disabled": true
                         }
                       ]
@@ -2863,7 +3368,20 @@
                   "response": []
                 },
                 {
-                  "name": "get_booking",
+                  "name": "get_booking_by_id",
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "exec": [
+                          ""
+                        ],
+                        "type": "text/javascript",
+                        "packages": {},
+                        "requests": {}
+                      }
+                    }
+                  ],
                   "request": {
                     "method": "GET",
                     "header": [
@@ -2899,7 +3417,20 @@
               "name": "Owner",
               "item": [
                 {
-                  "name": "list_bookings",
+                  "name": "get_bookings_list",
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "exec": [
+                          ""
+                        ],
+                        "type": "text/javascript",
+                        "packages": {},
+                        "requests": {}
+                      }
+                    }
+                  ],
                   "request": {
                     "method": "GET",
                     "header": [
@@ -2915,7 +3446,7 @@
                       }
                     ],
                     "url": {
-                      "raw": "{{baseUrl}}/api/v1/salons/{{salonId}}/bookings",
+                      "raw": "{{baseUrl}}/api/v1/salons/{{salonId}}/bookings?included=history",
                       "host": [
                         "{{baseUrl}}"
                       ],
@@ -2928,19 +3459,39 @@
                       ],
                       "query": [
                         {
-                          "key": "included",
-                          "value": "history",
+                          "key": "status",
+                          "value": "created",
+                          "type": "text",
                           "disabled": true
                         },
                         {
-                          "key": "status",
+                          "key": "from",
                           "value": "",
+                          "type": "text",
+                          "disabled": true
+                        },
+                        {
+                          "key": "to",
+                          "value": null,
+                          "type": "text",
                           "disabled": true
                         },
                         {
                           "key": "limit",
-                          "value": "20",
+                          "value": "1000",
+                          "type": "text",
                           "disabled": true
+                        },
+                        {
+                          "key": "cursor",
+                          "value": null,
+                          "type": "text",
+                          "disabled": true
+                        },
+                        {
+                          "key": "included",
+                          "value": "history",
+                          "type": "text"
                         }
                       ]
                     }
@@ -2948,7 +3499,20 @@
                   "response": []
                 },
                 {
-                  "name": "get_booking",
+                  "name": "get_booking_by_id",
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "exec": [
+                          ""
+                        ],
+                        "type": "text/javascript",
+                        "packages": {},
+                        "requests": {}
+                      }
+                    }
+                  ],
                   "request": {
                     "method": "GET",
                     "header": [
@@ -2989,6 +3553,19 @@
           "item": [
             {
               "name": "sync_bookings",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      ""
+                    ],
+                    "type": "text/javascript",
+                    "packages": {},
+                    "requests": {}
+                  }
+                }
+              ],
               "request": {
                 "method": "POST",
                 "header": [
@@ -3022,6 +3599,19 @@
             },
             {
               "name": "sync_bookings_async",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      ""
+                    ],
+                    "type": "text/javascript",
+                    "packages": {},
+                    "requests": {}
+                  }
+                }
+              ],
               "request": {
                 "method": "POST",
                 "header": [
@@ -3062,7 +3652,22 @@
       "name": "Brand",
       "item": [
         {
-          "name": "my_brands",
+          "name": "my",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const response = pm.response.json();",
+                  "const data = response.data || {};",
+                  "pm.environment.set(\"brandId\", data.id);"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
           "request": {
             "method": "GET",
             "header": [
@@ -3093,46 +3698,20 @@
           "response": []
         },
         {
-          "name": "create",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{accessToken}}",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/brand",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "brand"
-              ]
-            },
-            "body": {
-              "mode": "raw",
-              "raw": "{\n    \"name\": \"My Brand\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
+          "name": "get",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  ""
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
               }
             }
-          },
-          "response": []
-        },
-        {
-          "name": "get",
+          ],
           "request": {
             "method": "GET",
             "header": [
@@ -3163,47 +3742,20 @@
           "response": []
         },
         {
-          "name": "update",
-          "request": {
-            "method": "PATCH",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{accessToken}}",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/brand/{{brandId}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "brand",
-                "{{brandId}}"
-              ]
-            },
-            "body": {
-              "mode": "raw",
-              "raw": "{\n    \"name\": \"Updated Brand\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
+          "name": "get_member",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  ""
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
               }
             }
-          },
-          "response": []
-        },
-        {
-          "name": "get_member",
+          ],
           "request": {
             "method": "GET",
             "header": [
@@ -3236,6 +3788,21 @@
         },
         {
           "name": "select_salon",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const response = pm.response.json();",
+                  "const data = response.data || {};",
+                  "pm.environment.set(\"salonId\", data.last_selected_salon_id);"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
           "request": {
             "method": "PUT",
             "header": [
@@ -3265,7 +3832,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"salonId\": \"{{salonId}}\"\n}",
+              "raw": "{\n    \"salon_id\": \"{{salonId}}\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -3276,7 +3843,20 @@
           "response": []
         },
         {
-          "name": "get_salons",
+          "name": "get_salon_list",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  ""
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
           "request": {
             "method": "GET",
             "header": [
@@ -3306,9 +3886,115 @@
               "query": [
                 {
                   "key": "include",
-                  "value": "services,categories,images,workers"
+                  "value": "services,categories,images,workers",
+                  "type": "text"
                 }
               ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "update",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  ""
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/brand/{{brandId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "brand",
+                "{{brandId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"test2\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "create",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  ""
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/brand",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "brand"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"test1\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             }
           },
           "response": []
@@ -3319,7 +4005,7 @@
       "name": "Home Feed",
       "item": [
         {
-          "name": "get_home_feed (unauthorized)",
+          "name": "get_home_feed",
           "request": {
             "method": "GET",
             "header": [
@@ -3327,6 +4013,12 @@
                 "key": "Content-Type",
                 "value": "application/json",
                 "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "type": "text",
+                "disabled": true
               }
             ],
             "url": {
@@ -3343,20 +4035,28 @@
                 {
                   "key": "lat",
                   "value": "50.4501",
-                  "description": "Latitude (optional)"
+                  "type": "text",
+                  "disabled": true
                 },
                 {
                   "key": "lon",
                   "value": "30.5234",
-                  "description": "Longitude (optional)"
+                  "type": "text",
+                  "disabled": true
                 }
               ]
-            }
+            },
+            "description": "Get home feed (optional auth). Pass Authorization header for personalized results."
           },
           "response": []
-        },
+        }
+      ]
+    },
+    {
+      "name": "Home Feed Sections (Admin)",
+      "item": [
         {
-          "name": "get_home_feed (authorized)",
+          "name": "list_home_feed_sections",
           "request": {
             "method": "GET",
             "header": [
@@ -3372,267 +4072,23 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/api/v1/home?lat=50.4501&lon=30.5234",
+              "raw": "{{baseUrl}}/api/v1/admin/home-feed-sections",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
                 "api",
                 "v1",
-                "home"
-              ],
-              "query": [
-                {
-                  "key": "lat",
-                  "value": "50.4501",
-                  "description": "Latitude (optional)"
-                },
-                {
-                  "key": "lon",
-                  "value": "30.5234",
-                  "description": "Longitude (optional)"
-                }
+                "admin",
+                "home-feed-sections"
               ]
-            }
+            },
+            "description": "List all home feed sections (admin only)"
           },
           "response": []
         },
         {
-          "name": "Admin",
-          "item": [
-            {
-              "name": "list_sections",
-              "request": {
-                "method": "GET",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json",
-                    "type": "text"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{accessToken}}",
-                    "type": "text"
-                  }
-                ],
-                "url": {
-                  "raw": "{{baseUrl}}/api/v1/admin/home-feed-sections",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "api",
-                    "v1",
-                    "admin",
-                    "home-feed-sections"
-                  ]
-                }
-              },
-              "response": []
-            },
-            {
-              "name": "create_popular_section",
-              "request": {
-                "method": "POST",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json",
-                    "type": "text"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{accessToken}}",
-                    "type": "text"
-                  }
-                ],
-                "url": {
-                  "raw": "{{baseUrl}}/api/v1/admin/home-feed-sections",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "api",
-                    "v1",
-                    "admin",
-                    "home-feed-sections"
-                  ]
-                },
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n    \"type\": \"popular\",\n    \"title\": \"Популярні\",\n    \"emoji\": \"⭐\",\n    \"sortOrder\": 1,\n    \"limit\": 10,\n    \"isActive\": true,\n    \"filters\": {\n        \"sortBy\": \"popular\"\n    }\n}",
-                  "options": {
-                    "raw": {
-                      "language": "json"
-                    }
-                  }
-                }
-              },
-              "response": []
-            },
-            {
-              "name": "create_category_section",
-              "request": {
-                "method": "POST",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json",
-                    "type": "text"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{accessToken}}",
-                    "type": "text"
-                  }
-                ],
-                "url": {
-                  "raw": "{{baseUrl}}/api/v1/admin/home-feed-sections",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "api",
-                    "v1",
-                    "admin",
-                    "home-feed-sections"
-                  ]
-                },
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n    \"type\": \"category\",\n    \"title\": \"Nails доступні сьогодні\",\n    \"emoji\": \"💅\",\n    \"sortOrder\": 2,\n    \"limit\": 10,\n    \"isActive\": true,\n    \"filters\": {\n        \"appCategoryId\": \"{{appCategoryId}}\",\n        \"openToday\": true\n    }\n}",
-                  "options": {
-                    "raw": {
-                      "language": "json"
-                    }
-                  }
-                }
-              },
-              "response": []
-            },
-            {
-              "name": "create_near_me_section",
-              "request": {
-                "method": "POST",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json",
-                    "type": "text"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{accessToken}}",
-                    "type": "text"
-                  }
-                ],
-                "url": {
-                  "raw": "{{baseUrl}}/api/v1/admin/home-feed-sections",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "api",
-                    "v1",
-                    "admin",
-                    "home-feed-sections"
-                  ]
-                },
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n    \"type\": \"nearMe\",\n    \"title\": \"Перукар біля тебе\",\n    \"emoji\": \"💇\",\n    \"sortOrder\": 3,\n    \"limit\": 10,\n    \"isActive\": true,\n    \"filters\": {\n        \"sortBy\": \"distance\",\n        \"radiusKm\": 10\n    }\n}",
-                  "options": {
-                    "raw": {
-                      "language": "json"
-                    }
-                  }
-                }
-              },
-              "response": []
-            },
-            {
-              "name": "update_section",
-              "request": {
-                "method": "PATCH",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json",
-                    "type": "text"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{accessToken}}",
-                    "type": "text"
-                  }
-                ],
-                "url": {
-                  "raw": "{{baseUrl}}/api/v1/admin/home-feed-sections/{{homeFeedSectionId}}",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "api",
-                    "v1",
-                    "admin",
-                    "home-feed-sections",
-                    "{{homeFeedSectionId}}"
-                  ]
-                },
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n    \"title\": \"Updated Title\",\n    \"isActive\": false\n}",
-                  "options": {
-                    "raw": {
-                      "language": "json"
-                    }
-                  }
-                }
-              },
-              "response": []
-            },
-            {
-              "name": "delete_section",
-              "request": {
-                "method": "DELETE",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json",
-                    "type": "text"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{accessToken}}",
-                    "type": "text"
-                  }
-                ],
-                "url": {
-                  "raw": "{{baseUrl}}/api/v1/admin/home-feed-sections/{{homeFeedSectionId}}",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "api",
-                    "v1",
-                    "admin",
-                    "home-feed-sections",
-                    "{{homeFeedSectionId}}"
-                  ]
-                }
-              },
-              "response": []
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "name": "Saved Salons",
-      "item": [
-        {
-          "name": "save_salon",
+          "name": "create_home_feed_section",
           "request": {
             "method": "POST",
             "header": [
@@ -3648,30 +4104,134 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/api/v1/saved-salons/{{salonId}}",
+              "raw": "{{baseUrl}}/api/v1/admin/home-feed-sections",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
                 "api",
                 "v1",
-                "saved-salons",
-                "{{salonId}}"
+                "admin",
+                "home-feed-sections"
               ]
-            }
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"type\": \"popular\",\n    \"title\": \"Popular near you\",\n    \"emoji\": \"\\ud83d\\udd25\",\n    \"sortOrder\": 0,\n    \"limit\": 10,\n    \"isActive\": true,\n    \"filters\": {\n        \"appCategoryId\": \"{{appCategoryId}}\",\n        \"sortBy\": \"popular\",\n        \"radiusKm\": 10,\n        \"priceMin\": 0,\n        \"priceMax\": 1000,\n        \"query\": \"\",\n        \"openToday\": false\n    }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Create a new home feed section (admin only)"
           },
           "response": []
         },
         {
-          "name": "unsave_salon",
+          "name": "update_home_feed_section",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/home-feed-sections/{{homeFeedSectionId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "home-feed-sections",
+                "{{homeFeedSectionId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"title\": \"Updated title\",\n    \"sortOrder\": 1,\n    \"isActive\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Update a home feed section by ID (admin only). All fields are optional."
+          },
+          "response": []
+        },
+        {
+          "name": "delete_home_feed_section",
           "request": {
             "method": "DELETE",
             "header": [
               {
-                "key": "Content-Type",
-                "value": "application/json",
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
                 "type": "text"
-              },
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/home-feed-sections/{{homeFeedSectionId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "home-feed-sections",
+                "{{homeFeedSectionId}}"
+              ]
+            },
+            "description": "Delete a home feed section by ID (admin only)"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "health"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Storage",
+      "item": [
+        {
+          "name": "upload",
+          "request": {
+            "method": "POST",
+            "header": [
               {
                 "key": "Authorization",
                 "value": "Bearer {{accessToken}}",
@@ -3679,30 +4239,36 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/api/v1/saved-salons/{{salonId}}",
+              "raw": "{{baseUrl}}/api/v1/storage/{{bucket}}/upload",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
                 "api",
                 "v1",
-                "saved-salons",
-                "{{salonId}}"
+                "storage",
+                "{{bucket}}",
+                "upload"
+              ]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": ""
+                }
               ]
             }
           },
           "response": []
         },
         {
-          "name": "list_saved_salons",
+          "name": "delete",
           "request": {
-            "method": "GET",
+            "method": "DELETE",
             "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
-              },
               {
                 "key": "Authorization",
                 "value": "Bearer {{accessToken}}",
@@ -3710,29 +4276,21 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/api/v1/saved-salons?page=1&limit=20",
+              "raw": "{{baseUrl}}/api/v1/storage/{{bucket}}?path={{storagePath}}",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
                 "api",
                 "v1",
-                "saved-salons"
+                "storage",
+                "{{bucket}}"
               ],
               "query": [
                 {
-                  "key": "page",
-                  "value": "1"
-                },
-                {
-                  "key": "limit",
-                  "value": "20"
-                },
-                {
-                  "key": "q",
-                  "value": "",
-                  "description": "Search by salon name",
-                  "disabled": true
+                  "key": "path",
+                  "value": "{{storagePath}}",
+                  "type": "text"
                 }
               ]
             }
@@ -3742,377 +4300,40 @@
       ]
     },
     {
-      "name": "Internal",
+      "name": "Deep Links",
       "item": [
         {
-          "name": "sync_altegio_bookings",
+          "name": "apple_app_site_association",
           "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
-              },
-              {
-                "key": "x-api-key",
-                "value": "{{internalApiKey}}",
-                "type": "text"
-              }
-            ],
+            "method": "GET",
+            "header": [],
             "url": {
-              "raw": "{{baseUrl}}/api/v1/internal/bookings/altegio/sync",
+              "raw": "{{baseUrl}}/.well-known/apple-app-site-association",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
-                "api",
-                "v1",
-                "internal",
-                "bookings",
-                "altegio",
-                "sync"
+                ".well-known",
+                "apple-app-site-association"
               ]
-            },
-            "body": {
-              "mode": "raw",
-              "raw": "{\n    \"salonId\": \"{{salonId}}\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
             }
           },
           "response": []
         },
         {
-          "name": "sync_easyweek_bookings",
+          "name": "auth_reset_fallback",
           "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
-              },
-              {
-                "key": "x-api-key",
-                "value": "{{internalApiKey}}",
-                "type": "text"
-              }
-            ],
+            "method": "GET",
+            "header": [],
             "url": {
-              "raw": "{{baseUrl}}/api/v1/internal/bookings/easyweek/sync",
+              "raw": "{{baseUrl}}/auth/reset",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
-                "api",
-                "v1",
-                "internal",
-                "bookings",
-                "easyweek",
-                "sync"
+                "auth",
+                "reset"
               ]
-            },
-            "body": {
-              "mode": "raw",
-              "raw": "{\n    \"salonId\": \"{{salonId}}\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "rebase_bookings",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
-              },
-              {
-                "key": "x-api-key",
-                "value": "{{internalApiKey}}",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/internal/bookings/rebase",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "internal",
-                "bookings",
-                "rebase"
-              ]
-            },
-            "body": {
-              "mode": "raw",
-              "raw": "{\n    \"salonId\": \"{{salonId}}\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "sync_categories",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
-              },
-              {
-                "key": "x-api-key",
-                "value": "{{internalApiKey}}",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/internal/categories/sync",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "internal",
-                "categories",
-                "sync"
-              ]
-            },
-            "body": {
-              "mode": "raw",
-              "raw": "{\n    \"salonId\": \"{{salonId}}\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "sync_services",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
-              },
-              {
-                "key": "x-api-key",
-                "value": "{{internalApiKey}}",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/internal/services/sync",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "internal",
-                "services",
-                "sync"
-              ]
-            },
-            "body": {
-              "mode": "raw",
-              "raw": "{\n    \"salonId\": \"{{salonId}}\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "sync_workers",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
-              },
-              {
-                "key": "x-api-key",
-                "value": "{{internalApiKey}}",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/internal/workers/sync",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "internal",
-                "workers",
-                "sync"
-              ]
-            },
-            "body": {
-              "mode": "raw",
-              "raw": "{\n    \"salonId\": \"{{salonId}}\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "sync_salon_images",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
-              },
-              {
-                "key": "x-api-key",
-                "value": "{{internalApiKey}}",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/internal/salons/{{salonId}}/images/sync",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "internal",
-                "salons",
-                "{{salonId}}",
-                "images",
-                "sync"
-              ]
-            },
-            "body": {
-              "mode": "raw",
-              "raw": "{\n    \"items\": []\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "pull_salon",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
-              },
-              {
-                "key": "x-api-key",
-                "value": "{{internalApiKey}}",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/internal/salons/pull",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "internal",
-                "salons",
-                "pull"
-              ]
-            },
-            "body": {
-              "mode": "raw",
-              "raw": "{\n    \"salonId\": \"{{salonId}}\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "sync_salon",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
-              },
-              {
-                "key": "x-api-key",
-                "value": "{{internalApiKey}}",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/internal/salons/sync",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "internal",
-                "salons",
-                "sync"
-              ]
-            },
-            "body": {
-              "mode": "raw",
-              "raw": "{\n    \"salon_id\": \"{{salonId}}\",\n    \"salon\": {\n        \"name\": \"Test Salon\"\n    }\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
             }
           },
           "response": []

@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Controller,
   Post,
   Body,
@@ -21,8 +22,18 @@ import {
   ApiForbiddenResponse,
 } from '@nestjs/swagger';
 import { AuthService } from '../../../auth/auth.service';
+import { PhoneVerificationService } from '../../../auth/phone-verification.service';
+import { UserService } from '../../../user/user.service';
 import { LoginDto } from '../../../auth/dto/v1/login.dto';
 import { RegisterDto } from '../../../auth/dto/v1/register.dto';
+import { CheckEmailDto } from '../../../auth/dto/v1/check-email.dto';
+import { CheckEmailResponseDto } from '../../../auth/dto/v1/check-email-response.dto';
+import { OAuthSignInDto } from '../../../auth/dto/v1/oauth-sign-in.dto';
+import { OAuthResponseDto } from '../../../auth/dto/v1/oauth-response.dto';
+import { SendOtpDto } from '../../../auth/dto/v1/send-otp.dto';
+import { VerifyOtpDto } from '../../../auth/dto/v1/verify-otp.dto';
+import { VerifyOtpResponseDto } from '../../../auth/dto/v1/verify-otp-response.dto';
+import { RefreshTokenDto } from '../../../auth/dto/v1/refresh-token.dto';
 import { ForgotPasswordDto } from '../../../auth/dto/v1/forgot-password.dto';
 import { ResetPasswordDto } from '../../../auth/dto/v1/reset-password.dto';
 import { LoginResponseDto } from '../../../auth/dto/v1/login-response.dto';
@@ -30,12 +41,31 @@ import { RegisterResponseDto } from '../../../auth/dto/v1/register-response.dto'
 import { ResetPasswordResponseDto } from '../../../auth/dto/v1/reset-password-response.dto';
 import { envelopeRef, envelopeErrorSchema, envelopeSuccessOnly } from '../../../shared/utils/swagger-envelope.util';
 import { JwtAuthGuard } from '../../../shared/guards/jwt-auth.guard';
+import { UserThrottlerGuard } from '../../../shared/guards/user-throttler.guard';
+import { Throttle } from '@nestjs/throttler';
 import { Request } from 'express';
 
 @ApiTags('Auth')
 @Controller('api/v1/auth')
 export class AuthPublicController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly phoneVerification: PhoneVerificationService,
+    private readonly userService: UserService,
+  ) {}
+
+  @Post('check-email')
+  @UseGuards(UserThrottlerGuard)
+  @Throttle({
+    'email-check': { limit: 10, ttl: 60 * 1000 },
+  })
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Check if email is registered and how' })
+  @ApiBody({ type: CheckEmailDto })
+  @ApiOkResponse(envelopeRef(CheckEmailResponseDto))
+  async checkEmail(@Body() dto: CheckEmailDto) {
+    return this.authService.checkEmail(dto);
+  }
 
   @Post('login')
   @HttpCode(HttpStatus.OK)
@@ -61,6 +91,30 @@ export class AuthPublicController {
     return this.authService.register(dto);
   }
 
+  @Post('oauth')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Sign in with Apple or Google ID token' })
+  @ApiBody({ type: OAuthSignInDto })
+  @ApiOkResponse(envelopeRef(OAuthResponseDto))
+  @ApiBadRequestResponse(
+    envelopeErrorSchema({ statusCode: 400, message: 'Bad Request', error: 'Bad Request' })
+  )
+  async oauthSignIn(@Body() dto: OAuthSignInDto) {
+    return this.authService.oauthSignIn(dto);
+  }
+
+  @Post('refresh')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Refresh access token' })
+  @ApiBody({ type: RefreshTokenDto })
+  @ApiOkResponse(envelopeRef(LoginResponseDto))
+  @ApiUnauthorizedResponse(
+    envelopeErrorSchema({ statusCode: 401, message: 'Unauthorized', error: 'Unauthorized' })
+  )
+  async refreshToken(@Body() dto: RefreshTokenDto) {
+    return this.authService.refreshSession(dto.refresh_token);
+  }
+
   @Post('logout')
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
@@ -76,7 +130,7 @@ export class AuthPublicController {
     return { success: true };
   }
 
-  @Post('forgot')
+  @Post('forgot-password')
   @HttpCode(HttpStatus.ACCEPTED)
   @ApiOperation({ summary: 'Send password reset email' })
   @ApiBody({ type: ForgotPasswordDto })
@@ -99,5 +153,71 @@ export class AuthPublicController {
   )
   async resetPassword(@Body() dto: ResetPasswordDto) {
     return this.authService.resetPassword(dto);
+  }
+
+  @Post('phone/send-otp')
+  @UseGuards(JwtAuthGuard, UserThrottlerGuard)
+  @Throttle({
+    'otp-burst': { limit: 1, ttl: 60 * 1000 },
+    'otp-hour': { limit: 3, ttl: 60 * 60 * 1000 },
+  })
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Send phone verification OTP' })
+  @ApiBody({ type: SendOtpDto })
+  @ApiOkResponse(envelopeSuccessOnly())
+  @ApiBadRequestResponse(
+    envelopeErrorSchema({ statusCode: 400, message: 'Bad Request', error: 'Bad Request' })
+  )
+  async sendPhoneOtp(
+    @Body() dto: SendOtpDto,
+    @Req() req: Request & { user: { id: string } },
+  ) {
+    await this.phoneVerification.sendOtp(req.user.id, dto.phone);
+    return { success: true };
+  }
+
+  @Post('phone/verify-otp')
+  @UseGuards(JwtAuthGuard, UserThrottlerGuard)
+  @Throttle({
+    'otp-verify': { limit: 10, ttl: 5 * 60 * 1000 },
+  })
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Verify phone OTP code' })
+  @ApiBody({ type: VerifyOtpDto })
+  @ApiOkResponse(envelopeRef(VerifyOtpResponseDto))
+  @ApiBadRequestResponse(
+    envelopeErrorSchema({ statusCode: 400, message: 'Bad Request', error: 'Bad Request' })
+  )
+  async verifyPhoneOtp(
+    @Body() dto: VerifyOtpDto,
+    @Req() req: Request & { user: { id: string } },
+  ) {
+    const valid = await this.phoneVerification.verifyOtp(req.user.id, dto.phone, dto.code);
+    if (!valid) {
+      throw new BadRequestException('Invalid or expired verification code');
+    }
+    await this.userService.setPhoneVerified(req.user.id, dto.phone);
+    return { verified: true };
+  }
+
+  @Post('phone/resend-otp')
+  @UseGuards(JwtAuthGuard, UserThrottlerGuard)
+  @Throttle({
+    'otp-burst': { limit: 1, ttl: 60 * 1000 },
+    'otp-hour': { limit: 3, ttl: 60 * 60 * 1000 },
+  })
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Resend phone verification OTP' })
+  @ApiBody({ type: SendOtpDto })
+  @ApiOkResponse(envelopeSuccessOnly())
+  async resendPhoneOtp(
+    @Body() dto: SendOtpDto,
+    @Req() req: Request & { user: { id: string } },
+  ) {
+    await this.phoneVerification.sendOtp(req.user.id, dto.phone);
+    return { success: true };
   }
 }

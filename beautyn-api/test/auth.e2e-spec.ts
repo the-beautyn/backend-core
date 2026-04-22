@@ -91,11 +91,9 @@ describe('Auth (e2e)', () => {
         auth: {
           signUp: jest.fn(),
           signInWithPassword: jest.fn(),
-          signOut: jest.fn(),
           resetPasswordForEmail: jest.fn(),
           verifyOtp: jest.fn(),
-          updateUser: jest.fn(),
-          setSession: jest.fn(),
+          admin: { signOut: jest.fn(), updateUserById: jest.fn() },
         },
       })
       .overrideGuard(JwtAuthGuard)
@@ -155,9 +153,10 @@ describe('Auth (e2e)', () => {
         .expect(201);
 
       expect(response.body).toEqual({
-        accessToken: mockSession.access_token,
-        refreshToken: mockSession.refresh_token,
-        expiresIn: mockSession.expires_in,
+        access_token: mockSession.access_token,
+        refresh_token: mockSession.refresh_token,
+        expires_in: mockSession.expires_in,
+        phone_verification_required: true,
       });
 
       // Verify user was created in database
@@ -287,9 +286,10 @@ describe('Auth (e2e)', () => {
         .expect(200);
 
       expect(response.body).toEqual({
-        accessToken: mockSession.access_token,
-        refreshToken: mockSession.refresh_token,
-        expiresIn: mockSession.expires_in,
+        access_token: mockSession.access_token,
+        refresh_token: mockSession.refresh_token,
+        expires_in: mockSession.expires_in,
+        phone_verification_required: true,
       });
     });
 
@@ -330,30 +330,25 @@ describe('Auth (e2e)', () => {
   });
 
   describe('/api/v1/auth/logout (POST)', () => {
-    it('should logout user successfully', async () => {
-      // Arrange
-      const mockSetSessionResponse = supabaseClient.auth;
-      const mockSignOutResponse = { error: null };
+    it('revokes the bearer token via admin.signOut', async () => {
+      (supabaseClient.auth.admin.signOut as jest.Mock).mockResolvedValue({ error: null });
 
-      (supabaseClient.auth.setSession as jest.Mock).mockReturnValue(mockSetSessionResponse);
-      (supabaseClient.auth.signOut as jest.Mock).mockResolvedValue(mockSignOutResponse);
-
-      // Act & Assert
-      const response = await request(app.getHttpServer())
+      await request(app.getHttpServer())
         .post('/api/v1/auth/logout')
         .set('Authorization', 'Bearer mock-access-token')
         .expect(200);
+
+      expect(supabaseClient.auth.admin.signOut).toHaveBeenCalledWith('mock-access-token');
     });
 
     it('should return 403 when no token provided', async () => {
-      // Act & Assert
       await request(app.getHttpServer())
         .post('/api/v1/auth/logout')
         .expect(403);
     });
   });
 
-  describe('/api/v1/auth/forgot (POST)', () => {
+  describe('/api/v1/auth/forgot-password (POST)', () => {
     beforeEach(() => {
       process.env.APP_URL = 'http://localhost:3000';
     });
@@ -370,11 +365,17 @@ describe('Auth (e2e)', () => {
 
       // Act & Assert
       const response = await request(app.getHttpServer())
-        .post('/api/v1/auth/forgot')
+        .post('/api/v1/auth/forgot-password')
         .send(forgotPasswordDto)
         .expect(202);
 
       expect(response.body).toEqual({ success: true });
+      expect(supabaseClient.auth.resetPasswordForEmail).toHaveBeenCalledWith(
+        forgotPasswordDto.email,
+        expect.objectContaining({
+          redirectTo: expect.stringMatching(/\/auth\/reset$/),
+        }),
+      );
     });
 
     it('should return 400 when email not found', async () => {
@@ -391,7 +392,7 @@ describe('Auth (e2e)', () => {
 
       // Act & Assert
       await request(app.getHttpServer())
-        .post('/api/v1/auth/forgot')
+        .post('/api/v1/auth/forgot-password')
         .send(forgotPasswordDto)
         .expect(400);
     });
@@ -404,7 +405,7 @@ describe('Auth (e2e)', () => {
 
       // Act & Assert
       await request(app.getHttpServer())
-        .post('/api/v1/auth/forgot')
+        .post('/api/v1/auth/forgot-password')
         .send(invalidDto)
         .expect(400);
     });
@@ -414,8 +415,8 @@ describe('Auth (e2e)', () => {
     it('should reset password successfully', async () => {
       // Arrange
       const resetPasswordDto = {
-        otpToken: 'valid-otp-token',
-        newPassword: 'NewPassword123!',
+        otp_token: 'valid-otp-token',
+        new_password: 'NewPassword123!',
       };
 
       const mockVerifyOtpResponse = {
@@ -432,7 +433,7 @@ describe('Auth (e2e)', () => {
       };
 
       (supabaseClient.auth.verifyOtp as jest.Mock).mockResolvedValue(mockVerifyOtpResponse);
-      (supabaseClient.auth.updateUser as jest.Mock).mockResolvedValue(mockUpdateUserResponse);
+      (supabaseClient.auth.admin.updateUserById as jest.Mock).mockResolvedValue(mockUpdateUserResponse);
 
       // Act & Assert
       const response = await request(app.getHttpServer())
@@ -441,17 +442,17 @@ describe('Auth (e2e)', () => {
         .expect(200);
 
       expect(response.body).toEqual({
-        accessToken: mockSession.access_token,
-        refreshToken: mockSession.refresh_token,
-        expiresIn: mockSession.expires_in,
+        access_token: mockSession.access_token,
+        refresh_token: mockSession.refresh_token,
+        expires_in: mockSession.expires_in,
       });
     });
 
     it('should return 400 for invalid OTP token', async () => {
       // Arrange
       const resetPasswordDto = {
-        otpToken: 'invalid-otp-token',
-        newPassword: 'NewPassword123!',
+        otp_token: 'invalid-otp-token',
+        new_password: 'NewPassword123!',
       };
 
       const mockVerifyOtpResponse = {
@@ -471,8 +472,8 @@ describe('Auth (e2e)', () => {
     it('should return 400 for invalid input', async () => {
       // Arrange
       const invalidDto = {
-        otpToken: '',
-        newPassword: '123', // Too short
+        otp_token: '',
+        new_password: '123', // Too short
       };
 
       // Act & Assert
@@ -510,6 +511,30 @@ describe('Auth (e2e)', () => {
     it('should reject access to protected route with invalid token', async () => {
       // Test accessing a protected route with invalid/expired token
       // This would return 401 Unauthorized
+    });
+  });
+
+  // Must be the last describe in this file: UserThrottlerGuard keeps state
+  // across requests (in-memory), and the first call consumes the `otp-burst`
+  // budget (limit 1 / 60s). Adding /phone tests elsewhere will bleed into
+  // this one.
+  describe('UserThrottlerGuard on OTP endpoints', () => {
+    it('blocks a rapid-fire second send-otp with 429 — proves the guard is wired', async () => {
+      // This test guards against the regression where UserThrottlerGuard
+      // isn't registered in a module's providers: NestJS would silently
+      // drop the @UseGuards entry and both calls would return 200.
+      const first = await request(app.getHttpServer())
+        .post('/api/v1/auth/phone/send-otp')
+        .set('Authorization', 'Bearer throttler-canary-token')
+        .send({ phone: '+380509999001' });
+
+      const second = await request(app.getHttpServer())
+        .post('/api/v1/auth/phone/send-otp')
+        .set('Authorization', 'Bearer throttler-canary-token')
+        .send({ phone: '+380509999001' });
+
+      expect(first.status).toBe(200);
+      expect(second.status).toBe(429);
     });
   });
 });

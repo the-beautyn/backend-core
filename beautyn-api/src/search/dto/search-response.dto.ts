@@ -2,7 +2,7 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class SearchResponseDto {
   @ApiProperty()
-  salonId!: string;
+  salon_id!: string;
 
   @ApiProperty()
   name!: string;
@@ -14,10 +14,10 @@ export class SearchResponseDto {
   rating?: number;
 
   @ApiPropertyOptional({ description: 'Distance in kilometers' })
-  distanceKm?: number;
+  distance_km?: number;
 
   @ApiPropertyOptional()
-  logoUrl?: string;
+  logo_url?: string;
 
   @ApiPropertyOptional()
   latitude?: number;
@@ -26,7 +26,7 @@ export class SearchResponseDto {
   longitude?: number;
 
   @ApiPropertyOptional()
-  imageUrl?: string;
+  image_url?: string;
 }
 
 export class SearchResultDto {
@@ -44,7 +44,7 @@ export class SearchResultDto {
 
   @ApiPropertyOptional({ description: 'Extra geo metadata' })
   meta?: {
-    effectiveRadiusKm?: number;
-    geoSource?: 'viewport' | 'center' | 'geoip' | 'none';
+    effective_radius_km?: number;
+    geo_source?: 'viewport' | 'center' | 'geoip' | 'none';
   };
 }

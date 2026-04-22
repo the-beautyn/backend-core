@@ -29,7 +29,7 @@ describe('SearchService', () => {
     expect(mockQueryBuilder.runSearch).toHaveBeenCalledTimes(2);
     expect((mockQueryBuilder.runSearch as jest.Mock).mock.calls[0][0]).toMatchObject({ radiusKm: 3 });
     expect((mockQueryBuilder.runSearch as jest.Mock).mock.calls[1][0]).toMatchObject({ radiusKm: 6 });
-    expect(result.meta?.effectiveRadiusKm).toBe(6);
+    expect(result.meta?.effective_radius_km).toBe(6);
   });
 
   it('runs once without geo context', async () => {
@@ -50,7 +50,7 @@ describe('SearchService', () => {
     const result = await service.search(makeReq(), new SearchRequestDto());
 
     expect(mockQueryBuilder.runSearch).toHaveBeenCalledTimes(1);
-    expect(result.meta?.geoSource).toBe('none');
-    expect(result.items[0].salonId).toBe('s2');
+    expect(result.meta?.geo_source).toBe('none');
+    expect(result.items[0].salon_id).toBe('s2');
   });
 });

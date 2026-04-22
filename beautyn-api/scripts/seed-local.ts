@@ -2,21 +2,24 @@ import { Prisma, PrismaClient } from '@prisma/client';
 import { APP_CATEGORIES, HOME_FEED_SECTIONS, SALON_NAMES, SEARCH_SEED_PREFIX } from './search-seed-constants';
 
 const prisma = new PrismaClient();
+const verbose = process.argv.includes('--verbose');
 
 const SALON_COUNT = 200;
 const BASE_LAT = 50.4501;
 const BASE_LNG = 30.5234;
 
+const SUPABASE_URL = process.env.SUPABASE_URL || 'http://127.0.0.1:54321';
+
 const SALON_IMAGES = [
-  'http://127.0.0.1:54321/storage/v1/object/public/dump/865c5717-29b8-42f9-bc19-0fb75c3abae1.jpg',
-  'http://127.0.0.1:54321/storage/v1/object/public/dump/0d1d69f6-23ee-42ad-945a-0a18bd49651c.jpg',
-  'http://127.0.0.1:54321/storage/v1/object/public/dump/8633744a-d876-4d1c-91a8-7fe43efc6556.jpg',
+  `${SUPABASE_URL}/storage/v1/object/public/dump/865c5717-29b8-42f9-bc19-0fb75c3abae1.jpg`,
+  `${SUPABASE_URL}/storage/v1/object/public/dump/0d1d69f6-23ee-42ad-945a-0a18bd49651c.jpg`,
+  `${SUPABASE_URL}/storage/v1/object/public/dump/8633744a-d876-4d1c-91a8-7fe43efc6556.jpg`,
 ];
 
 const CATEGORY_IMAGES = [
-  'http://127.0.0.1:54321/storage/v1/object/public/dump/4b862e59-a3ac-4482-b16a-e6e26ccaac49.png',
-  'http://127.0.0.1:54321/storage/v1/object/public/dump/e449d225-70f3-42ca-8d82-1f7ce4665b01.png',
-  'http://127.0.0.1:54321/storage/v1/object/public/dump/59a4aba3-02a9-477a-ab6a-809aef4058a3.png',
+  `${SUPABASE_URL}/storage/v1/object/public/dump/4b862e59-a3ac-4482-b16a-e6e26ccaac49.png`,
+  `${SUPABASE_URL}/storage/v1/object/public/dump/e449d225-70f3-42ca-8d82-1f7ce4665b01.png`,
+  `${SUPABASE_URL}/storage/v1/object/public/dump/59a4aba3-02a9-477a-ab6a-809aef4058a3.png`,
 ];
 
 function randomOffset(radiusKm = 5): { lat: number; lng: number } {
@@ -67,10 +70,12 @@ async function seedAppCategories(): Promise<Record<string, string>> {
       isActive: cat.isActive,
       imageUrl: CATEGORY_IMAGES[i % CATEGORY_IMAGES.length],
     };
-    const record = existing
+    const isUpdate = !!existing;
+    const record = isUpdate
       ? await prisma.appCategory.update({ where: { id: existing.id }, data: payload })
       : await prisma.appCategory.create({ data: payload });
     slugToId[cat.slug] = record.id;
+    if (verbose) console.log(`    [${i + 1}/${APP_CATEGORIES.length}] ${isUpdate ? 'updated' : 'created'} "${cat.name}" (${cat.slug})`);
   }
 
   console.log(`  ${APP_CATEGORIES.length} app categories upserted`);
@@ -110,8 +115,18 @@ async function seedSalons(): Promise<void> {
     };
   });
 
-  const result = await prisma.salon.createMany({ data: salons, skipDuplicates: true });
-  console.log(`  ${result.count} salons created`);
+  if (verbose) {
+    let created = 0;
+    for (let i = 0; i < salons.length; i++) {
+      await prisma.salon.create({ data: salons[i] });
+      created++;
+      console.log(`    [${created}/${SALON_COUNT}] created "${salons[i].name}"`);
+    }
+    console.log(`  ${created} salons created`);
+  } else {
+    const result = await prisma.salon.createMany({ data: salons, skipDuplicates: true });
+    console.log(`  ${result.count} salons created`);
+  }
 }
 
 async function seedCategoryMappings(slugToId: Record<string, string>): Promise<void> {
@@ -134,7 +149,8 @@ async function seedCategoryMappings(slugToId: Record<string, string>): Promise<v
   }
 
   let mappingCount = 0;
-  for (const salon of salons) {
+  for (let s = 0; s < salons.length; s++) {
+    const salon = salons[s];
     const categoryCount = 2 + Math.floor(Math.random() * 3);
     const shuffled = APP_CATEGORIES.slice().sort(() => Math.random() - 0.5);
     const picked = shuffled.slice(0, categoryCount);
@@ -161,6 +177,7 @@ async function seedCategoryMappings(slugToId: Record<string, string>): Promise<v
         },
       });
       mappingCount++;
+      if (verbose) console.log(`    [salon ${s + 1}/${salons.length}] mapped "${cat.name}" (total: ${mappingCount})`);
     }
   }
   console.log(`  ${mappingCount} category mappings created for ${salons.length} salons`);
@@ -169,7 +186,8 @@ async function seedCategoryMappings(slugToId: Record<string, string>): Promise<v
 async function seedHomeFeedSections(slugToId: Record<string, string>): Promise<void> {
   console.log('Seeding home feed sections...');
 
-  for (const section of HOME_FEED_SECTIONS) {
+  for (let i = 0; i < HOME_FEED_SECTIONS.length; i++) {
+    const section = HOME_FEED_SECTIONS[i];
     const filters = { ...section.filters } as Record<string, any>;
     if ((section as any).categorySlug) {
       const appCategoryId = slugToId[(section as any).categorySlug];
@@ -182,6 +200,7 @@ async function seedHomeFeedSections(slugToId: Record<string, string>): Promise<v
       where: { title: section.title },
     });
 
+    const isUpdate = !!existing;
     if (existing) {
       await prisma.homeFeedSection.update({
         where: { id: existing.id },
@@ -207,12 +226,14 @@ async function seedHomeFeedSections(slugToId: Record<string, string>): Promise<v
         },
       });
     }
+    if (verbose) console.log(`    [${i + 1}/${HOME_FEED_SECTIONS.length}] ${isUpdate ? 'updated' : 'created'} "${section.title}" (${section.type})`);
   }
   console.log(`  ${HOME_FEED_SECTIONS.length} home feed sections upserted`);
 }
 
 async function main() {
-  console.log('=== Seeding local environment ===\n');
+  const env = process.env.NODE_ENV || 'local';
+  console.log(`=== Seeding ${env} environment ===${verbose ? ' (verbose)' : ''}\n`);
 
   const slugToId = await seedAppCategories();
   await seedSalons();

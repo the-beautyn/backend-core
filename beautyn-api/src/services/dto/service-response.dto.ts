@@ -5,13 +5,13 @@ export class ServiceResponseDto {
   id!: string;
 
   @ApiProperty()
-  salonId!: string;
+  salon_id!: string;
 
   @ApiProperty({ required: false, nullable: true })
-  categoryId!: string | null;
+  category_id!: string | null;
 
   @ApiProperty({ required: false, nullable: true })
-  crmServiceId!: string | null;
+  crm_service_id!: string | null;
 
   @ApiProperty()
   title!: string;
@@ -29,17 +29,17 @@ export class ServiceResponseDto {
   currency!: string;
 
   @ApiProperty()
-  isActive!: boolean;
+  is_active!: boolean;
 
   @ApiProperty({ required: false, nullable: true })
-  sortOrder!: number | null;
+  sort_order!: number | null;
 
   @ApiProperty({ type: [String] })
-  workerIds!: string[];
+  worker_ids!: string[];
 
   @ApiProperty()
-  createdAt!: Date;
+  created_at!: Date;
 
   @ApiProperty()
-  updatedAt!: Date;
+  updated_at!: Date;
 }

@@ -5,17 +5,17 @@ export class SearchHistoryItemDto {
   id!: string;
 
   @ApiProperty()
-  salonId!: string;
+  salon_id!: string;
 
   @ApiProperty()
-  salonName!: string;
+  salon_name!: string;
 
   @ApiProperty()
   city!: string;
 
   @ApiPropertyOptional()
-  logoUrl?: string;
+  logo_url?: string;
 
   @ApiProperty({ description: 'ISO timestamp of the last visit' })
-  lastSearchedAt!: string;
+  last_searched_at!: string;
 }

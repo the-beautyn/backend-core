@@ -9,6 +9,7 @@ import { JwtAuthGuard } from '../../../src/shared/guards/jwt-auth.guard';
 import { OwnerRolesGuard } from '../../../src/shared/guards/roles.guard';
 import { InternalApiKeyGuard } from '../../../src/shared/guards/internal-api-key.guard';
 import { TransformInterceptor } from '../../../src/shared/interceptors/transform.interceptor';
+import { Reflector } from '@nestjs/core';
 import { SalonAccessGuard } from '../../../src/brand/guards/salon-access.guard';
 
 describe('ServicesController (e2e)', () => {
@@ -86,7 +87,7 @@ describe('ServicesController (e2e)', () => {
       .compile();
 
     app = moduleFixture.createNestApplication();
-    app.useGlobalInterceptors(new TransformInterceptor());
+    app.useGlobalInterceptors(new TransformInterceptor(new Reflector()));
     await app.init();
   });
 

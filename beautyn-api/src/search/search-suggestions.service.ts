@@ -19,17 +19,17 @@ export class SearchSuggestionsService {
 
     if (!normalizedQuery) {
       return history.map((item) => ({
-        id: item.salonId,
+        id: item.salon_id,
         type: 'history',
-        label: item.salonName,
+        label: item.salon_name,
         subtitle: item.city,
-        logoUrl: item.logoUrl,
+        logo_url: item.logo_url,
       }));
     }
 
     const lcQuery = normalizedQuery.toLowerCase();
     const matchesFromHistory = history.filter((item) =>
-      item.salonName.toLowerCase().includes(lcQuery),
+      item.salon_name.toLowerCase().includes(lcQuery),
     );
     const salonRows = await this.queryBuilder.findSuggestions(normalizedQuery, this.suggestionsLimit);
 
@@ -37,14 +37,14 @@ export class SearchSuggestionsService {
     const suggestions: SearchSuggestionDto[] = [];
 
     for (const item of matchesFromHistory) {
-      if (seen.has(item.salonId)) continue;
-      seen.add(item.salonId);
+      if (seen.has(item.salon_id)) continue;
+      seen.add(item.salon_id);
       suggestions.push({
-        id: item.salonId,
+        id: item.salon_id,
         type: 'history',
-        label: item.salonName,
+        label: item.salon_name,
         subtitle: item.city,
-        logoUrl: item.logoUrl,
+        logo_url: item.logo_url,
       });
     }
 
@@ -56,7 +56,7 @@ export class SearchSuggestionsService {
         type: 'salon',
         label: row.name ?? '',
         subtitle: this.buildSubtitle(row.city, row.rating_avg, row.rating_count),
-        logoUrl: row.cover_image_url ?? undefined,
+        logo_url: row.cover_image_url ?? undefined,
       });
       if (suggestions.length >= this.suggestionsLimit) break;
     }

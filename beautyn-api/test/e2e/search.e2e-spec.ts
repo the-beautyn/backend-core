@@ -12,6 +12,7 @@ import { SearchQueryBuilderService } from '../../src/search/search-query-builder
 import { GeoLocationService } from '../../src/search/geo-location.service';
 import { JwtAuthGuard } from '../../src/shared/guards/jwt-auth.guard';
 import { TransformInterceptor } from '../../src/shared/interceptors/transform.interceptor';
+import { Reflector } from '@nestjs/core';
 import { SearchPublicController } from '../../src/api-gateway/v1/public/search.public.controller';
 import { SearchAuthenticatedController } from '../../src/api-gateway/v1/authenticated/search.authenticated.controller';
 
@@ -32,11 +33,11 @@ describe('Search API (e2e)', () => {
   const historyItems = [
     {
       id: 'hist-1',
-      salonId: 'salon-1',
-      salonName: 'Salon One',
+      salon_id: 'salon-1',
+      salon_name: 'Salon One',
       city: 'Kyiv',
-      logoUrl: 'logo.png',
-      lastSearchedAt: new Date().toISOString(),
+      logo_url: 'logo.png',
+      last_searched_at: new Date().toISOString(),
     },
   ];
 
@@ -109,7 +110,7 @@ describe('Search API (e2e)', () => {
         transformOptions: { enableImplicitConversion: true },
       }),
     );
-    app.useGlobalInterceptors(new TransformInterceptor());
+    app.useGlobalInterceptors(new TransformInterceptor(new Reflector()));
     await app.init();
   });
 
@@ -134,19 +135,19 @@ describe('Search API (e2e)', () => {
       data: {
         items: [
           {
-            salonId: 'salon-1',
+            salon_id: 'salon-1',
             name: 'Salon One',
             address: 'Kyiv, Main 1',
             rating: 4.5,
-            distanceKm: 1.2,
-            logoUrl: 'logo.png',
-            imageUrl: 'logo.png',
+            distance_km: 1.2,
+            logo_url: 'logo.png',
+            image_url: 'logo.png',
           },
         ],
         page: 1,
         limit: 20,
         total: 1,
-        meta: { geoSource: 'none' },
+        meta: { geo_source: 'none' },
       },
     });
     expect(mockQueryBuilder.runSearch).toHaveBeenCalledTimes(1);
@@ -172,7 +173,7 @@ describe('Search API (e2e)', () => {
       .send({ centerLat: 50.45, centerLng: 30.52, locationType: 'address' })
       .expect(200);
 
-    expect(res.body.data.meta).toMatchObject({ geoSource: 'center', effectiveRadiusKm: 15 });
+    expect(res.body.data.meta).toMatchObject({ geo_source: 'center', effective_radius_km: 15 });
     expect(mockQueryBuilder.runSearch).toHaveBeenCalledWith(
       expect.objectContaining({
         geoContext: expect.objectContaining({ mode: 'center' }),
@@ -201,7 +202,7 @@ describe('Search API (e2e)', () => {
     expect(mockQueryBuilder.runSearch).toHaveBeenCalledTimes(2);
     expect((mockQueryBuilder.runSearch as jest.Mock).mock.calls[0][0].radiusKm).toBe(7);
     expect((mockQueryBuilder.runSearch as jest.Mock).mock.calls[1][0].radiusKm).toBe(14);
-    expect(res.body.data.meta.effectiveRadiusKm).toBe(14);
+    expect(res.body.data.meta.effective_radius_km).toBe(14);
   });
 
   it('passes price and category filters through to query builder', async () => {
@@ -239,7 +240,7 @@ describe('Search API (e2e)', () => {
         geoContext: expect.objectContaining({ mode: 'viewport' }),
       }),
     );
-    expect(res.body.data.meta.geoSource).toBe('viewport');
+    expect(res.body.data.meta.geo_source).toBe('viewport');
   });
 
   describe('accepts various request bodies', () => {
@@ -296,14 +297,14 @@ describe('Search API (e2e)', () => {
         type: 'history',
         label: 'Salon One',
         subtitle: 'Kyiv',
-        logoUrl: 'logo.png',
+        logo_url: 'logo.png',
       },
       {
         id: 'salon-2',
         type: 'salon',
         label: 'Salon Two',
         subtitle: 'Odesa · 4.2 ★ · 12',
-        logoUrl: 'logo-2.png',
+        logo_url: 'logo-2.png',
       },
     ]);
     expect(mockHistory.getHistory).toHaveBeenCalled();

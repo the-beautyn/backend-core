@@ -47,6 +47,7 @@ describe('HomeFeedService', () => {
   beforeEach(() => {
     jest.resetAllMocks();
     sectionConfigRepo.listActive.mockResolvedValue([]);
+    appCategoriesService.list.mockResolvedValue({ items: [] });
   });
 
   describe('unauthorized user', () => {
@@ -59,8 +60,8 @@ describe('HomeFeedService', () => {
       const result = await service.getHomeFeed({ userId: null });
 
       expect(result.categories).toEqual(categories);
-      expect(result.nextBooking).toBeUndefined();
-      expect(result.savedSalons).toBeUndefined();
+      expect(result.next_booking).toBeUndefined();
+      expect(result.saved_salons).toBeUndefined();
       expect(result.sections).toEqual([]);
       expect(appCategoriesService.list).toHaveBeenCalledWith({ onlyActive: true });
     });
@@ -88,17 +89,17 @@ describe('HomeFeedService', () => {
       });
 
       savedSalonsService.listByUser.mockResolvedValue({
-        items: [{ id: 'ss1', salonId: 'salon-1', salonName: 'Beauty Palace', savedAt: '2026-03-01' }],
+        items: [{ id: 'ss1', salon_id: 'salon-1', salon_name: 'Beauty Palace', saved_at: '2026-03-01' }],
       });
 
       const result = await service.getHomeFeed({ userId: 'user-1' });
 
-      expect(result.nextBooking).toBeDefined();
-      expect(result.nextBooking!.bookingId).toBe('b1');
-      expect(result.nextBooking!.salonName).toBe('Beauty Palace');
-      expect(result.nextBooking!.datetime).toBe(bookingDate.toISOString());
-      expect(result.savedSalons).toHaveLength(1);
-      expect(result.categories).toBeUndefined();
+      expect(result.next_booking).toBeDefined();
+      expect(result.next_booking!.booking_id).toBe('b1');
+      expect(result.next_booking!.salon_name).toBe('Beauty Palace');
+      expect(result.next_booking!.datetime).toBe(bookingDate.toISOString());
+      expect(result.saved_salons).toHaveLength(1);
+      expect(result.categories).toEqual([]);
     });
 
     it('returns null nextBooking when no upcoming bookings', async () => {
@@ -107,7 +108,7 @@ describe('HomeFeedService', () => {
 
       const result = await service.getHomeFeed({ userId: 'user-1' });
 
-      expect(result.nextBooking).toBeNull();
+      expect(result.next_booking).toBeNull();
     });
 
     it('marks isSaved on salon cards for authorized user', async () => {
@@ -128,8 +129,8 @@ describe('HomeFeedService', () => {
       expect(result.sections).toHaveLength(1);
       const items = result.sections[0].items;
       expect(items).toHaveLength(2);
-      expect(items.find((i: any) => i.id === 'salon-1')!.isSaved).toBe(true);
-      expect(items.find((i: any) => i.id === 'salon-2')!.isSaved).toBe(false);
+      expect(items.find((i: any) => i.id === 'salon-1')!.is_saved).toBe(true);
+      expect(items.find((i: any) => i.id === 'salon-2')!.is_saved).toBe(false);
     });
 
     it('does not call isSavedBatch when no salon items', async () => {
@@ -195,7 +196,7 @@ describe('HomeFeedService', () => {
 
       const result = await service.getHomeFeed({ userId: null, latitude: 50.45, longitude: 30.52 });
 
-      expect(result.sections[0].items[0].distanceKm).toBe(1.5);
+      expect(result.sections[0].items[0].distance_km).toBe(1.5);
       expect(searchQueryBuilder.runSearch).toHaveBeenCalledWith(
         expect.objectContaining({
           geoContext: { mode: 'center', centerLat: 50.45, centerLng: 30.52 },
@@ -300,9 +301,9 @@ describe('HomeFeedService', () => {
       const result = await service.getHomeFeed({ userId: null });
 
       const card = result.sections[0].items[0];
-      expect(card.ratingAvg).toBeNull();
-      expect(card.ratingCount).toBeNull();
-      expect(card.coverImageUrl).toBeNull();
+      expect(card.rating_avg).toBeNull();
+      expect(card.rating_count).toBeNull();
+      expect(card.cover_image_url).toBeNull();
     });
 
     it('converts numeric rating_avg to number', async () => {
@@ -317,8 +318,8 @@ describe('HomeFeedService', () => {
 
       const result = await service.getHomeFeed({ userId: null });
 
-      expect(typeof result.sections[0].items[0].ratingAvg).toBe('number');
-      expect(result.sections[0].items[0].ratingAvg).toBe(4.2);
+      expect(typeof result.sections[0].items[0].rating_avg).toBe('number');
+      expect(result.sections[0].items[0].rating_avg).toBe(4.2);
     });
   });
 });

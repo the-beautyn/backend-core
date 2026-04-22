@@ -3,6 +3,7 @@ import { INestApplication, UnauthorizedException, BadRequestException } from '@n
 import request from 'supertest';
 import { JwtAuthGuard } from '../../src/shared/guards/jwt-auth.guard';
 import { TransformInterceptor } from '../../src/shared/interceptors/transform.interceptor';
+import { Reflector } from '@nestjs/core';
 import { CrmSalonChangesController } from '../../src/api-gateway/v1/authenticated/crm-salon-changes.controller';
 import { CrmSalonDiffService } from '../../src/crm-salon-changes/crm-salon-diff.service';
 import { BrandService } from '../../src/brand/brand.service';
@@ -51,7 +52,7 @@ describe('CrmSalonChangesController (e2e)', () => {
       .compile();
 
     app = moduleFixture.createNestApplication();
-    app.useGlobalInterceptors(new TransformInterceptor());
+    app.useGlobalInterceptors(new TransformInterceptor(new Reflector()));
     await app.init();
   });
 

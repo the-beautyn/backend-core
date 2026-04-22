@@ -5,10 +5,10 @@ export class CategoryResponseDto {
   id!: string;
 
   @ApiProperty({ format: 'uuid' })
-  salonId!: string;
+  salon_id!: string;
 
   @ApiProperty({ required: true })
-  crmCategoryId!: string;
+  crm_category_id!: string;
 
   @ApiProperty()
   name!: string;
@@ -17,16 +17,16 @@ export class CategoryResponseDto {
   color!: string | null;
 
   @ApiProperty({ required: false, nullable: true })
-  sortOrder!: number | null;
+  sort_order!: number | null;
 
   @ApiProperty({ type: String, isArray: true })
-  serviceIds!: string[];
+  service_ids!: string[];
 
   @ApiProperty()
-  createdAt!: Date;
+  created_at!: Date;
 
   @ApiProperty()
-  updatedAt!: Date;
+  updated_at!: Date;
 }
 
 export class CategoryListResponseDto {

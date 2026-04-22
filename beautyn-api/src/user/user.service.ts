@@ -1,4 +1,5 @@
 import {
+  ConflictException,
   Injectable,
   NotFoundException,
   NotImplementedException,
@@ -7,21 +8,40 @@ import { UserRepository } from './user.repository';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UserResponseDto } from './dto/user-response.dto';
 import { NotificationUserDto } from './dto/notification-user.dto';
-import { Users, UserRole } from '@prisma/client';
+import { Prisma, Users, UserRole, AuthProvider } from '@prisma/client';
+import { PhoneVerificationService } from '../auth/phone-verification.service';
+
+const PHONE_CONFLICT_MESSAGE = 'Phone number is already in use';
+
+function isVerifiedPhoneConflict(err: unknown): boolean {
+  if (!(err instanceof Prisma.PrismaClientKnownRequestError)) return false;
+  if (err.code !== 'P2002') return false;
+  const target = (err.meta as { target?: string | string[] } | undefined)?.target;
+  const targets = Array.isArray(target) ? target : target ? [target] : [];
+  return targets.includes('phone');
+}
 
 export function computeProfileCreated(
+  phoneVerificationEnabled: boolean,
   role: 'client' | 'owner' | 'admin',
   name?: string | null,
   second_name?: string | null,
   phone?: string | null,
+  isPhoneVerified?: boolean,
 ) {
   const hasNames = !!name && !!second_name;
+  if (phoneVerificationEnabled) {
+    return hasNames && !!phone && !!isPhoneVerified;
+  }
   return role === 'owner' ? hasNames && !!phone : hasNames;
 }
 
 @Injectable()
 export class UserService {
-  constructor(private readonly repo: UserRepository) {}
+  constructor(
+    private readonly repo: UserRepository,
+    private readonly phoneVerification: PhoneVerificationService,
+  ) {}
 
   private toResponse(user: Users): UserResponseDto {
     return {
@@ -32,6 +52,8 @@ export class UserService {
       second_name: user.secondName ?? null,
       phone: user.phone ?? null,
       avatar_url: user.avatarUrl ?? null,
+      auth_provider: user.authProvider,
+      is_phone_verified: user.isPhoneVerified,
       is_profile_created: user.isProfileCreated,
       is_onboarding_completed: user.isOnboardingCompleted,
       created_at: user.createdAt,
@@ -61,23 +83,37 @@ export class UserService {
     const phone = dto.phone?.trim() ?? existing.phone ?? null;
     const avatarUrl = dto.avatar_url?.trim() ?? existing.avatarUrl ?? null;
 
+    // If the user changes their phone number, any prior verification no
+    // longer applies — they must re-run OTP against the new number.
+    // Otherwise a verified user could swap to an unverified number and
+    // stay flagged as trusted.
+    const phoneChanged = dto.phone !== undefined && phone !== existing.phone;
+    const isPhoneVerified = phoneChanged ? false : existing.isPhoneVerified;
+
     const isProfileCreated = computeProfileCreated(
+      this.phoneVerification.isEnabled(),
       existing.role,
       name,
       secondName,
       phone,
+      isPhoneVerified,
     );
 
     const data: Partial<Users> = {
       ...(dto.name !== undefined ? { name } : {}),
       ...(dto.second_name !== undefined ? { secondName } : {}),
-      ...(dto.phone !== undefined ? { phone } : {}),
+      ...(dto.phone !== undefined ? { phone, isPhoneVerified } : {}),
       ...(dto.avatar_url !== undefined ? { avatarUrl } : {}),
       isProfileCreated,
     };
 
-    const updated = await this.repo.updateById(id, data);
-    return this.toResponse(updated);
+    try {
+      const updated = await this.repo.updateById(id, data);
+      return this.toResponse(updated);
+    } catch (err) {
+      if (isVerifiedPhoneConflict(err)) throw new ConflictException(PHONE_CONFLICT_MESSAGE);
+      throw err;
+    }
   }
 
   async findContactInfo(id: string): Promise<NotificationUserDto> {
@@ -105,6 +141,27 @@ export class UserService {
     return this.toResponse(updated);
   }
 
+  async setPhoneVerified(id: string, phone: string): Promise<void> {
+    const existing = await this.repo.findById(id);
+    if (!existing) throw new NotFoundException('User not found');
+
+    const isProfileCreated = computeProfileCreated(
+      this.phoneVerification.isEnabled(),
+      existing.role,
+      existing.name,
+      existing.secondName,
+      phone,
+      true,
+    );
+
+    try {
+      await this.repo.updateById(id, { phone, isPhoneVerified: true, isProfileCreated });
+    } catch (err) {
+      if (isVerifiedPhoneConflict(err)) throw new ConflictException(PHONE_CONFLICT_MESSAGE);
+      throw err;
+    }
+  }
+
   async isProfileComplete(id: string): Promise<boolean> {
     const user = await this.repo.findById(id);
     return !!user?.isProfileCreated;
@@ -115,7 +172,16 @@ export class UserService {
     return this.repo.findByEmail(email);
   }
 
-  createWithId(id: string, email: string, role: UserRole) {
-    return this.repo.createWithId(id, email, role);
+  createWithId(
+    id: string,
+    email: string,
+    role: UserRole,
+    profile?: { name?: string; secondName?: string; phone?: string; authProvider?: AuthProvider },
+  ) {
+    return this.repo.createWithId(id, email, role, profile);
+  }
+
+  async setAuthProvider(id: string, authProvider: AuthProvider): Promise<void> {
+    await this.repo.updateById(id, { authProvider });
   }
 }

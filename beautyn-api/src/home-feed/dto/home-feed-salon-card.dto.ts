@@ -8,23 +8,23 @@ export class HomeFeedSalonCardDto {
   name!: string;
 
   @ApiPropertyOptional()
-  coverImageUrl?: string | null;
+  cover_image_url?: string | null;
 
   @ApiPropertyOptional()
-  addressLine?: string | null;
+  address_line?: string | null;
 
   @ApiPropertyOptional()
   city?: string | null;
 
   @ApiPropertyOptional()
-  ratingAvg?: number | null;
+  rating_avg?: number | null;
 
   @ApiPropertyOptional()
-  ratingCount?: number | null;
+  rating_count?: number | null;
 
   @ApiPropertyOptional()
-  distanceKm?: number | null;
+  distance_km?: number | null;
 
   @ApiPropertyOptional()
-  isSaved?: boolean;
+  is_saved?: boolean;
 }

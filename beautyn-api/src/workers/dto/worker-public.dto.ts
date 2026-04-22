@@ -5,10 +5,10 @@ export class PublicWorkerDto {
   id!: string;
 
   @ApiProperty({ example: 'Alice' })
-  firstName!: string;
+  first_name!: string;
 
   @ApiProperty({ example: 'Brown' })
-  lastName!: string;
+  last_name!: string;
 
   @ApiProperty({ required: false, nullable: true, example: 'Hair Stylist' })
   position?: string | null;
@@ -17,5 +17,5 @@ export class PublicWorkerDto {
   description?: string | null;
 
   @ApiProperty({ required: false, nullable: true, example: 'https://example.com/photo.jpg' })
-  photoUrl?: string | null;
+  photo_url?: string | null;
 }

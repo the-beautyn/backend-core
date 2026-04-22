@@ -1,4 +1,4 @@
-import { IsEmail, MinLength, MaxLength } from 'class-validator';
+import { IsEmail, IsString, IsNotEmpty } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class LoginDto {
@@ -13,7 +13,11 @@ export class LoginDto {
     example: 'Str0ngP@ssw0rd',
     description: 'User password',
   })
-  @MinLength(8)
-  @MaxLength(50)
+  // Do NOT apply the registration password policy here — existing users
+  // may have valid passwords that don't match a future tightened policy,
+  // and enforcing format on login would lock them out. Supabase returns
+  // 401 for wrong credentials regardless.
+  @IsString()
+  @IsNotEmpty()
   password: string;
 }

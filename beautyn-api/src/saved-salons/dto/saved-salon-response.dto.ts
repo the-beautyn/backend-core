@@ -5,28 +5,28 @@ export class SavedSalonItemDto {
   id!: string;
 
   @ApiProperty()
-  salonId!: string;
+  salon_id!: string;
 
   @ApiProperty()
-  salonName!: string;
+  salon_name!: string;
 
   @ApiPropertyOptional({ nullable: true })
-  coverImageUrl?: string | null;
+  cover_image_url?: string | null;
 
   @ApiPropertyOptional({ nullable: true })
-  addressLine?: string | null;
+  address_line?: string | null;
 
   @ApiPropertyOptional({ nullable: true })
   city?: string | null;
 
   @ApiPropertyOptional({ type: Number, nullable: true })
-  ratingAvg?: number | null;
+  rating_avg?: number | null;
 
   @ApiPropertyOptional({ type: Number, nullable: true })
-  ratingCount?: number | null;
+  rating_count?: number | null;
 
   @ApiProperty()
-  savedAt!: string;
+  saved_at!: string;
 }
 
 export class SavedSalonListResponseDto {

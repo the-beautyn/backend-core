@@ -189,9 +189,9 @@ describe('AltegioBookingService', () => {
       }),
     );
     expect(res).toEqual({
-      bookingId: 'booking-1',
-      crmRecordId: recordPayload.id,
-      shortLink: recordPayload.short_link,
+      booking_id: 'booking-1',
+      crm_record_id: recordPayload.id,
+      short_link: recordPayload.short_link,
       status: 'created',
     });
   });

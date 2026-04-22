@@ -43,17 +43,17 @@ export class EasyweekBookingService {
     const booking = await this.prisma.booking.findUniqueOrThrow({ where: { id: result.booking.id } });
 
     return {
-      bookingId: booking.id,
+      booking_id: booking.id,
       status: booking.status,
       datetime: booking.datetime,
-      endDatetime: booking.endDatetime ?? null,
+      end_datetime: booking.endDatetime ?? null,
       easyweek: {
-        bookingUuid: details.bookingUuid,
-        locationUuid: details.locationUuid ?? null,
+        booking_uuid: details.bookingUuid,
+        location_uuid: details.locationUuid ?? null,
         timezone: details.timezone ?? null,
-        isCanceled: details.isCanceled ?? undefined,
-        isCompleted: details.isCompleted ?? undefined,
-        statusName: details.statusName ?? null,
+        is_canceled: details.isCanceled ?? undefined,
+        is_completed: details.isCompleted ?? undefined,
+        status_name: details.statusName ?? null,
       },
     };
   }

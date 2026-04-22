@@ -15,20 +15,20 @@ export class HomeFeedSectionResponseDto {
   emoji?: string | null;
 
   @ApiProperty()
-  sortOrder!: number;
+  sort_order!: number;
 
   @ApiProperty()
   limit!: number;
 
   @ApiProperty()
-  isActive!: boolean;
+  is_active!: boolean;
 
   @ApiPropertyOptional({ type: HomeFeedSectionFiltersDto, nullable: true })
   filters?: HomeFeedSectionFiltersDto | null;
 
   @ApiProperty()
-  createdAt!: string;
+  created_at!: string;
 
   @ApiProperty()
-  updatedAt!: string;
+  updated_at!: string;
 }
