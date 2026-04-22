@@ -190,8 +190,24 @@ jobs:
             exit 1
           fi
 
+          # libpq (psql / pg_dump) rejects Prisma-specific query params like
+          # `schema=public`. Strip them for psql use while leaving the Prisma
+          # URLs untouched for Railway.
+          strip_prisma_params() {
+            local url="$1"
+            url="${url//&schema=public/}"
+            url="${url//\?schema=public&/\?}"
+            url="${url//\?schema=public/}"
+            url="${url//&pgbouncer=true/}"
+            url="${url//\?pgbouncer=true&/\?}"
+            url="${url//\?pgbouncer=true/}"
+            echo "$url"
+          }
+          SRC_URL=$(strip_prisma_params "$SOURCE_DIRECT_URL")
+          DST_URL=$(strip_prisma_params "$BUILT_DIRECT_URL")
+
           # Refuse to propagate corruption from the source.
-          UNFINISHED=$(psql "$SOURCE_DIRECT_URL" -tAc \
+          UNFINISHED=$(psql "$SRC_URL" -tAc \
             "SELECT count(*) FROM _prisma_migrations WHERE finished_at IS NULL AND rolled_back_at IS NULL;")
           if [ "$UNFINISHED" != "0" ]; then
             echo "❌ Source _prisma_migrations has $UNFINISHED stuck migration(s). Fix the source first."
@@ -200,14 +216,14 @@ jobs:
 
           # Dump only the data of _prisma_migrations (table itself already exists on the preview).
           pg_dump --data-only --no-owner --no-privileges --column-inserts \
-            --table=public._prisma_migrations "$SOURCE_DIRECT_URL" \
+            --table=public._prisma_migrations "$SRC_URL" \
             > /tmp/prisma_migrations.sql
 
           # Clear the preview's (possibly stuck / partial) tracking and seed from source.
-          psql "$BUILT_DIRECT_URL" -c "TRUNCATE TABLE _prisma_migrations;"
-          psql "$BUILT_DIRECT_URL" -f /tmp/prisma_migrations.sql
+          psql "$DST_URL" -c "TRUNCATE TABLE _prisma_migrations;"
+          psql "$DST_URL" -f /tmp/prisma_migrations.sql
 
-          PREVIEW_ROWS=$(psql "$BUILT_DIRECT_URL" -tAc \
+          PREVIEW_ROWS=$(psql "$DST_URL" -tAc \
             "SELECT count(*) FROM _prisma_migrations WHERE finished_at IS NOT NULL;")
           echo "✅ Seeded $PREVIEW_ROWS applied migration(s) into preview"
 
