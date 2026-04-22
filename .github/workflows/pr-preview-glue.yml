@@ -41,8 +41,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install dependencies (jq, curl)
-        run: sudo apt-get update && sudo apt-get install -y jq curl
+      # jq and curl are preinstalled on ubuntu-latest — no `apt-get update`
+      # needed here. Kept this comment so it's obvious why we don't install
+      # them: adding an unnecessary apt-get update against GitHub's Azure
+      # mirrors can hang for minutes when those mirrors are flaky.
 
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v1
@@ -181,6 +183,14 @@ jobs:
         # talk to a 17.x server. Pull the official PGDG apt repo so we can
         # install a 17-matched client.
         run: |
+          # GitHub's Azure mirrors are regularly unreachable from public
+          # runners and can make apt-get update hang for 5+ minutes. Point
+          # apt at the main archive so the update below finishes quickly.
+          sudo sed -i 's|azure.archive.ubuntu.com|archive.ubuntu.com|g' \
+            /etc/apt/sources.list 2>/dev/null || true
+          sudo sed -i 's|azure.archive.ubuntu.com|archive.ubuntu.com|g' \
+            /etc/apt/sources.list.d/*.list 2>/dev/null || true
+
           sudo install -d /usr/share/postgresql-common/pgdg
           sudo curl -fsSL \
             https://www.postgresql.org/media/keys/ACCC4CF8.asc \
