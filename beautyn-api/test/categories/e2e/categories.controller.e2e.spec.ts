@@ -10,6 +10,7 @@ import { OwnerRolesGuard } from '../../../src/shared/guards/roles.guard';
 import { SalonAccessGuard } from '../../../src/brand/guards/salon-access.guard';
 import { InternalApiKeyGuard } from '../../../src/shared/guards/internal-api-key.guard';
 import { TransformInterceptor } from '../../../src/shared/interceptors/transform.interceptor';
+import { Reflector } from '@nestjs/core';
 
 describe('CategoriesController (e2e)', () => {
   let app: INestApplication;
@@ -86,7 +87,7 @@ describe('CategoriesController (e2e)', () => {
       .compile();
 
     app = moduleFixture.createNestApplication();
-    app.useGlobalInterceptors(new TransformInterceptor());
+    app.useGlobalInterceptors(new TransformInterceptor(new Reflector()));
     await app.init();
   });
 

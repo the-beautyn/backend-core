@@ -1,4 +1,5 @@
 import { Controller, Get, Header } from '@nestjs/common';
+import { SkipResponseTransform } from '../../../shared/decorators/skip-response-transform.decorator';
 
 const RESET_HTML = `<!DOCTYPE html>
 <html lang="en">
@@ -15,8 +16,10 @@ const RESET_HTML = `<!DOCTYPE html>
 
 @Controller('auth')
 export class AuthResetController {
+  // HTML fallback page — must ship raw, not as { success, data }.
   @Get('reset')
   @Header('Content-Type', 'text/html; charset=utf-8')
+  @SkipResponseTransform()
   resetFallback() {
     return RESET_HTML;
   }

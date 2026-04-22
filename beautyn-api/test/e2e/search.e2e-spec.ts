@@ -12,6 +12,7 @@ import { SearchQueryBuilderService } from '../../src/search/search-query-builder
 import { GeoLocationService } from '../../src/search/geo-location.service';
 import { JwtAuthGuard } from '../../src/shared/guards/jwt-auth.guard';
 import { TransformInterceptor } from '../../src/shared/interceptors/transform.interceptor';
+import { Reflector } from '@nestjs/core';
 import { SearchPublicController } from '../../src/api-gateway/v1/public/search.public.controller';
 import { SearchAuthenticatedController } from '../../src/api-gateway/v1/authenticated/search.authenticated.controller';
 
@@ -109,7 +110,7 @@ describe('Search API (e2e)', () => {
         transformOptions: { enableImplicitConversion: true },
       }),
     );
-    app.useGlobalInterceptors(new TransformInterceptor());
+    app.useGlobalInterceptors(new TransformInterceptor(new Reflector()));
     await app.init();
   });
 

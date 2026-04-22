@@ -5,6 +5,7 @@ import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/shared/database/prisma.service';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { JwtAuthGuard } from '../src/shared/guards/jwt-auth.guard';
+import { TransformInterceptor } from '../src/shared/interceptors/transform.interceptor';
 
 describe('Deep link endpoints (e2e)', () => {
   let app: INestApplication;
@@ -22,6 +23,10 @@ describe('Deep link endpoints (e2e)', () => {
       .compile();
 
     app = moduleFixture.createNestApplication();
+    // Match production bootstrap so this test actually exercises the
+    // global envelope interceptor. Without this, a handler that forgets
+    // @SkipResponseTransform() would pass the test but fail in prod.
+    app.useGlobalInterceptors(app.get(TransformInterceptor));
     await app.init();
   });
 
@@ -38,6 +43,10 @@ describe('Deep link endpoints (e2e)', () => {
 
       expect(response.body).toHaveProperty('applinks.details');
       expect(Array.isArray(response.body.applinks.details)).toBe(true);
+      // Apple parses this directly — it must NOT be wrapped in the global
+      // { success, data } envelope, or Universal Links association fails.
+      expect(response.body).not.toHaveProperty('success');
+      expect(response.body).not.toHaveProperty('data');
 
       const [detail] = response.body.applinks.details;
       expect(detail.appIDs).toEqual(
@@ -56,13 +65,16 @@ describe('Deep link endpoints (e2e)', () => {
   });
 
   describe('/auth/reset (GET)', () => {
-    it('returns the HTML fallback page', async () => {
+    it('returns the HTML fallback page raw, not JSON-wrapped', async () => {
       const response = await request(app.getHttpServer())
         .get('/auth/reset')
         .expect(200)
         .expect('Content-Type', /text\/html/);
 
       expect(response.text).toContain('Open the Beautyn app to finish resetting your password.');
+      // Must be raw HTML. If the global envelope interceptor wraps it,
+      // response.text starts with `{` (JSON).
+      expect(response.text.trimStart()).toMatch(/^<!DOCTYPE html>/i);
     });
   });
 });
