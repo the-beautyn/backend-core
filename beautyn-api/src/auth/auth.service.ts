@@ -96,11 +96,30 @@ export class AuthService {
         secondName: dto.secondName,
         authProvider: incomingProvider,
       });
-    } else if (existingUser.authProvider !== incomingProvider) {
-      // User previously used a different method (e.g. registered via email,
-      // now signing in with Apple). Track the current method so check-email
-      // routes them to the right UI next time.
-      await this.users.setAuthProvider(existingUser.id, incomingProvider);
+    } else {
+      // Supabase's "Link identities by email" behavior is configurable. When
+      // it's NOT enabled, an OAuth sign-in for an already-registered email
+      // creates a *new* Supabase user with a different ID, and the JWT we'd
+      // return would have `sub` pointing at an ID we have no row for —
+      // every authenticated request downstream would fail to resolve the
+      // user. Refuse the sign-in and let the client route the user to
+      // their original method via check-email.
+      if (data.user.id !== existingUser.id) {
+        throw new ConflictException({
+          message:
+            'This email is already registered with a different sign-in method. ' +
+            'Sign in with that method, or link this provider from account settings.',
+          code: 'AUTH_PROVIDER_MISMATCH',
+          existingProvider: existingUser.authProvider,
+        });
+      }
+      if (existingUser.authProvider !== incomingProvider) {
+        // User previously used a different method (e.g. registered via email,
+        // now signing in with Apple) and Supabase linked the identities so
+        // the user ID is stable. Track the current method so check-email
+        // routes them to the right UI next time.
+        await this.users.setAuthProvider(existingUser.id, incomingProvider);
+      }
     }
 
     return {

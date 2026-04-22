@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { BadRequestException, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, ConflictException, UnauthorizedException } from '@nestjs/common';
 import { AuthService } from '../../src/auth/auth.service';
 import { UserService } from '../../src/user/user.service';
 import { SupabaseClient } from '@supabase/supabase-js';
@@ -296,6 +296,23 @@ describe('AuthService', () => {
 
       await service.oauthSignIn(baseDto);
 
+      expect(userService.createWithId).not.toHaveBeenCalled();
+      expect(userService.setAuthProvider).not.toHaveBeenCalled();
+    });
+
+    it('rejects with 409 when the OAuth user ID differs from the stored user ID', async () => {
+      // Supabase did NOT link identities — OAuth produced a new Supabase user
+      // whose ID doesn't match the email/password user we have on record.
+      // Returning this session's JWT would break all subsequent authenticated
+      // requests (sub won't match any DB row).
+      (supabaseClient.auth.signInWithIdToken as unknown as jest.Mock).mockResolvedValue(mockOAuthResponse);
+      userService.findByEmail.mockResolvedValue({
+        ...mockUser,
+        id: 'different-db-user-id',
+        authProvider: 'email',
+      });
+
+      await expect(service.oauthSignIn(baseDto)).rejects.toBeInstanceOf(ConflictException);
       expect(userService.createWithId).not.toHaveBeenCalled();
       expect(userService.setAuthProvider).not.toHaveBeenCalled();
     });
