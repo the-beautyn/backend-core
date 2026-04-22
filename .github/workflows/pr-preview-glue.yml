@@ -170,6 +170,47 @@ jobs:
           echo "BUILT_SUPABASE_ANON_KEY=$CLEAN_SUPABASE_DEFAULT_KEY"    >> "$GITHUB_ENV"
           echo "BUILT_SERVICE_ROLE_KEY=$CLEAN_SUPABASE_SERVICE_ROLE_KEY" >> "$GITHUB_ENV"
 
+      # ── Seed _prisma_migrations on the preview branch ─────────
+      # Supabase Branching copies schema DDL but leaves _prisma_migrations
+      # empty, so Prisma on first deploy would try to re-run every migration
+      # from scratch and crash on "type already exists". Copy the tracking
+      # rows from the source branch so migrate deploy only applies the PR's
+      # new migrations. Schema is no-op; only the receipts table is touched.
+      - name: Install postgresql-client
+        run: sudo apt-get install -y postgresql-client
+
+      - name: Seed _prisma_migrations from source branch
+        env:
+          SOURCE_DIRECT_URL: ${{ secrets.SUPABASE_SOURCE_DIRECT_URL }}
+        run: |
+          set -e
+
+          if [ -z "$SOURCE_DIRECT_URL" ]; then
+            echo "❌ SUPABASE_SOURCE_DIRECT_URL secret is not set — aborting."
+            exit 1
+          fi
+
+          # Refuse to propagate corruption from the source.
+          UNFINISHED=$(psql "$SOURCE_DIRECT_URL" -tAc \
+            "SELECT count(*) FROM _prisma_migrations WHERE finished_at IS NULL AND rolled_back_at IS NULL;")
+          if [ "$UNFINISHED" != "0" ]; then
+            echo "❌ Source _prisma_migrations has $UNFINISHED stuck migration(s). Fix the source first."
+            exit 1
+          fi
+
+          # Dump only the data of _prisma_migrations (table itself already exists on the preview).
+          pg_dump --data-only --no-owner --no-privileges --column-inserts \
+            --table=public._prisma_migrations "$SOURCE_DIRECT_URL" \
+            > /tmp/prisma_migrations.sql
+
+          # Clear the preview's (possibly stuck / partial) tracking and seed from source.
+          psql "$BUILT_DIRECT_URL" -c "TRUNCATE TABLE _prisma_migrations;"
+          psql "$BUILT_DIRECT_URL" -f /tmp/prisma_migrations.sql
+
+          PREVIEW_ROWS=$(psql "$BUILT_DIRECT_URL" -tAc \
+            "SELECT count(*) FROM _prisma_migrations WHERE finished_at IS NOT NULL;")
+          echo "✅ Seeded $PREVIEW_ROWS applied migration(s) into preview"
+
       # ── Push variables to Railway PR env ────────────────────
       - name: Set Railway variables (PR env)
         run: |
