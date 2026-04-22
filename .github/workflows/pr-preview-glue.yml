@@ -267,16 +267,26 @@ jobs:
             exit 1
           fi
 
+          # --on-conflict-do-nothing (requires pg_dump/server >= 15) emits
+          # INSERT ... ON CONFLICT DO NOTHING so re-seeding a preview that
+          # already has rows is a no-op. Earlier we TRUNCATEd before
+          # inserting — which wiped migrations the preview applied between
+          # pushes, causing Prisma to retry them and hit "already exists"
+          # against schema objects that were never rolled back.
           pg_dump_src --data-only --no-owner --no-privileges --column-inserts \
+            --on-conflict-do-nothing \
             --table=public._prisma_migrations \
             > /tmp/prisma_migrations.sql
 
-          psql_dst -c "TRUNCATE TABLE _prisma_migrations;"
+          # Still clear any stuck/failed rows from previous deploys — those
+          # shouldn't survive a fresh seed, and they'd block migrate deploy
+          # with P3009 even if the underlying migration is now fine.
+          psql_dst -c "DELETE FROM _prisma_migrations WHERE finished_at IS NULL AND rolled_back_at IS NULL;"
           psql_dst -f /tmp/prisma_migrations.sql
 
           PREVIEW_ROWS=$(psql_dst -tAc \
             "SELECT count(*) FROM _prisma_migrations WHERE finished_at IS NOT NULL;")
-          echo "✅ Seeded $PREVIEW_ROWS applied migration(s) into preview"
+          echo "✅ _prisma_migrations synced with source ($PREVIEW_ROWS applied migration(s) on preview)"
 
       # ── Push variables to Railway PR env ────────────────────
       - name: Set Railway variables (PR env)
