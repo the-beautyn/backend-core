@@ -514,4 +514,28 @@ describe('Auth (e2e)', () => {
       // This would return 401 Unauthorized
     });
   });
+
+  // Must be the last describe in this file: UserThrottlerGuard keeps state
+  // across requests (in-memory), and the first call consumes the `otp-burst`
+  // budget (limit 1 / 60s). Adding /phone tests elsewhere will bleed into
+  // this one.
+  describe('UserThrottlerGuard on OTP endpoints', () => {
+    it('blocks a rapid-fire second send-otp with 429 — proves the guard is wired', async () => {
+      // This test guards against the regression where UserThrottlerGuard
+      // isn't registered in a module's providers: NestJS would silently
+      // drop the @UseGuards entry and both calls would return 200.
+      const first = await request(app.getHttpServer())
+        .post('/api/v1/auth/phone/send-otp')
+        .set('Authorization', 'Bearer throttler-canary-token')
+        .send({ phone: '+380509999001' });
+
+      const second = await request(app.getHttpServer())
+        .post('/api/v1/auth/phone/send-otp')
+        .set('Authorization', 'Bearer throttler-canary-token')
+        .send({ phone: '+380509999001' });
+
+      expect(first.status).toBe(200);
+      expect(second.status).toBe(429);
+    });
+  });
 });

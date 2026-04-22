@@ -12,7 +12,7 @@ import { SupabaseModule } from '../src/shared/supabase/supabase.module';
 import { PublicApiModule } from '../src/api-gateway/public-api.module';
 import { AuthenticatedApiModule } from '../src/api-gateway/authenticated-api.module';
 import { StorageModule } from '../src/shared/storage/storage.module';
-import { ThrottlerModule } from '@nestjs/throttler';
+import { AppThrottlerModule } from '../src/shared/throttler/app-throttler.module';
 
 describe('User Auth + Profile Creation (e2e)', () => {
   let app: INestApplication;
@@ -80,13 +80,9 @@ describe('User Auth + Profile Creation (e2e)', () => {
         SharedModule,
         SupabaseModule,
         StorageModule,
+        AppThrottlerModule,
         PublicApiModule,
         AuthenticatedApiModule,
-        ThrottlerModule.forRoot([
-          { name: 'otp-burst', ttl: 60 * 1000, limit: 1 },
-          { name: 'otp-hour', ttl: 60 * 60 * 1000, limit: 3 },
-          { name: 'otp-verify', ttl: 5 * 60 * 1000, limit: 10 },
-        ]),
       ],
     })
       .overrideProvider(SupabaseClient)
