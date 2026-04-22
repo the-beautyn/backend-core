@@ -62,7 +62,7 @@ describe('OwnerBookingsController (unit)', () => {
   });
 
   it('returns booking list', async () => {
-    bookingQuery.listForSalon.mockResolvedValue({ items: [], nextCursor: null, limit: 20 });
+    bookingQuery.listForSalon.mockResolvedValue({ items: [], next_cursor: null, limit: 20 });
     const res = await controller.list(salonId);
     expect(res.limit).toBe(20);
     expect(bookingQuery.listForSalon).toHaveBeenCalledWith(

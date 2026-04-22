@@ -1,104 +1,104 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export type BookingProviderEasyweekDto = {
-  bookingUuid?: string | null;
-  locationUuid?: string | null;
+  booking_uuid?: string | null;
+  location_uuid?: string | null;
   timezone?: string | null;
-  statusName?: string | null;
-  isCanceled?: boolean;
-  isCompleted?: boolean;
+  status_name?: string | null;
+  is_canceled?: boolean;
+  is_completed?: boolean;
   links?: Array<{ type: string | null; url: string }>;
   duration?: { value?: number | null; label?: string | null; iso8601?: string | null };
-  orderedServices?: Array<{
-    externalUuid?: string | null;
-    reservedOn?: string | null;
-    reservedUntil?: string | null;
+  ordered_services?: Array<{
+    external_uuid?: string | null;
+    reserved_on?: string | null;
+    reserved_until?: string | null;
     timezone?: string | null;
     quantity?: number | null;
     name?: string | null;
     description?: string | null;
     currency?: string | null;
     price?: number | null;
-    priceFormatted?: string | null;
+    price_formatted?: string | null;
     discount?: number | null;
-    discountFormatted?: string | null;
-    originalPrice?: number | null;
-    originalPriceFormatted?: string | null;
-    durationValue?: number | null;
-    durationLabel?: string | null;
-    durationIso?: string | null;
-    originalDurationValue?: number | null;
-    originalDurationLabel?: string | null;
-    originalDurationIso?: string | null;
+    discount_formatted?: string | null;
+    original_price?: number | null;
+    original_price_formatted?: string | null;
+    duration_value?: number | null;
+    duration_label?: string | null;
+    duration_iso?: string | null;
+    original_duration_value?: number | null;
+    original_duration_label?: string | null;
+    original_duration_iso?: string | null;
   }>;
   order?: {
     tax?: unknown;
     subtotal?: number | null;
-    subtotalFormatted?: string | null;
-    amountPaid?: number | null;
-    amountPaidFormatted?: string | null;
+    subtotal_formatted?: string | null;
+    amount_paid?: number | null;
+    amount_paid_formatted?: string | null;
     total?: number | null;
-    totalFormatted?: string | null;
+    total_formatted?: string | null;
   };
 };
 
 export type BookingProviderAltegioDto = {
-  crmRecordId?: string | null;
-  companyId?: string | null;
-  staffId?: string | null;
-  clientId?: string | null;
+  crm_record_id?: string | null;
+  company_id?: string | null;
+  staff_id?: string | null;
+  client_id?: string | null;
   datetime?: string | null;
   date?: string | null;
   comment?: string | null;
   attendance?: number | null;
   confirmed?: number | null;
-  visitAttendance?: number | null;
+  visit_attendance?: number | null;
   length?: number | null;
-  seanceLength?: number | null;
-  isDeleted?: boolean | null;
+  seance_length?: number | null;
+  is_deleted?: boolean | null;
   staff?: {
-    externalId?: string | null;
-    apiId?: string | null;
+    external_id?: string | null;
+    api_id?: string | null;
     name?: string | null;
     specialization?: string | null;
     avatar?: string | null;
-    avatarBig?: string | null;
+    avatar_big?: string | null;
     rating?: number | null;
-    votesCount?: number | null;
+    votes_count?: number | null;
   } | null;
   client?: {
-    externalId?: string | null;
-    displayName?: string | null;
+    external_id?: string | null;
+    display_name?: string | null;
     phone?: string | null;
     email?: string | null;
     discount?: number | null;
   } | null;
   services?: Array<{
-    externalId?: string | null;
+    external_id?: string | null;
     title?: string | null;
     cost?: number | null;
-    costToPay?: number | null;
+    cost_to_pay?: number | null;
     discount?: number | null;
   }>;
   documents?: Array<{
-    externalId?: string | null;
-    typeId?: number | null;
-    storageId?: number | null;
-    userId?: number | null;
-    companyId?: number | null;
+    external_id?: string | null;
+    type_id?: number | null;
+    storage_id?: number | null;
+    user_id?: number | null;
+    company_id?: number | null;
     number?: number | null;
     comment?: string | null;
-    dateCreated?: string | null;
+    date_created?: string | null;
   }>;
-  goodsTransactions?: Array<{
-    externalId?: string | null;
-    typeId?: number | null;
-    storageId?: number | null;
-    userId?: number | null;
-    companyId?: number | null;
+  goods_transactions?: Array<{
+    external_id?: string | null;
+    type_id?: number | null;
+    storage_id?: number | null;
+    user_id?: number | null;
+    company_id?: number | null;
     number?: number | null;
     comment?: string | null;
-    dateCreated?: string | null;
+    date_created?: string | null;
   }>;
 };
 
@@ -135,24 +135,24 @@ export type BookingDto = {
 
 export type BookingListResponseDto = {
   items: BookingDto[];
-  nextCursor?: string | null;
+  next_cursor?: string | null;
   limit: number;
 };
 
 export class BookingProviderEasyweekResponseDto {
-  @ApiPropertyOptional() bookingUuid?: string | null;
-  @ApiPropertyOptional() locationUuid?: string | null;
+  @ApiPropertyOptional() booking_uuid?: string | null;
+  @ApiPropertyOptional() location_uuid?: string | null;
   @ApiPropertyOptional() timezone?: string | null;
-  @ApiPropertyOptional() statusName?: string | null;
-  @ApiPropertyOptional() isCanceled?: boolean;
-  @ApiPropertyOptional() isCompleted?: boolean;
+  @ApiPropertyOptional() status_name?: string | null;
+  @ApiPropertyOptional() is_canceled?: boolean;
+  @ApiPropertyOptional() is_completed?: boolean;
 }
 
 export class BookingProviderAltegioResponseDto {
-  @ApiPropertyOptional() crmRecordId?: string | null;
-  @ApiPropertyOptional() companyId?: string | null;
-  @ApiPropertyOptional() staffId?: string | null;
-  @ApiPropertyOptional() clientId?: string | null;
+  @ApiPropertyOptional() crm_record_id?: string | null;
+  @ApiPropertyOptional() company_id?: string | null;
+  @ApiPropertyOptional() staff_id?: string | null;
+  @ApiPropertyOptional() client_id?: string | null;
   @ApiPropertyOptional() datetime?: string | null;
   @ApiPropertyOptional() date?: string | null;
   @ApiPropertyOptional() comment?: string | null;
@@ -160,10 +160,10 @@ export class BookingProviderAltegioResponseDto {
 
 export class BookingHistoryEntryDto {
   @ApiProperty() version!: number;
-  @ApiProperty() syncedAt!: string;
-  @ApiPropertyOptional() remoteUpdatedAt?: string | null;
+  @ApiProperty() synced_at!: string;
+  @ApiPropertyOptional() remote_updated_at?: string | null;
   @ApiPropertyOptional({ type: Object }) payload?: any;
-  @ApiPropertyOptional({ type: Object }) diffFromPrev?: any;
+  @ApiPropertyOptional({ type: Object }) diff_from_prev?: any;
 }
 
 export class BookingProviderSpecificDto {
@@ -199,6 +199,6 @@ export class BookingResponseDto {
 
 export class BookingListResponseDtoClass {
   @ApiProperty({ type: [BookingResponseDto] }) items!: BookingResponseDto[];
-  @ApiPropertyOptional() nextCursor?: string | null;
+  @ApiPropertyOptional() next_cursor?: string | null;
   @ApiProperty() limit!: number;
 }

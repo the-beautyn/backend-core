@@ -23,11 +23,11 @@ export class SearchHistoryService {
     });
     return rows.map((row) => ({
       id: row.id,
-      salonId: row.salonId,
-      salonName: row.salon?.name ?? '',
+      salon_id: row.salonId,
+      salon_name: row.salon?.name ?? '',
       city: row.salon?.city ?? '',
-      logoUrl: row.salon?.coverImageUrl ?? undefined,
-      lastSearchedAt: row.updatedAt.toISOString(),
+      logo_url: row.salon?.coverImageUrl ?? undefined,
+      last_searched_at: row.updatedAt.toISOString(),
     }));
   }
 

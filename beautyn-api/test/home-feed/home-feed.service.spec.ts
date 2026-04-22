@@ -89,7 +89,7 @@ describe('HomeFeedService', () => {
       });
 
       savedSalonsService.listByUser.mockResolvedValue({
-        items: [{ id: 'ss1', salonId: 'salon-1', salonName: 'Beauty Palace', savedAt: '2026-03-01' }],
+        items: [{ id: 'ss1', salon_id: 'salon-1', salon_name: 'Beauty Palace', saved_at: '2026-03-01' }],
       });
 
       const result = await service.getHomeFeed({ userId: 'user-1' });

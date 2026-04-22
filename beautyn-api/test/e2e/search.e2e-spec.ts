@@ -32,11 +32,11 @@ describe('Search API (e2e)', () => {
   const historyItems = [
     {
       id: 'hist-1',
-      salonId: 'salon-1',
-      salonName: 'Salon One',
+      salon_id: 'salon-1',
+      salon_name: 'Salon One',
       city: 'Kyiv',
-      logoUrl: 'logo.png',
-      lastSearchedAt: new Date().toISOString(),
+      logo_url: 'logo.png',
+      last_searched_at: new Date().toISOString(),
     },
   ];
 
@@ -296,14 +296,14 @@ describe('Search API (e2e)', () => {
         type: 'history',
         label: 'Salon One',
         subtitle: 'Kyiv',
-        logoUrl: 'logo.png',
+        logo_url: 'logo.png',
       },
       {
         id: 'salon-2',
         type: 'salon',
         label: 'Salon Two',
         subtitle: 'Odesa · 4.2 ★ · 12',
-        logoUrl: 'logo-2.png',
+        logo_url: 'logo-2.png',
       },
     ]);
     expect(mockHistory.getHistory).toHaveBeenCalled();

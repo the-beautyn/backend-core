@@ -30,7 +30,7 @@ describe('Owner bookings API (e2e)', () => {
   const allowGuard = { canActivate: jest.fn().mockResolvedValue(true) };
 
   const bookingQueryMock = {
-    listForSalon: jest.fn().mockResolvedValue({ items: [{ id: bookingId }], nextCursor: null, limit: 20 }),
+    listForSalon: jest.fn().mockResolvedValue({ items: [{ id: bookingId }], next_cursor: null, limit: 20 }),
     getForSalon: jest.fn().mockResolvedValue({ id: bookingId }),
   };
   const bookingSyncMock = {
