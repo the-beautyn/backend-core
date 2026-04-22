@@ -54,10 +54,10 @@
                   "const response = pm.response.json();",
                   "const data = response.data || {};",
                   "",
-                  "pm.environment.set(\"accessToken\", data.accessToken || data.token);",
-                  "if (data.refreshToken) pm.environment.set(\"refreshToken\", data.refreshToken);",
-                  "if (data.expiresIn) {",
-                  "  pm.environment.set(\"expiresIn\", String(Date.now() + Number(data.expiresIn) * 1000));",
+                  "pm.environment.set(\"accessToken\", data.access_token || data.accessToken || data.token);",
+                  "if (data.refresh_token || data.refreshToken) pm.environment.set(\"refreshToken\", data.refresh_token || data.refreshToken);",
+                  "if (data.expires_in || data.expiresIn) {",
+                  "  pm.environment.set(\"expiresIn\", String(Date.now() + Number(data.expires_in || data.expiresIn) * 1000));",
                   "}"
                 ],
                 "type": "text/javascript",
@@ -82,15 +82,6 @@
                 "type": "text"
               }
             ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n    \"email\": \"{{email}}\",\n    \"password\":\"{{password}}\" \n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
             "url": {
               "raw": "{{baseUrl}}/api/v1/auth/login",
               "host": [
@@ -102,6 +93,15 @@
                 "auth",
                 "login"
               ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"email\": \"{{email}}\",\n    \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             }
           },
           "response": []
@@ -116,10 +116,10 @@
                   "const response = pm.response.json();",
                   "const data = response.data || {};",
                   "",
-                  "pm.environment.set(\"accessToken\", data.accessToken || data.token);",
-                  "if (data.refreshToken) pm.environment.set(\"refreshToken\", data.refreshToken);",
-                  "if (data.expiresIn) {",
-                  "  pm.environment.set(\"expiresIn\", String(Date.now() + Number(data.expiresIn) * 1000));",
+                  "pm.environment.set(\"accessToken\", data.access_token || data.accessToken || data.token);",
+                  "if (data.refresh_token || data.refreshToken) pm.environment.set(\"refreshToken\", data.refresh_token || data.refreshToken);",
+                  "if (data.expires_in || data.expiresIn) {",
+                  "  pm.environment.set(\"expiresIn\", String(Date.now() + Number(data.expires_in || data.expiresIn) * 1000));",
                   "}"
                 ],
                 "type": "text/javascript",
@@ -131,15 +131,6 @@
           "request": {
             "method": "POST",
             "header": [],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n    \"email\": \"{{email}}\",\n    \"password\": \"{{password}}\",\n    \"role\": \"{{role}}\",\n    \"name\": \"John\",\n    \"secondName\": \"Doe\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
             "url": {
               "raw": "{{baseUrl}}/api/v1/auth/register",
               "host": [
@@ -151,6 +142,15 @@
                 "auth",
                 "register"
               ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"email\": \"{{email}}\",\n    \"password\": \"{{password}}\",\n    \"role\": \"{{role}}\",\n    \"name\": \"John\",\n    \"secondName\": \"Doe\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             }
           },
           "response": []
@@ -215,7 +215,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"refreshToken\": \"{{refreshToken}}\"\n}",
+              "raw": "{\n    \"refresh_token\": \"{{refreshToken}}\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -231,25 +231,16 @@
             "method": "POST",
             "header": [
               {
-                "key": "Authorization",
-                "value": "Bearer {{accessToken}}",
-                "type": "text"
-              },
-              {
                 "key": "Content-Type",
                 "value": "application/json",
                 "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "type": "text"
               }
             ],
-            "body": {
-              "mode": "raw",
-              "raw": "",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
             "url": {
               "raw": "{{baseUrl}}/api/v1/auth/logout",
               "host": [
@@ -261,6 +252,85 @@
                 "auth",
                 "logout"
               ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "forgot_password",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/forgot-password",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "forgot-password"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"email\": \"{{email}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "reset_password",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/reset",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "reset"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"otp_token\": \"{{resetToken}}\",\n    \"new_password\": \"{{newPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             }
           },
           "response": []
@@ -271,13 +341,13 @@
             "method": "POST",
             "header": [
               {
-                "key": "Authorization",
-                "value": "Bearer {{accessToken}}",
+                "key": "Content-Type",
+                "value": "application/json",
                 "type": "text"
               },
               {
-                "key": "Content-Type",
-                "value": "application/json",
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
                 "type": "text"
               }
             ],
@@ -312,13 +382,13 @@
             "method": "POST",
             "header": [
               {
-                "key": "Authorization",
-                "value": "Bearer {{accessToken}}",
+                "key": "Content-Type",
+                "value": "application/json",
                 "type": "text"
               },
               {
-                "key": "Content-Type",
-                "value": "application/json",
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
                 "type": "text"
               }
             ],
@@ -353,13 +423,13 @@
             "method": "POST",
             "header": [
               {
-                "key": "Authorization",
-                "value": "Bearer {{accessToken}}",
+                "key": "Content-Type",
+                "value": "application/json",
                 "type": "text"
               },
               {
-                "key": "Content-Type",
-                "value": "application/json",
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
                 "type": "text"
               }
             ],
@@ -430,20 +500,16 @@
             "method": "PATCH",
             "header": [
               {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
                 "key": "Authorization",
                 "value": "Bearer {{accessToken}}",
                 "type": "text"
               }
             ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"name\": \"{{name}}\",\n  \"second_name\": \"{{secondName}}\",\n  \"phone\": \"{{$randomPhoneNumber}}\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
             "url": {
               "raw": "{{baseUrl}}/api/v1/user/update",
               "host": [
@@ -454,15 +520,16 @@
                 "v1",
                 "user",
                 "update"
-              ],
-              "query": [
-                {
-                  "key": "",
-                  "value": null,
-                  "type": "text",
-                  "disabled": true
-                }
               ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"{{name}}\",\n  \"second_name\": \"{{secondName}}\",\n  \"phone\": \"{{$randomPhoneNumber}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             }
           },
           "response": []
@@ -519,15 +586,6 @@
                 "type": "text"
               }
             ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n    \"auth_token\": \"YOUR_EASYWEEK_AUTH_TOKEN\",\n    \"workspace_slug\": \"the-best-company\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
             "url": {
               "raw": "{{baseUrl}}/api/v1/onboarding/easyweek/discover",
               "host": [
@@ -540,6 +598,15 @@
                 "easyweek",
                 "discover"
               ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"auth_token\": \"YOUR_EASYWEEK_AUTH_TOKEN\",\n    \"workspace_slug\": \"the-best-company\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             }
           },
           "response": []
@@ -560,15 +627,6 @@
                 "type": "text"
               }
             ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n    \"auth_token\": \"YOUR_EASYWEEK_AUTH_TOKEN\",\n    \"workspace_slug\": \"the-best-company\",\n    \"salon_uuid\": \"25fd5793-3025-40db-85e9-bcb7ebbf11d7\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
             "url": {
               "raw": "{{baseUrl}}/api/v1/onboarding/easyweek/connect",
               "host": [
@@ -581,6 +639,15 @@
                 "easyweek",
                 "connect"
               ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"auth_token\": \"YOUR_EASYWEEK_AUTH_TOKEN\",\n    \"workspace_slug\": \"the-best-company\",\n    \"salon_uuids\": [\"25fd5793-3025-40db-85e9-bcb7ebbf11d7\"]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             }
           },
           "response": []
@@ -601,15 +668,6 @@
                 "type": "text"
               }
             ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n    \"auth_token\": \"YOUR_EASYWEEK_AUTH_TOKEN\",\n    \"workspace_slug\": \"the-best-company\",\n    \"salon_uuid\": \"25fd5793-3025-40db-85e9-bcb7ebbf11d7\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
             "url": {
               "raw": "{{baseUrl}}/api/v1/onboarding/crm/initial/sync/async",
               "host": [
@@ -644,15 +702,6 @@
                 "type": "text"
               }
             ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n    \"auth_token\": \"YOUR_EASYWEEK_AUTH_TOKEN\",\n    \"workspace_slug\": \"the-best-company\",\n    \"salon_uuid\": \"25fd5793-3025-40db-85e9-bcb7ebbf11d7\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
             "url": {
               "raw": "{{baseUrl}}/api/v1/onboarding/crm/initial/sync",
               "host": [
@@ -702,6 +751,38 @@
           "response": []
         },
         {
+          "name": "crm_by_code",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/onboarding/crms/EASYWEEK",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "onboarding",
+                "crms",
+                "EASYWEEK"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
           "name": "pair-code",
           "request": {
             "method": "POST",
@@ -717,15 +798,6 @@
                 "type": "text"
               }
             ],
-            "body": {
-              "mode": "raw",
-              "raw": "",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
             "url": {
               "raw": "{{baseUrl}}/api/v1/onboarding/altegio/pair-code",
               "host": [
@@ -738,6 +810,15 @@
                 "altegio",
                 "pair-code"
               ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             }
           },
           "response": []
@@ -759,25 +840,10 @@
                 "key": "Content-Type",
                 "value": "application/json",
                 "type": "text"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwOi8vMTI3LjAuMC4xOjU0MzIxL2F1dGgvdjEiLCJzdWIiOiJjMTE4ZWNiMy03Y2VkLTRiZDUtODc3Mi00MmIxZmNjMTRhYjciLCJhdWQiOiJhdXRoZW50aWNhdGVkIiwiZXhwIjoxNzU1NjgzODA2LCJpYXQiOjE3NTU2ODAyMDYsImVtYWlsIjoidXNlckBleGFtcGxlLmNvbSIsInBob25lIjoiIiwiYXBwX21ldGFkYXRhIjp7InByb3ZpZGVyIjoiZW1haWwiLCJwcm92aWRlcnMiOlsiZW1haWwiXX0sInVzZXJfbWV0YWRhdGEiOnsiZW1haWwiOiJ1c2VyQGV4YW1wbGUuY29tIiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInBob25lX3ZlcmlmaWVkIjpmYWxzZSwic3ViIjoiYzExOGVjYjMtN2NlZC00YmQ1LTg3NzItNDJiMWZjYzE0YWI3IiwidXNlcl9yb2xlIjoiY2xpZW50In0sInJvbGUiOiJhdXRoZW50aWNhdGVkIiwiYWFsIjoiYWFsMSIsImFtciI6W3sibWV0aG9kIjoicGFzc3dvcmQiLCJ0aW1lc3RhbXAiOjE3NTU2ODAyMDZ9XSwic2Vzc2lvbl9pZCI6Ijc2ZDk3OTU4LWFmM2ItNDliZi05Njk2LWU5MmRlZjJlMzZmMyIsImlzX2Fub255bW91cyI6ZmFsc2V9.0dvejFF5EtlEOWIaqiPpjOwKK36uiuEdrYhIWd2-boU",
-                "type": "text",
-                "disabled": true
               }
             ],
-            "body": {
-              "mode": "raw",
-              "raw": "",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
             "url": {
-              "raw": "{{baseUrl}}/api/v1/webhooks/altegio/redirect?salonId[]=1234&salonId[]=12345",
+              "raw": "{{baseUrl}}/api/v1/webhooks/altegio/redirect?salon_ids[]=1234&salon_ids[]=12345",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -790,15 +856,25 @@
               ],
               "query": [
                 {
-                  "key": "salonId[]",
-                  "value": "1234"
+                  "key": "salon_ids[]",
+                  "value": "1234",
+                  "type": "text"
                 },
                 {
-                  "key": "salonId[]",
+                  "key": "salon_ids[]",
                   "value": "12345",
                   "type": "text"
                 }
               ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             }
           },
           "response": []
@@ -812,23 +888,8 @@
                 "key": "Content-Type",
                 "value": "application/json",
                 "type": "text"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwOi8vMTI3LjAuMC4xOjU0MzIxL2F1dGgvdjEiLCJzdWIiOiJjMTE4ZWNiMy03Y2VkLTRiZDUtODc3Mi00MmIxZmNjMTRhYjciLCJhdWQiOiJhdXRoZW50aWNhdGVkIiwiZXhwIjoxNzU1NjgzODA2LCJpYXQiOjE3NTU2ODAyMDYsImVtYWlsIjoidXNlckBleGFtcGxlLmNvbSIsInBob25lIjoiIiwiYXBwX21ldGFkYXRhIjp7InByb3ZpZGVyIjoiZW1haWwiLCJwcm92aWRlcnMiOlsiZW1haWwiXX0sInVzZXJfbWV0YWRhdGEiOnsiZW1haWwiOiJ1c2VyQGV4YW1wbGUuY29tIiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInBob25lX3ZlcmlmaWVkIjpmYWxzZSwic3ViIjoiYzExOGVjYjMtN2NlZC00YmQ1LTg3NzItNDJiMWZjYzE0YWI3IiwidXNlcl9yb2xlIjoiY2xpZW50In0sInJvbGUiOiJhdXRoZW50aWNhdGVkIiwiYWFsIjoiYWFsMSIsImFtciI6W3sibWV0aG9kIjoicGFzc3dvcmQiLCJ0aW1lc3RhbXAiOjE3NTU2ODAyMDZ9XSwic2Vzc2lvbl9pZCI6Ijc2ZDk3OTU4LWFmM2ItNDliZi05Njk2LWU5MmRlZjJlMzZmMyIsImlzX2Fub255bW91cyI6ZmFsc2V9.0dvejFF5EtlEOWIaqiPpjOwKK36uiuEdrYhIWd2-boU",
-                "type": "text",
-                "disabled": true
               }
             ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n    \"code\": \"628900\",\n    \"salon_id\": \"12345\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
             "url": {
               "raw": "{{baseUrl}}/api/v1/webhooks/altegio/confirm",
               "host": [
@@ -841,6 +902,15 @@
                 "altegio",
                 "confirm"
               ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"code\": \"628900\",\n    \"salon_ids\": [\"12345\"]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             }
           },
           "response": []
@@ -870,7 +940,7 @@
                   }
                 ],
                 "url": {
-                  "raw": "{{baseUrl}}/api/v1/crm/salon/changes?salonId=a11ae0eb-6261-4e2d-9b7b-2e1ead8e14e2",
+                  "raw": "{{baseUrl}}/api/v1/crm/salon/changes?salonId={{salonId}}",
                   "host": [
                     "{{baseUrl}}"
                   ],
@@ -884,7 +954,8 @@
                   "query": [
                     {
                       "key": "salonId",
-                      "value": "a11ae0eb-6261-4e2d-9b7b-2e1ead8e14e2"
+                      "value": "{{salonId}}",
+                      "type": "text"
                     }
                   ]
                 }
@@ -908,7 +979,7 @@
                   }
                 ],
                 "url": {
-                  "raw": "{{baseUrl}}/api/v1/crm/salon/changes/059052fe-32e5-407e-9258-deb6ce3e9cdb/accept",
+                  "raw": "{{baseUrl}}/api/v1/crm/salon/changes/{{changeId}}/accept",
                   "host": [
                     "{{baseUrl}}"
                   ],
@@ -918,7 +989,7 @@
                     "crm",
                     "salon",
                     "changes",
-                    "059052fe-32e5-407e-9258-deb6ce3e9cdb",
+                    "{{changeId}}",
                     "accept"
                   ]
                 }
@@ -942,7 +1013,7 @@
                   }
                 ],
                 "url": {
-                  "raw": "{{baseUrl}}/api/v1/crm/salon/changes/a11ae0eb-6261-4e2d-9b7b-2e1ead8e14e2/dismiss",
+                  "raw": "{{baseUrl}}/api/v1/crm/salon/changes/{{changeId}}/dismiss",
                   "host": [
                     "{{baseUrl}}"
                   ],
@@ -952,7 +1023,7 @@
                     "crm",
                     "salon",
                     "changes",
-                    "a11ae0eb-6261-4e2d-9b7b-2e1ead8e14e2",
+                    "{{changeId}}",
                     "dismiss"
                   ]
                 }
@@ -1005,12 +1076,84 @@
                 {
                   "key": "isFromSearch",
                   "value": "false",
+                  "type": "text",
                   "disabled": true
                 },
                 {
                   "key": "include",
-                  "value": "services,categories,images,workers"
+                  "value": "services,categories,images,workers",
+                  "type": "text"
                 }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "list",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/salons?page=1&limit=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "salons"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "type": "text"
+                },
+                {
+                  "key": "limit",
+                  "value": "20",
+                  "type": "text"
+                },
+                {
+                  "key": "city",
+                  "value": "",
+                  "type": "text",
+                  "disabled": true
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "images",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/salons/{{salonId}}/images",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "salons",
+                "{{salonId}}",
+                "images"
               ]
             }
           },
@@ -1057,13 +1200,6 @@
                 "{{salonId}}",
                 "crm",
                 "sync"
-              ],
-              "query": [
-                {
-                  "key": "isFromSearch",
-                  "value": "false",
-                  "disabled": true
-                }
               ]
             }
           },
@@ -1111,13 +1247,115 @@
                 "crm",
                 "sync",
                 "async"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Saved Salons",
+      "item": [
+        {
+          "name": "list",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/saved-salons?page=1&limit=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "saved-salons"
               ],
               "query": [
                 {
-                  "key": "isFromSearch",
-                  "value": "false",
-                  "disabled": true
+                  "key": "page",
+                  "value": "1",
+                  "type": "text"
+                },
+                {
+                  "key": "limit",
+                  "value": "20",
+                  "type": "text"
                 }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "save",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/saved-salons/{{salonId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "saved-salons",
+                "{{salonId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "unsave",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/saved-salons/{{salonId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "saved-salons",
+                "{{salonId}}"
               ]
             }
           },
@@ -1169,12 +1407,6 @@
                 "key": "Content-Type",
                 "value": "application/json",
                 "type": "text"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwOi8vMTI3LjAuMC4xOjU0MzIxL2F1dGgvdjEiLCJzdWIiOiJkZjYyYWQzMi1jMDJmLTRmM2EtYTY0Ny1lNTg0Mzc0ZGRlZTEiLCJhdWQiOiJhdXRoZW50aWNhdGVkIiwiZXhwIjoxNzU0OTkxMjM0LCJpYXQiOjE3NTQ5ODc2MzQsImVtYWlsIjoidGVzdDEyM0BleGFtcGxlLmNvbSIsInBob25lIjoiIiwiYXBwX21ldGFkYXRhIjp7InByb3ZpZGVyIjoiZW1haWwiLCJwcm92aWRlcnMiOlsiZW1haWwiXX0sInVzZXJfbWV0YWRhdGEiOnsiZW1haWwiOiJ0ZXN0MTIzQGV4YW1wbGUuY29tIiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInBob25lX3ZlcmlmaWVkIjpmYWxzZSwic3ViIjoiZGY2MmFkMzItYzAyZi00ZjNhLWE2NDctZTU4NDM3NGRkZWUxIiwidXNlcl9yb2xlIjoiY2xpZW50In0sInJvbGUiOiJhdXRoZW50aWNhdGVkIiwiYWFsIjoiYWFsMSIsImFtciI6W3sibWV0aG9kIjoicGFzc3dvcmQiLCJ0aW1lc3RhbXAiOjE3NTQ5ODc2MzR9XSwic2Vzc2lvbl9pZCI6IjE1ZjI1NDRmLTUyNDYtNDZkMC1hZTUyLWMzMjJlYjcyZjRmYyIsImlzX2Fub255bW91cyI6ZmFsc2V9.olT0WhF3D7KGQ-FKmBRU9nFixY0iK8Oc4z0RlsEmMhg",
-                "type": "text",
-                "disabled": true
               }
             ],
             "url": {
@@ -1190,7 +1422,8 @@
               "query": [
                 {
                   "key": "salonId",
-                  "value": "{{salonId}}"
+                  "value": "{{salonId}}",
+                  "type": "text"
                 }
               ]
             }
@@ -1315,15 +1548,6 @@
                 "type": "text"
               }
             ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n    \"title\": \"Test4 Category\",\n    \"weight\": 5,\n    \"staff\": [2886144]\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
             "url": {
               "raw": "{{baseUrl}}/api/v1/salons/{{salonId}}/categories",
               "host": [
@@ -1336,6 +1560,15 @@
                 "{{salonId}}",
                 "categories"
               ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"title\": \"Test4 Category\",\n    \"weight\": 5,\n    \"staff\": [2886144]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             }
           },
           "response": []
@@ -1356,17 +1589,8 @@
                 "type": "text"
               }
             ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n    \"title\": \"Hair 0\",\n    \"weight\": 50\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
             "url": {
-              "raw": "{{baseUrl}}/api/v1/salons/{{salonId}}/categories/8ec89dfc-41b3-425b-a0d8-231e31771bce",
+              "raw": "{{baseUrl}}/api/v1/salons/{{salonId}}/categories/{{categoryId}}",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -1376,8 +1600,17 @@
                 "salons",
                 "{{salonId}}",
                 "categories",
-                "8ec89dfc-41b3-425b-a0d8-231e31771bce"
+                "{{categoryId}}"
               ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"title\": \"Hair 0\",\n    \"weight\": 50\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             }
           },
           "response": []
@@ -1398,17 +1631,8 @@
                 "type": "text"
               }
             ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n    \"title\": \"Hair 123\",\n    \"weight\": 50\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
             "url": {
-              "raw": "{{baseUrl}}/api/v1/salons/{{salonId}}/categories/8ec89dfc-41b3-425b-a0d8-231e31771bce",
+              "raw": "{{baseUrl}}/api/v1/salons/{{salonId}}/categories/{{categoryId}}",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -1418,7 +1642,7 @@
                 "salons",
                 "{{salonId}}",
                 "categories",
-                "8ec89dfc-41b3-425b-a0d8-231e31771bce"
+                "{{categoryId}}"
               ]
             }
           },
@@ -1470,12 +1694,6 @@
                 "key": "Content-Type",
                 "value": "application/json",
                 "type": "text"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwOi8vMTI3LjAuMC4xOjU0MzIxL2F1dGgvdjEiLCJzdWIiOiJkZjYyYWQzMi1jMDJmLTRmM2EtYTY0Ny1lNTg0Mzc0ZGRlZTEiLCJhdWQiOiJhdXRoZW50aWNhdGVkIiwiZXhwIjoxNzU0OTkxMjM0LCJpYXQiOjE3NTQ5ODc2MzQsImVtYWlsIjoidGVzdDEyM0BleGFtcGxlLmNvbSIsInBob25lIjoiIiwiYXBwX21ldGFkYXRhIjp7InByb3ZpZGVyIjoiZW1haWwiLCJwcm92aWRlcnMiOlsiZW1haWwiXX0sInVzZXJfbWV0YWRhdGEiOnsiZW1haWwiOiJ0ZXN0MTIzQGV4YW1wbGUuY29tIiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInBob25lX3ZlcmlmaWVkIjpmYWxzZSwic3ViIjoiZGY2MmFkMzItYzAyZi00ZjNhLWE2NDctZTU4NDM3NGRkZWUxIiwidXNlcl9yb2xlIjoiY2xpZW50In0sInJvbGUiOiJhdXRoZW50aWNhdGVkIiwiYWFsIjoiYWFsMSIsImFtciI6W3sibWV0aG9kIjoicGFzc3dvcmQiLCJ0aW1lc3RhbXAiOjE3NTQ5ODc2MzR9XSwic2Vzc2lvbl9pZCI6IjE1ZjI1NDRmLTUyNDYtNDZkMC1hZTUyLWMzMjJlYjcyZjRmYyIsImlzX2Fub255bW91cyI6ZmFsc2V9.olT0WhF3D7KGQ-FKmBRU9nFixY0iK8Oc4z0RlsEmMhg",
-                "type": "text",
-                "disabled": true
               }
             ],
             "url": {
@@ -1491,7 +1709,8 @@
               "query": [
                 {
                   "key": "salonId",
-                  "value": "{{salonId}}"
+                  "value": "{{salonId}}",
+                  "type": "text"
                 },
                 {
                   "key": "include",
@@ -1622,15 +1841,6 @@
                 "type": "text"
               }
             ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n    \"title\": \"Test 123 active\",\n    \"category_id\": \"8c7ba14f-cc38-4a44-8d02-c05cabe87859\",\n    \"price\": 130,\n    \"duration\": 3600,\n    \"sort_order\": 6,\n    \"is_active\": false,\n    \"worker_ids\": []\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
             "url": {
               "raw": "{{baseUrl}}/api/v1/salons/{{salonId}}/services",
               "host": [
@@ -1643,6 +1853,15 @@
                 "{{salonId}}",
                 "services"
               ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"title\": \"Test 123 active\",\n    \"category_id\": \"{{categoryId}}\",\n    \"price\": 130,\n    \"duration\": 3600,\n    \"sort_order\": 6,\n    \"is_active\": false,\n    \"worker_ids\": []\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             }
           },
           "response": []
@@ -1663,17 +1882,8 @@
                 "type": "text"
               }
             ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n    \"title\": \"Test 123 Check\",\n    \"category_id\": \"a6bc5827-a8ea-45b2-b36c-e061f54b07b8\",\n    \"price\": 30,\n    \"sort_order\": 10,\n    \"is_active\": true,\n    \"duration\": 1800\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
             "url": {
-              "raw": "{{baseUrl}}/api/v1/salons/{{salonId}}/services/a6bc5827-a8ea-45b2-b36c-e061f54b07b8",
+              "raw": "{{baseUrl}}/api/v1/salons/{{salonId}}/services/{{serviceId}}",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -1683,8 +1893,17 @@
                 "salons",
                 "{{salonId}}",
                 "services",
-                "a6bc5827-a8ea-45b2-b36c-e061f54b07b8"
+                "{{serviceId}}"
               ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"title\": \"Test 123 Check\",\n    \"category_id\": \"{{categoryId}}\",\n    \"price\": 30,\n    \"sort_order\": 10,\n    \"is_active\": true,\n    \"duration\": 1800\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             }
           },
           "response": []
@@ -1705,6 +1924,20 @@
                 "type": "text"
               }
             ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/salons/{{salonId}}/services/{{serviceId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "salons",
+                "{{salonId}}",
+                "services",
+                "{{serviceId}}"
+              ]
+            },
             "body": {
               "mode": "raw",
               "raw": "",
@@ -1713,18 +1946,6 @@
                   "language": "json"
                 }
               }
-            },
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/services/a6bc5827-a8ea-45b2-b36c-e061f54b07b8",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "services",
-                "a6bc5827-a8ea-45b2-b36c-e061f54b07b8"
-              ]
             }
           },
           "response": []
@@ -1775,12 +1996,6 @@
                 "key": "Content-Type",
                 "value": "application/json",
                 "type": "text"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwOi8vMTI3LjAuMC4xOjU0MzIxL2F1dGgvdjEiLCJzdWIiOiJkZjYyYWQzMi1jMDJmLTRmM2EtYTY0Ny1lNTg0Mzc0ZGRlZTEiLCJhdWQiOiJhdXRoZW50aWNhdGVkIiwiZXhwIjoxNzU0OTkxMjM0LCJpYXQiOjE3NTQ5ODc2MzQsImVtYWlsIjoidGVzdDEyM0BleGFtcGxlLmNvbSIsInBob25lIjoiIiwiYXBwX21ldGFkYXRhIjp7InByb3ZpZGVyIjoiZW1haWwiLCJwcm92aWRlcnMiOlsiZW1haWwiXX0sInVzZXJfbWV0YWRhdGEiOnsiZW1haWwiOiJ0ZXN0MTIzQGV4YW1wbGUuY29tIiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInBob25lX3ZlcmlmaWVkIjpmYWxzZSwic3ViIjoiZGY2MmFkMzItYzAyZi00ZjNhLWE2NDctZTU4NDM3NGRkZWUxIiwidXNlcl9yb2xlIjoiY2xpZW50In0sInJvbGUiOiJhdXRoZW50aWNhdGVkIiwiYWFsIjoiYWFsMSIsImFtciI6W3sibWV0aG9kIjoicGFzc3dvcmQiLCJ0aW1lc3RhbXAiOjE3NTQ5ODc2MzR9XSwic2Vzc2lvbl9pZCI6IjE1ZjI1NDRmLTUyNDYtNDZkMC1hZTUyLWMzMjJlYjcyZjRmYyIsImlzX2Fub255bW91cyI6ZmFsc2V9.olT0WhF3D7KGQ-FKmBRU9nFixY0iK8Oc4z0RlsEmMhg",
-                "type": "text",
-                "disabled": true
               }
             ],
             "url": {
@@ -1796,7 +2011,8 @@
               "query": [
                 {
                   "key": "salonId",
-                  "value": "{{salonId}}"
+                  "value": "{{salonId}}",
+                  "type": "text"
                 }
               ]
             }
@@ -1812,16 +2028,10 @@
                 "key": "Content-Type",
                 "value": "application/json",
                 "type": "text"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwOi8vMTI3LjAuMC4xOjU0MzIxL2F1dGgvdjEiLCJzdWIiOiJkZjYyYWQzMi1jMDJmLTRmM2EtYTY0Ny1lNTg0Mzc0ZGRlZTEiLCJhdWQiOiJhdXRoZW50aWNhdGVkIiwiZXhwIjoxNzU0OTkxMjM0LCJpYXQiOjE3NTQ5ODc2MzQsImVtYWlsIjoidGVzdDEyM0BleGFtcGxlLmNvbSIsInBob25lIjoiIiwiYXBwX21ldGFkYXRhIjp7InByb3ZpZGVyIjoiZW1haWwiLCJwcm92aWRlcnMiOlsiZW1haWwiXX0sInVzZXJfbWV0YWRhdGEiOnsiZW1haWwiOiJ0ZXN0MTIzQGV4YW1wbGUuY29tIiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInBob25lX3ZlcmlmaWVkIjpmYWxzZSwic3ViIjoiZGY2MmFkMzItYzAyZi00ZjNhLWE2NDctZTU4NDM3NGRkZWUxIiwidXNlcl9yb2xlIjoiY2xpZW50In0sInJvbGUiOiJhdXRoZW50aWNhdGVkIiwiYWFsIjoiYWFsMSIsImFtciI6W3sibWV0aG9kIjoicGFzc3dvcmQiLCJ0aW1lc3RhbXAiOjE3NTQ5ODc2MzR9XSwic2Vzc2lvbl9pZCI6IjE1ZjI1NDRmLTUyNDYtNDZkMC1hZTUyLWMzMjJlYjcyZjRmYyIsImlzX2Fub255bW91cyI6ZmFsc2V9.olT0WhF3D7KGQ-FKmBRU9nFixY0iK8Oc4z0RlsEmMhg",
-                "type": "text",
-                "disabled": true
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/api/v1/workers/by-id/5f01b237-f1e7-4711-a7f2-b7067ff38e3b/",
+              "raw": "{{baseUrl}}/api/v1/workers/by-id/{{workerId}}",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -1830,8 +2040,7 @@
                 "v1",
                 "workers",
                 "by-id",
-                "5f01b237-f1e7-4711-a7f2-b7067ff38e3b",
-                ""
+                "{{workerId}}"
               ]
             }
           },
@@ -1921,14 +2130,16 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/api/v1/services/crm/sync/async",
+              "raw": "{{baseUrl}}/api/v1/salons/{{salonId}}/workers/crm/sync/async",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
                 "api",
                 "v1",
-                "services",
+                "salons",
+                "{{salonId}}",
+                "workers",
                 "crm",
                 "sync",
                 "async"
@@ -1953,15 +2164,6 @@
                 "type": "text"
               }
             ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n    \"first_name\": \"Test\",\n    \"last_name\": \"Create\",\n    \"position\": \"Lol\",\n    \"description\": \"Cantor\",\n    \"phone\": \"+380964873834\",\n    \"is_active\": true\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
             "url": {
               "raw": "{{baseUrl}}/api/v1/salons/{{salonId}}/workers",
               "host": [
@@ -1974,6 +2176,15 @@
                 "{{salonId}}",
                 "workers"
               ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"first_name\": \"Test\",\n    \"last_name\": \"Create\",\n    \"position\": \"Lol\",\n    \"description\": \"Cantor\",\n    \"phone\": \"+380964873834\",\n    \"is_active\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             }
           },
           "response": []
@@ -1994,17 +2205,8 @@
                 "type": "text"
               }
             ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n    \"first_name\": \"Test2\",\n    \"last_name\": \"Create2\",\n    \"position\": \"Lol2\",\n    \"is_active\": false\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
             "url": {
-              "raw": "{{baseUrl}}/api/v1/salons/{{salonId}}/workers/e677b124-f6dd-4141-82f3-e6225353ce12",
+              "raw": "{{baseUrl}}/api/v1/salons/{{salonId}}/workers/{{workerId}}",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -2014,8 +2216,17 @@
                 "salons",
                 "{{salonId}}",
                 "workers",
-                "e677b124-f6dd-4141-82f3-e6225353ce12"
+                "{{workerId}}"
               ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"first_name\": \"Test2\",\n    \"last_name\": \"Create2\",\n    \"position\": \"Lol2\",\n    \"is_active\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             }
           },
           "response": []
@@ -2036,17 +2247,8 @@
                 "type": "text"
               }
             ],
-            "body": {
-              "mode": "raw",
-              "raw": "",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
             "url": {
-              "raw": "{{baseUrl}}/api/v1/salons/{{salonId}}/workers/0789499a-581f-401a-932c-f2739cbf7093",
+              "raw": "{{baseUrl}}/api/v1/salons/{{salonId}}/workers/{{workerId}}",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -2056,8 +2258,17 @@
                 "salons",
                 "{{salonId}}",
                 "workers",
-                "0789499a-581f-401a-932c-f2739cbf7093"
+                "{{workerId}}"
               ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             }
           },
           "response": []
@@ -2089,15 +2300,6 @@
                     "type": "text"
                   }
                 ],
-                "body": {
-                  "mode": "raw",
-                  "raw": "",
-                  "options": {
-                    "raw": {
-                      "language": "json"
-                    }
-                  }
-                },
                 "url": {
                   "raw": "{{baseUrl}}/api/v1/app-categories/mappings/by-salon/{{salonId}}",
                   "host": [
@@ -2110,14 +2312,16 @@
                     "mappings",
                     "by-salon",
                     "{{salonId}}"
-                  ],
-                  "query": [
-                    {
-                      "key": "salonId",
-                      "value": "8ea2a3de-2940-43bd-88d2-e40323491dab",
-                      "disabled": true
-                    }
                   ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
                 }
               },
               "response": []
@@ -2141,15 +2345,6 @@
                     "type": "text"
                   }
                 ],
-                "body": {
-                  "mode": "raw",
-                  "raw": "",
-                  "options": {
-                    "raw": {
-                      "language": "json"
-                    }
-                  }
-                },
                 "url": {
                   "raw": "{{baseUrl}}/api/v1/app-categories/mappings/by-salon/admin/{{salonId}}",
                   "host": [
@@ -2164,6 +2359,59 @@
                     "admin",
                     "{{salonId}}"
                   ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "get_mapping_by_category",
+              "protocolProfileBehavior": {
+                "disableBodyPruning": true
+              },
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/app-categories/mappings/{{categoryId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "app-categories",
+                    "mappings",
+                    "{{categoryId}}"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
                 }
               },
               "response": []
@@ -2184,17 +2432,8 @@
                     "type": "text"
                   }
                 ],
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n    \"appCategoryId\": \"a9c79cc8-d397-4a68-8c0e-e2511798a654\",\n    \"autoMatched\": true\n}",
-                  "options": {
-                    "raw": {
-                      "language": "json"
-                    }
-                  }
-                },
                 "url": {
-                  "raw": "{{baseUrl}}/api/v1/app-categories/mappings/4116e094-f29e-4eab-a3f4-14fa214b95f8",
+                  "raw": "{{baseUrl}}/api/v1/app-categories/mappings/{{categoryId}}",
                   "host": [
                     "{{baseUrl}}"
                   ],
@@ -2203,8 +2442,17 @@
                     "v1",
                     "app-categories",
                     "mappings",
-                    "4116e094-f29e-4eab-a3f4-14fa214b95f8"
+                    "{{categoryId}}"
                   ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"appCategoryId\": \"{{appCategoryId}}\",\n    \"autoMatched\": true\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
                 }
               },
               "response": []
@@ -2219,11 +2467,6 @@
               {
                 "key": "Content-Type",
                 "value": "application/json",
-                "type": "text"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{accessToken}}",
                 "type": "text"
               }
             ],
@@ -2257,15 +2500,6 @@
                 "type": "text"
               }
             ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"slug\": \"spa\",\n  \"name\": \"SPA та масаж\",\n  \"keywords\": [\n    \"massage\", \"массаж\", \"масаж\", \"relaxation massage\", \"релакс‑массаж\", \"релакс‑масаж\", \"back massage\", \"массаж спины\", \"масаж спини\", \"neck massage\", \"массаж шеи\", \"масаж шиї\", \"head massage\", \"массаж головы\", \"масаж голови\", \"facial massage\", \"массаж лица\", \"масаж обличчя\", \"lymphatic drainage\", \"лимфодренажный массаж\", \"лімфодренажний масаж\", \"anti‑cellulite massage\", \"антицеллюлитный массаж\", \"антицелюлітний масаж\", \"sports massage\", \"спортивный массаж\", \"спортивний масаж\", \"prenatal massage\", \"массаж для беременных\", \"масаж для вагітних\", \"hot stone therapy\", \"стоун‑терапия\", \"стоун‑терапія\", \"aromatherapy\", \"ароматерапия\", \"ароматерапія\", \"Thai massage\", \"тайский массаж\", \"тайський масаж\", \"Swedish massage\", \"шведский массаж\", \"шведський масаж\", \"deep tissue\", \"глубокий массаж\", \"глибокий масаж\", \"body scrub\", \"скрабирование тела\", \"скрабування тіла\", \"body wrap\", \"обертывание\", \"обгортання\", \"mud wrap\", \"грязевое обертывание\", \"грязьове обгортання\", \"seaweed wrap\", \"водорослевое обертывание\", \"водоростеве обгортання\", \"chocolate wrap\", \"шоколадное обертывание\", \"шоколадне обгортання\", \"salt therapy\", \"соляная комната\", \"соляна кімната\", \"hammam\", \"хаммам\", \"хамам\", \"sauna\", \"сауна\", \"сауна\", \"steam room\", \"парная\", \"парна\", \"jacuzzi\", \"джакузи\", \"джакузі\", \"spa capsule\", \"спа‑капсула\", \"спа‑капсула\", \"body peeling\", \"пилинг тела\", \"пілінг тіла\", \"dry brushing\", \"сухая щетка\", \"суха щітка\", \"foot massage\", \"массаж стоп\", \"масаж стоп\", \"hand massage\", \"массаж рук\", \"масаж рук\", \"aroma oils\", \"ароматические масла\", \"ароматичні олії\", \"reflexology\", \"рефлексология\", \"рефлексологія\", \"shiatsu\", \"шиацу\", \"шиацу\", \"Thai foot massage\", \"тайский массаж стоп\", \"тайський масаж стоп\", \"head spa\", \"спа для головы\", \"спа для голови\", \"meditation room\", \"комната медитации\", \"кімната медитації\", \"sound therapy\", \"звуковая терапия\", \"звукова терапія\", \"candle massage\", \"массаж свечами\", \"масаж свічками\", \"hydrotherapy\", \"гидротерапия\", \"гідротерапія\", \"endosphere therapy\", \"эндосфера терапия\", \"ендосфера терапія\", \"spa ritual\", \"спа‑ритуал\", \"спа‑ритуал\", \"relaxation zone\", \"зона отдыха\", \"зона відпочинку\"\n  ],\n  \"sortOrder\": 7,\n  \"isActive\": true\n}\n",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
             "url": {
               "raw": "{{baseUrl}}/api/v1/app-categories",
               "host": [
@@ -2276,6 +2510,15 @@
                 "v1",
                 "app-categories"
               ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"slug\": \"spa\",\n  \"name\": \"SPA\",\n  \"keywords\": [\"massage\", \"spa\"],\n  \"sortOrder\": 7,\n  \"isActive\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             }
           },
           "response": []
@@ -2296,17 +2539,8 @@
                 "type": "text"
               }
             ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"slug\": \"nails\",\n  \"name\": \"Нігті\",\n  \"keywords\": [\n    \"manicure\", \"маникюр\", \"манікюр\", \"pedicure\", \"педикюр\", \"педикюр\", \"gel polish\", \"гель‑лак\", \"гель‑лак\", \"acrylic nails\", \"акриловые ногти\", \"акрилові нігті\", \"nail extensions\", \"наращивание ногтей\", \"нарощування нігтів\", \"gel extensions\", \"гелевое наращивание\", \"гелеве нарощування\", \"BIAB (builder in a bottle)\", \"биаб\", \"BIAB\", \"French manicure\", \"французский маникюр\", \"французький манікюр\", \"nude nails\", \"нюдовые ногти\", \"нюдові нігті\", \"ombre nails\", \"омбре ногти\", \"омбре нігті\", \"cat eye nails\", \"кошачий глаз\", \"котяче око\", \"nail art\", \"нейл‑арт\", \"нейл‑арт\", \"nail design\", \"дизайн ногтей\", \"дизайн нігтів\", \"shellac\", \"шеллак\", \"шелак\", \"chrome nails\", \"зеркальные ногти\", \"дзеркальні нігті\", \"marble nails\", \"мраморные ногти\", \"мармурові нігті\", \"matte nails\", \"матовые ногти\", \"матові нігті\", \"glitter nails\", \"блестящие ногти\", \"блискучі нігті\", \"short nails\", \"короткие ногти\", \"короткі нігті\", \"long nails\", \"длинные ногти\", \"довгі нігті\", \"stiletto nails\", \"ногти стилетто\", \"нігті стилет\", \"square shape\", \"квадратная форма\", \"квадратна форма\", \"almond shape\", \"миндалевидная форма\", \"мигдалевидна форма\", \"coffin shape\", \"форма «балерина»\", \"форма «балерина»\", \"men’s manicure\", \"мужской маникюр\", \"чоловічий манікюр\", \"children’s manicure\", \"детский маникюр\", \"дитячий манікюр\", \"SPA manicure\", \"SPA‑маникюр\", \"SPA‑манікюр\", \"hardware manicure\", \"аппаратный маникюр\", \"апаратний манікюр\", \"classic manicure\", \"классический маникюр\", \"класичний манікюр\", \"combined manicure\", \"комбинированный маникюр\", \"комбінований манікюр\", \"paraffin treatment\", \"парафинотерапия\", \"парафінотерапія\", \"nail strengthening\", \"укрепление ногтей\", \"зміцнення нігтів\", \"cuticle care\", \"уход за кутикулой\", \"догляд за кутикулою\", \"hand care\", \"уход за руками\", \"догляд за руками\", \"pedicure for men\", \"мужской педикюр\", \"чоловічий педикюр\", \"medical pedicure\", \"медицинский педикюр\", \"медичний педикюр\", \"fish pedicure\", \"педикюр с рыбками\", \"педикюр з рибками\", \"spa pedicure\", \"SPA‑педикюр\", \"SPA‑педикюр\", \"callus removal\", \"удаление натоптышей\", \"видалення натоптишів\", \"foot scrub\", \"скраб для стоп\", \"скраб для стоп\", \"gel toe polish\", \"гель‑лак на ногах\", \"гель‑лак на ногах\"\n  ],\n  \"sortOrder\": 1,\n  \"isActive\": true\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
             "url": {
-              "raw": "{{baseUrl}}/api/v1/app-categories/a9c79cc8-d397-4a68-8c0e-e2511798a654",
+              "raw": "{{baseUrl}}/api/v1/app-categories/{{appCategoryId}}",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -2314,8 +2548,17 @@
                 "api",
                 "v1",
                 "app-categories",
-                "a9c79cc8-d397-4a68-8c0e-e2511798a654"
+                "{{appCategoryId}}"
               ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"slug\": \"nails\",\n  \"name\": \"Nails\",\n  \"keywords\": [\"manicure\", \"pedicure\"],\n  \"sortOrder\": 1,\n  \"isActive\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             }
           },
           "response": []
@@ -2336,17 +2579,8 @@
                 "type": "text"
               }
             ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"slug\": \"nails\",\n  \"name\": \"Нігті\",\n  \"keywords\": [\n    \"Нігті\", \"нігті\"\n  ],\n  \"sortOrder\": 1,\n  \"isActive\": true\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
             "url": {
-              "raw": "{{baseUrl}}/api/v1/app-categories/09176ead-1c3f-4fbc-be58-343dbdbdf91c",
+              "raw": "{{baseUrl}}/api/v1/app-categories/{{appCategoryId}}",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -2354,7 +2588,71 @@
                 "api",
                 "v1",
                 "app-categories",
-                "09176ead-1c3f-4fbc-be58-343dbdbdf91c"
+                "{{appCategoryId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "upload_image",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/app-categories/{{appCategoryId}}/image",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "app-categories",
+                "{{appCategoryId}}",
+                "image"
+              ]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": ""
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "delete_image",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/app-categories/{{appCategoryId}}/image",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "app-categories",
+                "{{appCategoryId}}",
+                "image"
               ]
             }
           },
@@ -2381,15 +2679,6 @@
                 "type": "text"
               }
             ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n    //\"query\": \"Bar\", // String\n    \"centerLat\": 52.374477, // Number\n    \"centerLng\": 9.738553, // Number\n    \"locationType\": null, // enum: ['city', 'neighborhood', 'address', 'poi', 'unknown']\n    // \"viewport\": {\n    //     \"neLat\": 50.45, // Number\n    //     \"neLng\": 10, // Number\n    //     \"swLat\": 50.3, // Number\n    //     \"swLng\": 9 // Number\n    // },\n    // \"date\": \"2025-12-07\", // String 'YYYY-MM-DD'\n    // \"time\": \"20:00\", // String 'HH:mm'\n    // \"priceMin\": 50, // Number\n    // \"priceMax\": 10000,\n    //\"appCategoryIds\": [\"475df429-f35e-4be4-8a77-3599f5232503\"], // String Array\n    \"sortBy\": \"distance\" // enum ['distance', 'rating_desc', 'price_asc', 'price_desc', 'popular']\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
             "url": {
               "raw": "{{baseUrl}}/api/v1/search",
               "host": [
@@ -2400,6 +2689,15 @@
                 "v1",
                 "search"
               ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"query\": \"\",\n    \"centerLat\": 52.374477,\n    \"centerLng\": 9.738553,\n    \"locationType\": null,\n    \"sortBy\": \"distance\",\n    \"page\": 1,\n    \"limit\": 20\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             }
           },
           "response": []
@@ -2423,15 +2721,6 @@
                 "type": "text"
               }
             ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n    // \"query\": null, // String\n    \"centerLat\": null, // Number\n    \"centerLng\": null, // Number\n    \"locationType\": null, // enum: ['city', 'neighborhood', 'address', 'poi', 'unknown']\n    \"viewport\": {\n        \"neLat\": 50.4501, // Number\n        \"neLng\": 50.1501, // Number\n        \"swLat\": 30.3234, // Number\n        \"swLng\": 30.1234 // Number\n    },\n    // \"date\": null, // String 'YYYY-MM-DD'\n    // \"time\": null, // String 'HH:mm'\n    // \"priceMin\": null, // Number\n    // \"priceMax\": null,\n    // \"appCategoryIds\": null, // String Array\n    \"sortBy\": \"distance\" // enum ['distance', 'rating_desc', 'price_asc', 'price_desc', 'popular']\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
             "url": {
               "raw": "{{baseUrl}}/api/v1/search/suggestions?query=Al",
               "host": [
@@ -2447,7 +2736,7 @@
                 {
                   "key": "query",
                   "value": "Al",
-                  "description": "String"
+                  "type": "text"
                 }
               ]
             }
@@ -2473,15 +2762,6 @@
                 "type": "text"
               }
             ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n    // \"query\": null, // String\n    \"centerLat\": null, // Number\n    \"centerLng\": null, // Number\n    \"locationType\": null, // enum: ['city', 'neighborhood', 'address', 'poi', 'unknown']\n    \"viewport\": {\n        \"neLat\": 50.4501, // Number\n        \"neLng\": 50.1501, // Number\n        \"swLat\": 30.3234, // Number\n        \"swLng\": 30.1234 // Number\n    },\n    // \"date\": null, // String 'YYYY-MM-DD'\n    // \"time\": null, // String 'HH:mm'\n    // \"priceMin\": null, // Number\n    // \"priceMax\": null,\n    // \"appCategoryIds\": null, // String Array\n    \"sortBy\": \"distance\" // enum ['distance', 'rating_desc', 'price_asc', 'price_desc', 'popular']\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
             "url": {
               "raw": "{{baseUrl}}/api/v1/search/history?limit=10",
               "host": [
@@ -2497,7 +2777,6 @@
                 {
                   "key": "limit",
                   "value": "10",
-                  "description": "String",
                   "type": "text"
                 }
               ]
@@ -2521,15 +2800,6 @@
                 "type": "text"
               }
             ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n    // \"query\": null, // String\n    \"centerLat\": null, // Number\n    \"centerLng\": null, // Number\n    \"locationType\": null, // enum: ['city', 'neighborhood', 'address', 'poi', 'unknown']\n    \"viewport\": {\n        \"neLat\": 50.4501, // Number\n        \"neLng\": 50.1501, // Number\n        \"swLat\": 30.3234, // Number\n        \"swLng\": 30.1234 // Number\n    },\n    // \"date\": null, // String 'YYYY-MM-DD'\n    // \"time\": null, // String 'HH:mm'\n    // \"priceMin\": null, // Number\n    // \"priceMax\": null,\n    // \"appCategoryIds\": null, // String Array\n    \"sortBy\": \"distance\" // enum ['distance', 'rating_desc', 'price_asc', 'price_desc', 'popular']\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
             "url": {
               "raw": "{{baseUrl}}/api/v1/search/history",
               "host": [
@@ -2561,17 +2831,8 @@
                 "type": "text"
               }
             ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n    // \"query\": null, // String\n    \"centerLat\": null, // Number\n    \"centerLng\": null, // Number\n    \"locationType\": null, // enum: ['city', 'neighborhood', 'address', 'poi', 'unknown']\n    \"viewport\": {\n        \"neLat\": 50.4501, // Number\n        \"neLng\": 50.1501, // Number\n        \"swLat\": 30.3234, // Number\n        \"swLng\": 30.1234 // Number\n    },\n    // \"date\": null, // String 'YYYY-MM-DD'\n    // \"time\": null, // String 'HH:mm'\n    // \"priceMin\": null, // Number\n    // \"priceMax\": null,\n    // \"appCategoryIds\": null, // String Array\n    \"sortBy\": \"distance\" // enum ['distance', 'rating_desc', 'price_asc', 'price_desc', 'popular']\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
             "url": {
-              "raw": "{{baseUrl}}/api/v1/search/history/{id}",
+              "raw": "{{baseUrl}}/api/v1/search/history/{{historyId}}",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -2580,7 +2841,7 @@
                 "v1",
                 "search",
                 "history",
-                "{id}"
+                "{{historyId}}"
               ]
             }
           },
@@ -2616,7 +2877,7 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/api/v1/salon/1e7b2ba1-c3b6-4ba3-a540-575992677c6f?isFromSearch=true",
+              "raw": "{{baseUrl}}/api/v1/salon/{{salonId}}?isFromSearch=true",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -2624,12 +2885,13 @@
                 "api",
                 "v1",
                 "salon",
-                "1e7b2ba1-c3b6-4ba3-a540-575992677c6f"
+                "{{salonId}}"
               ],
               "query": [
                 {
                   "key": "isFromSearch",
-                  "value": "true"
+                  "value": "true",
+                  "type": "text"
                 }
               ]
             }
@@ -2679,7 +2941,7 @@
                       }
                     ],
                     "url": {
-                      "raw": "{{baseUrl}}/api/v1/booking/altegio/b8594432-ab37-4ef6-973d-521428a0d581/services?workerId=f96d6076-04f8-4132-8400-650a98dee6a2",
+                      "raw": "{{baseUrl}}/api/v1/booking/altegio/{{salonId}}/services?workerId={{workerId}}",
                       "host": [
                         "{{baseUrl}}"
                       ],
@@ -2688,23 +2950,20 @@
                         "v1",
                         "booking",
                         "altegio",
-                        "b8594432-ab37-4ef6-973d-521428a0d581",
+                        "{{salonId}}",
                         "services"
                       ],
                       "query": [
                         {
                           "key": "selectedServiceIds[]",
-                          "value": "8ee6911f-e574-4aad-8096-c99469f33952",
-                          "disabled": true
-                        },
-                        {
-                          "key": "selectedServiceIds[]",
-                          "value": "4c0ea76f-c2f3-4f85-86b5-783b81501ea5",
+                          "value": "{{serviceId}}",
+                          "type": "text",
                           "disabled": true
                         },
                         {
                           "key": "workerId",
-                          "value": "f96d6076-04f8-4132-8400-650a98dee6a2"
+                          "value": "{{workerId}}",
+                          "type": "text"
                         }
                       ]
                     }
@@ -2741,7 +3000,7 @@
                       }
                     ],
                     "url": {
-                      "raw": "{{baseUrl}}/api/v1/booking/altegio/b8594432-ab37-4ef6-973d-521428a0d581/workers?serviceIds[]=f4cdd2dd-acfe-4645-917c-e25ce159193c",
+                      "raw": "{{baseUrl}}/api/v1/booking/altegio/{{salonId}}/workers?serviceIds[]={{serviceId}}",
                       "host": [
                         "{{baseUrl}}"
                       ],
@@ -2750,34 +3009,26 @@
                         "v1",
                         "booking",
                         "altegio",
-                        "b8594432-ab37-4ef6-973d-521428a0d581",
+                        "{{salonId}}",
                         "workers"
                       ],
                       "query": [
                         {
                           "key": "datetime",
-                          "value": "2025-12-26T15:00:00%2B02:00",
+                          "value": "",
+                          "type": "text",
                           "disabled": true
                         },
                         {
                           "key": "includeSlots",
                           "value": "true",
-                          "disabled": true
-                        },
-                        {
-                          "key": "serviceIds[]",
-                          "value": "4c0ea76f-c2f3-4f85-86b5-783b81501ea5",
-                          "disabled": true
-                        },
-                        {
-                          "key": "serviceIds[]",
-                          "value": "f4cdd2dd-acfe-4645-917c-e25ce159193c"
-                        },
-                        {
-                          "key": "serviceIds[]",
-                          "value": "2691342b-1ee6-40cb-af92-eafb3f4d9b9c",
                           "type": "text",
                           "disabled": true
+                        },
+                        {
+                          "key": "serviceIds[]",
+                          "value": "{{serviceId}}",
+                          "type": "text"
                         }
                       ]
                     }
@@ -2814,7 +3065,7 @@
                       }
                     ],
                     "url": {
-                      "raw": "{{baseUrl}}/api/v1/booking/altegio/b8594432-ab37-4ef6-973d-521428a0d581/dates?serviceIds[]=f4cdd2dd-acfe-4645-917c-e25ce159193c&workerId=ad7fb852-273a-40f6-aa17-44404abfcd59",
+                      "raw": "{{baseUrl}}/api/v1/booking/altegio/{{salonId}}/dates?serviceIds[]={{serviceId}}&workerId={{workerId}}",
                       "host": [
                         "{{baseUrl}}"
                       ],
@@ -2823,31 +3074,30 @@
                         "v1",
                         "booking",
                         "altegio",
-                        "b8594432-ab37-4ef6-973d-521428a0d581",
+                        "{{salonId}}",
                         "dates"
                       ],
                       "query": [
                         {
                           "key": "serviceIds[]",
-                          "value": "f4cdd2dd-acfe-4645-917c-e25ce159193c"
-                        },
-                        {
-                          "key": "serviceIds[]",
-                          "value": "4c0ea76f-c2f3-4f85-86b5-783b81501ea5",
-                          "disabled": true
+                          "value": "{{serviceId}}",
+                          "type": "text"
                         },
                         {
                           "key": "workerId",
-                          "value": "ad7fb852-273a-40f6-aa17-44404abfcd59"
+                          "value": "{{workerId}}",
+                          "type": "text"
                         },
                         {
                           "key": "dateFrom",
-                          "value": "2025-12-24",
+                          "value": "",
+                          "type": "text",
                           "disabled": true
                         },
                         {
                           "key": "dateTo",
-                          "value": "2025-12-29",
+                          "value": "",
+                          "type": "text",
                           "disabled": true
                         }
                       ]
@@ -2885,7 +3135,7 @@
                       }
                     ],
                     "url": {
-                      "raw": "{{baseUrl}}/api/v1/booking/altegio/b8594432-ab37-4ef6-973d-521428a0d581/timeslots?date=2026-01-26&workerId=ad7fb852-273a-40f6-aa17-44404abfcd59&serviceIds[]=f4cdd2dd-acfe-4645-917c-e25ce159193c",
+                      "raw": "{{baseUrl}}/api/v1/booking/altegio/{{salonId}}/timeslots?date=2026-01-26&workerId={{workerId}}&serviceIds[]={{serviceId}}",
                       "host": [
                         "{{baseUrl}}"
                       ],
@@ -2894,26 +3144,24 @@
                         "v1",
                         "booking",
                         "altegio",
-                        "b8594432-ab37-4ef6-973d-521428a0d581",
+                        "{{salonId}}",
                         "timeslots"
                       ],
                       "query": [
                         {
                           "key": "date",
-                          "value": "2026-01-26"
+                          "value": "2026-01-26",
+                          "type": "text"
                         },
                         {
                           "key": "workerId",
-                          "value": "ad7fb852-273a-40f6-aa17-44404abfcd59"
+                          "value": "{{workerId}}",
+                          "type": "text"
                         },
                         {
                           "key": "serviceIds[]",
-                          "value": "f4cdd2dd-acfe-4645-917c-e25ce159193c"
-                        },
-                        {
-                          "key": "serviceIds[]",
-                          "value": "e78a471e-fee0-4fb6-8b70-ffc02bdaaf23",
-                          "disabled": true
+                          "value": "{{serviceId}}",
+                          "type": "text"
                         }
                       ]
                     }
@@ -2949,17 +3197,8 @@
                         "type": "text"
                       }
                     ],
-                    "body": {
-                      "mode": "raw",
-                      "raw": "{\n    \"workerId\": \"ad7fb852-273a-40f6-aa17-44404abfcd59\",\n    \"serviceIds\": [\"f4cdd2dd-acfe-4645-917c-e25ce159193c\"],\n    \"datetime\": \"2026-01-26T15:00:00+02:00\",\n    //\"comment\": \"Test\",\n    \"attendance\": 2\n}",
-                      "options": {
-                        "raw": {
-                          "language": "json"
-                        }
-                      }
-                    },
                     "url": {
-                      "raw": "{{baseUrl}}/api/v1/booking/altegio/b8594432-ab37-4ef6-973d-521428a0d581/records",
+                      "raw": "{{baseUrl}}/api/v1/booking/altegio/{{salonId}}/records",
                       "host": [
                         "{{baseUrl}}"
                       ],
@@ -2968,21 +3207,18 @@
                         "v1",
                         "booking",
                         "altegio",
-                        "b8594432-ab37-4ef6-973d-521428a0d581",
+                        "{{salonId}}",
                         "records"
-                      ],
-                      "query": [
-                        {
-                          "key": "workerId",
-                          "value": "6bc60e45-92ea-4855-b895-24bb4efd68bd",
-                          "disabled": true
-                        },
-                        {
-                          "key": "serviceIds",
-                          "value": "4c0ea76f-c2f3-4f85-86b5-783b81501ea5",
-                          "disabled": true
-                        }
                       ]
+                    },
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n    \"workerId\": \"{{workerId}}\",\n    \"serviceIds\": [\"{{serviceId}}\"],\n    \"datetime\": \"2026-01-26T15:00:00+02:00\",\n    \"attendance\": 1\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
                     }
                   },
                   "response": []
@@ -3021,15 +3257,6 @@
                         "type": "text"
                       }
                     ],
-                    "body": {
-                      "mode": "raw",
-                      "raw": "{\n    \"salonId\": \"099ca6b0-c376-4d09-85d7-72e5d5e4b28f\",\n    \"bookingUuid\": \"44a3360a-69b6-4762-86aa-618472836f5d\"\n}",
-                      "options": {
-                        "raw": {
-                          "language": "json"
-                        }
-                      }
-                    },
                     "url": {
                       "raw": "{{baseUrl}}/api/v1/bookings/easyweek/confirm",
                       "host": [
@@ -3041,19 +3268,16 @@
                         "bookings",
                         "easyweek",
                         "confirm"
-                      ],
-                      "query": [
-                        {
-                          "key": "salonId",
-                          "value": "47c13eb5-cc96-4c34-b84b-2438b7263655",
-                          "disabled": true
-                        },
-                        {
-                          "key": "bookingUuid",
-                          "value": "405d32ed-72a5-46cd-8df8-970117ab81e6",
-                          "disabled": true
-                        }
                       ]
+                    },
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n    \"salonId\": \"{{salonId}}\",\n    \"bookingUuid\": \"{{bookingUuid}}\"\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
                     }
                   },
                   "response": []
@@ -3111,11 +3335,13 @@
                         {
                           "key": "status",
                           "value": "",
+                          "type": "text",
                           "disabled": true
                         },
                         {
                           "key": "from",
                           "value": "",
+                          "type": "text",
                           "disabled": true
                         },
                         {
@@ -3171,7 +3397,7 @@
                       }
                     ],
                     "url": {
-                      "raw": "{{baseUrl}}/api/v1/bookings/0868062e-ba5d-41da-ba14-633404960dcb",
+                      "raw": "{{baseUrl}}/api/v1/bookings/{{bookingId}}",
                       "host": [
                         "{{baseUrl}}"
                       ],
@@ -3179,7 +3405,7 @@
                         "api",
                         "v1",
                         "bookings",
-                        "0868062e-ba5d-41da-ba14-633404960dcb"
+                        "{{bookingId}}"
                       ]
                     }
                   },
@@ -3235,11 +3461,13 @@
                         {
                           "key": "status",
                           "value": "created",
+                          "type": "text",
                           "disabled": true
                         },
                         {
                           "key": "from",
-                          "value": "2026-01-07",
+                          "value": "",
+                          "type": "text",
                           "disabled": true
                         },
                         {
@@ -3251,6 +3479,7 @@
                         {
                           "key": "limit",
                           "value": "1000",
+                          "type": "text",
                           "disabled": true
                         },
                         {
@@ -3299,7 +3528,7 @@
                       }
                     ],
                     "url": {
-                      "raw": "{{baseUrl}}/api/v1/salons/{{salonId}}}/bookings/{id}",
+                      "raw": "{{baseUrl}}/api/v1/salons/{{salonId}}/bookings/{{bookingId}}",
                       "host": [
                         "{{baseUrl}}"
                       ],
@@ -3307,9 +3536,9 @@
                         "api",
                         "v1",
                         "salons",
-                        "{{salonId}}}",
+                        "{{salonId}}",
                         "bookings",
-                        "{id}"
+                        "{{bookingId}}"
                       ]
                     }
                   },
@@ -3363,36 +3592,6 @@
                     "{{salonId}}",
                     "bookings",
                     "sync"
-                  ],
-                  "query": [
-                    {
-                      "key": "status",
-                      "value": "",
-                      "disabled": true
-                    },
-                    {
-                      "key": "from",
-                      "value": "",
-                      "disabled": true
-                    },
-                    {
-                      "key": "to",
-                      "value": null,
-                      "type": "text",
-                      "disabled": true
-                    },
-                    {
-                      "key": "limit",
-                      "value": null,
-                      "type": "text",
-                      "disabled": true
-                    },
-                    {
-                      "key": "cursor",
-                      "value": null,
-                      "type": "text",
-                      "disabled": true
-                    }
                   ]
                 }
               },
@@ -3440,36 +3639,6 @@
                     "bookings",
                     "sync",
                     "async"
-                  ],
-                  "query": [
-                    {
-                      "key": "status",
-                      "value": "",
-                      "disabled": true
-                    },
-                    {
-                      "key": "from",
-                      "value": "",
-                      "disabled": true
-                    },
-                    {
-                      "key": "to",
-                      "value": null,
-                      "type": "text",
-                      "disabled": true
-                    },
-                    {
-                      "key": "limit",
-                      "value": null,
-                      "type": "text",
-                      "disabled": true
-                    },
-                    {
-                      "key": "cursor",
-                      "value": null,
-                      "type": "text",
-                      "disabled": true
-                    }
                   ]
                 }
               },
@@ -3648,15 +3817,6 @@
                 "type": "text"
               }
             ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n    \"salon_id\": \"c74a56d7-768e-47f6-91f0-53605daf22ad\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
             "url": {
               "raw": "{{baseUrl}}/api/v1/brand/{{brandId}}/selected-salon",
               "host": [
@@ -3669,6 +3829,15 @@
                 "{{brandId}}",
                 "selected-salon"
               ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"salon_id\": \"{{salonId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             }
           },
           "response": []
@@ -3717,7 +3886,8 @@
               "query": [
                 {
                   "key": "include",
-                  "value": "services,categories,images,workers"
+                  "value": "services,categories,images,workers",
+                  "type": "text"
                 }
               ]
             }
@@ -3753,15 +3923,6 @@
                 "type": "text"
               }
             ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n    \"name\": \"test2\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
             "url": {
               "raw": "{{baseUrl}}/api/v1/brand/{{brandId}}",
               "host": [
@@ -3773,6 +3934,15 @@
                 "brand",
                 "{{brandId}}"
               ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"test2\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             }
           },
           "response": []
@@ -3806,15 +3976,6 @@
                 "type": "text"
               }
             ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n    \"name\": \"test1\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
             "url": {
               "raw": "{{baseUrl}}/api/v1/brand",
               "host": [
@@ -3825,6 +3986,15 @@
                 "v1",
                 "brand"
               ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"test1\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             }
           },
           "response": []
@@ -3865,13 +4035,13 @@
                 {
                   "key": "lat",
                   "value": "50.4501",
-                  "description": "Latitude for geo-based sections",
+                  "type": "text",
                   "disabled": true
                 },
                 {
                   "key": "lon",
                   "value": "30.5234",
-                  "description": "Longitude for geo-based sections",
+                  "type": "text",
                   "disabled": true
                 }
               ]
@@ -3933,15 +4103,6 @@
                 "type": "text"
               }
             ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n    \"type\": \"popular\",\n    \"title\": \"Popular near you\",\n    \"emoji\": \"\\ud83d\\udd25\",\n    \"sortOrder\": 0,\n    \"limit\": 10,\n    \"isActive\": true,\n    \"filters\": {\n        \"appCategoryId\": \"{{appCategoryId}}\",\n        \"sortBy\": \"popular\",\n        \"radiusKm\": 10,\n        \"priceMin\": 0,\n        \"priceMax\": 1000,\n        \"query\": \"\",\n        \"openToday\": false\n    }\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
             "url": {
               "raw": "{{baseUrl}}/api/v1/admin/home-feed-sections",
               "host": [
@@ -3953,6 +4114,15 @@
                 "admin",
                 "home-feed-sections"
               ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"type\": \"popular\",\n    \"title\": \"Popular near you\",\n    \"emoji\": \"\\ud83d\\udd25\",\n    \"sortOrder\": 0,\n    \"limit\": 10,\n    \"isActive\": true,\n    \"filters\": {\n        \"appCategoryId\": \"{{appCategoryId}}\",\n        \"sortBy\": \"popular\",\n        \"radiusKm\": 10,\n        \"priceMin\": 0,\n        \"priceMax\": 1000,\n        \"query\": \"\",\n        \"openToday\": false\n    }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "description": "Create a new home feed section (admin only)"
           },
@@ -3974,15 +4144,6 @@
                 "type": "text"
               }
             ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n    \"title\": \"Updated title\",\n    \"sortOrder\": 1,\n    \"isActive\": false\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
             "url": {
               "raw": "{{baseUrl}}/api/v1/admin/home-feed-sections/{{homeFeedSectionId}}",
               "host": [
@@ -3995,6 +4156,15 @@
                 "home-feed-sections",
                 "{{homeFeedSectionId}}"
               ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"title\": \"Updated title\",\n    \"sortOrder\": 1,\n    \"isActive\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "description": "Update a home feed section by ID (admin only). All fields are optional."
           },
@@ -4025,6 +4195,146 @@
               ]
             },
             "description": "Delete a home feed section by ID (admin only)"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "health"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Storage",
+      "item": [
+        {
+          "name": "upload",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/storage/{{bucket}}/upload",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "storage",
+                "{{bucket}}",
+                "upload"
+              ]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": ""
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "delete",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/storage/{{bucket}}?path={{storagePath}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "storage",
+                "{{bucket}}"
+              ],
+              "query": [
+                {
+                  "key": "path",
+                  "value": "{{storagePath}}",
+                  "type": "text"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Deep Links",
+      "item": [
+        {
+          "name": "apple_app_site_association",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/.well-known/apple-app-site-association",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                ".well-known",
+                "apple-app-site-association"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "auth_reset_fallback",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/reset",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "reset"
+              ]
+            }
           },
           "response": []
         }

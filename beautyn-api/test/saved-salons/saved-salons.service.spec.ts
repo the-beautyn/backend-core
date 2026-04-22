@@ -89,14 +89,14 @@ describe('SavedSalonsService', () => {
       expect(result.items).toHaveLength(1);
       expect(result.items[0]).toEqual({
         id: 'ss1',
-        salonId: 's1',
-        salonName: 'Salon One',
-        coverImageUrl: 'https://img.test/1.jpg',
-        addressLine: '123 Main St',
+        salon_id: 's1',
+        salon_name: 'Salon One',
+        cover_image_url: 'https://img.test/1.jpg',
+        address_line: '123 Main St',
         city: 'Kyiv',
-        ratingAvg: 4.5,
-        ratingCount: 120,
-        savedAt: now.toISOString(),
+        rating_avg: 4.5,
+        rating_count: 120,
+        saved_at: now.toISOString(),
       });
 
       expect(repo.listByUser).toHaveBeenCalledWith('u1', 0, 20, undefined);
@@ -155,9 +155,9 @@ describe('SavedSalonsService', () => {
 
       const result = await service.listByUser('u1', {});
 
-      expect(result.items[0].ratingAvg).toBeNull();
-      expect(result.items[0].ratingCount).toBeNull();
-      expect(result.items[0].coverImageUrl).toBeNull();
+      expect(result.items[0].rating_avg).toBeNull();
+      expect(result.items[0].rating_count).toBeNull();
+      expect(result.items[0].cover_image_url).toBeNull();
     });
   });
 

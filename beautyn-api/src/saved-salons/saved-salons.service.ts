@@ -53,14 +53,14 @@ export class SavedSalonsService {
   private toDto(item: any): SavedSalonItemDto {
     return {
       id: item.id,
-      salonId: item.salonId,
-      salonName: item.salon?.name ?? '',
-      coverImageUrl: item.salon?.coverImageUrl ?? null,
-      addressLine: item.salon?.addressLine ?? null,
+      salon_id: item.salonId,
+      salon_name: item.salon?.name ?? '',
+      cover_image_url: item.salon?.coverImageUrl ?? null,
+      address_line: item.salon?.addressLine ?? null,
       city: item.salon?.city ?? null,
-      ratingAvg: item.salon?.ratingAvg != null ? Number(item.salon.ratingAvg) : null,
-      ratingCount: item.salon?.ratingCount ?? null,
-      savedAt: item.createdAt.toISOString(),
+      rating_avg: item.salon?.ratingAvg != null ? Number(item.salon.ratingAvg) : null,
+      rating_count: item.salon?.ratingCount ?? null,
+      saved_at: item.createdAt.toISOString(),
     };
   }
 }

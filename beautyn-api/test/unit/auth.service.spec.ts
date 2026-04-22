@@ -84,7 +84,12 @@ describe('AuthService', () => {
         },
         {
           provide: ConfigService,
-          useValue: { get: jest.fn().mockReturnValue('true') },
+          useValue: {
+            get: jest.fn().mockImplementation((key: string, fallback?: string) => {
+              if (key === 'APP_URL') return 'https://test.beautyn.com.ua';
+              return fallback ?? 'true';
+            }),
+          },
         },
       ],
     }).compile();
@@ -134,10 +139,10 @@ describe('AuthService', () => {
         { name: 'John', secondName: 'Doe', authProvider: 'email' },
       );
       expect(result).toEqual({
-        accessToken: mockSession.access_token,
-        refreshToken: mockSession.refresh_token,
-        expiresIn: mockSession.expires_in,
-        phoneVerificationRequired: true,
+        access_token: mockSession.access_token,
+        refresh_token: mockSession.refresh_token,
+        expires_in: mockSession.expires_in,
+        phone_verification_required: true,
       });
     });
 
@@ -213,10 +218,10 @@ describe('AuthService', () => {
         password: loginDto.password,
       });
       expect(result).toEqual({
-        accessToken: mockSession.access_token,
-        refreshToken: mockSession.refresh_token,
-        expiresIn: mockSession.expires_in,
-        phoneVerificationRequired: true,
+        access_token: mockSession.access_token,
+        refresh_token: mockSession.refresh_token,
+        expires_in: mockSession.expires_in,
+        phone_verification_required: true,
       });
     });
 
@@ -287,10 +292,6 @@ describe('AuthService', () => {
       email: 'test@example.com',
     };
 
-    beforeEach(() => {
-      process.env.APP_URL = 'http://localhost:3000';
-    });
-
     it('should send password reset email successfully', async () => {
       // Arrange
       const mockResetResponse = {
@@ -306,7 +307,7 @@ describe('AuthService', () => {
       expect(supabaseClient.auth.resetPasswordForEmail).toHaveBeenCalledWith(
         forgotPasswordDto.email,
         {
-          redirectTo: `${process.env.APP_URL}/auth/reset`,
+          redirectTo: 'https://test.beautyn.com.ua/auth/reset',
         },
       );
       expect(result).toEqual({
@@ -332,8 +333,8 @@ describe('AuthService', () => {
 
   describe('resetPassword', () => {
     const resetPasswordDto: ResetPasswordDto = {
-      otpToken: 'mock-otp-token',
-      newPassword: 'NewPassword123!',
+      otp_token: 'mock-otp-token',
+      new_password: 'NewPassword123!',
     };
 
     it('should reset password successfully', async () => {
@@ -360,15 +361,15 @@ describe('AuthService', () => {
       // Assert
       expect(supabaseClient.auth.verifyOtp).toHaveBeenCalledWith({
         type: 'recovery',
-        token_hash: resetPasswordDto.otpToken,
+        token_hash: resetPasswordDto.otp_token,
       });
       expect(supabaseClient.auth.updateUser).toHaveBeenCalledWith({
-        password: resetPasswordDto.newPassword,
+        password: resetPasswordDto.new_password,
       });
       expect(result).toEqual({
-        accessToken: mockSession.access_token,
-        refreshToken: mockSession.refresh_token,
-        expiresIn: mockSession.expires_in,
+        access_token: mockSession.access_token,
+        refresh_token: mockSession.refresh_token,
+        expires_in: mockSession.expires_in,
       });
     });
 

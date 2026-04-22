@@ -8,7 +8,7 @@ export class ResetPasswordDto {
   })
   @IsString()
   @IsNotEmpty()
-  otpToken: string;
+  otp_token: string;
 
   @ApiProperty({
     example: 'N3wP@ssword!',
@@ -17,10 +17,10 @@ export class ResetPasswordDto {
   @MinLength(8)
   @MaxLength(50)
   @Matches(/^[\x20-\x7E]+$/, {
-    message: 'newPassword must contain only Latin letters, digits, and special characters',
+    message: 'new_password must contain only Latin letters, digits, and special characters',
   })
   @Matches(/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/, {
-    message: 'newPassword must contain at least one uppercase letter, one lowercase letter, and one digit',
+    message: 'new_password must contain at least one uppercase letter, one lowercase letter, and one digit',
   })
-  newPassword: string;
+  new_password: string;
 }

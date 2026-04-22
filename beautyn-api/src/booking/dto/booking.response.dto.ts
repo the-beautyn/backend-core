@@ -104,32 +104,32 @@ export type BookingProviderAltegioDto = {
 
 export type BookingDto = {
   id: string;
-  salonId: string;
-  userId: string | null;
-  worker?: { id: string; firstName: string; lastName: string; photoUrl?: string | null } | null;
+  salon_id: string;
+  user_id: string | null;
+  worker?: { id: string; first_name: string; last_name: string; photo_url?: string | null } | null;
   status: string;
   datetime: string;
-  endDatetime?: string | null;
+  end_datetime?: string | null;
   comment?: string | null;
-  crmType?: string | null;
-  crmRecordId?: string | null;
-  crmCompanyId?: string | null;
-  crmStaffId?: string | null;
-  crmServiceIds?: string[];
-  serviceIds?: string[];
-  shortLink?: string | null;
-  createdAt: string;
-  updatedAt: string;
-  providerSpecific?: {
+  crm_type?: string | null;
+  crm_record_id?: string | null;
+  crm_company_id?: string | null;
+  crm_staff_id?: string | null;
+  crm_service_ids?: string[];
+  service_ids?: string[];
+  short_link?: string | null;
+  created_at: string;
+  updated_at: string;
+  provider_specific?: {
     easyweek?: BookingProviderEasyweekDto;
     altegio?: BookingProviderAltegioDto;
   };
   history?: Array<{
     version: number;
-    syncedAt: string;
-    remoteUpdatedAt?: string | null;
+    synced_at: string;
+    remote_updated_at?: string | null;
     payload: any;
-    diffFromPrev?: any;
+    diff_from_prev?: any;
   }>;
 };
 
@@ -176,23 +176,23 @@ export class BookingProviderSpecificDto {
 
 export class BookingResponseDto {
   @ApiProperty() id!: string;
-  @ApiProperty() salonId!: string;
-  @ApiPropertyOptional() userId?: string | null;
+  @ApiProperty() salon_id!: string;
+  @ApiPropertyOptional() user_id?: string | null;
   @ApiProperty() status!: string;
   @ApiProperty() datetime!: string;
-  @ApiPropertyOptional() endDatetime?: string | null;
+  @ApiPropertyOptional() end_datetime?: string | null;
   @ApiPropertyOptional() comment?: string | null;
-  @ApiPropertyOptional() crmType?: string | null;
-  @ApiPropertyOptional() crmRecordId?: string | null;
-  @ApiPropertyOptional() crmCompanyId?: string | null;
-  @ApiPropertyOptional() crmStaffId?: string | null;
-  @ApiPropertyOptional({ type: [String] }) crmServiceIds?: string[];
-  @ApiPropertyOptional({ type: [String] }) serviceIds?: string[];
-  @ApiPropertyOptional() shortLink?: string | null;
-  @ApiProperty() createdAt!: string;
-  @ApiProperty() updatedAt!: string;
+  @ApiPropertyOptional() crm_type?: string | null;
+  @ApiPropertyOptional() crm_record_id?: string | null;
+  @ApiPropertyOptional() crm_company_id?: string | null;
+  @ApiPropertyOptional() crm_staff_id?: string | null;
+  @ApiPropertyOptional({ type: [String] }) crm_service_ids?: string[];
+  @ApiPropertyOptional({ type: [String] }) service_ids?: string[];
+  @ApiPropertyOptional() short_link?: string | null;
+  @ApiProperty() created_at!: string;
+  @ApiProperty() updated_at!: string;
   @ApiPropertyOptional({ type: () => BookingProviderSpecificDto })
-  providerSpecific?: BookingProviderSpecificDto;
+  provider_specific?: BookingProviderSpecificDto;
   @ApiPropertyOptional({ type: [BookingHistoryEntryDto] })
   history?: BookingHistoryEntryDto[];
 }

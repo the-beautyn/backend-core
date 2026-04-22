@@ -9,10 +9,10 @@ export class HomeFeedResponseDto {
   categories?: AppCategoryResponseDto[];
 
   @ApiPropertyOptional({ type: HomeFeedNextBookingDto, nullable: true })
-  nextBooking?: HomeFeedNextBookingDto | null;
+  next_booking?: HomeFeedNextBookingDto | null;
 
   @ApiPropertyOptional({ type: [SavedSalonItemDto] })
-  savedSalons?: SavedSalonItemDto[];
+  saved_salons?: SavedSalonItemDto[];
 
   @ApiProperty({ type: [HomeFeedSectionDto] })
   sections!: HomeFeedSectionDto[];

@@ -11,6 +11,7 @@ import { SharedModule } from '../src/shared/shared.module';
 import { SupabaseModule } from '../src/shared/supabase/supabase.module';
 import { PublicApiModule } from '../src/api-gateway/public-api.module';
 import { AuthenticatedApiModule } from '../src/api-gateway/authenticated-api.module';
+import { StorageModule } from '../src/shared/storage/storage.module';
 
 describe('User Auth + Profile Creation (e2e)', () => {
   let app: INestApplication;
@@ -55,6 +56,8 @@ describe('User Auth + Profile Creation (e2e)', () => {
           const idx = memUsers.findIndex((u) => u.id === where.id || u.email === where.email);
           if (idx < 0) throw new Error('User not found');
           memUsers[idx] = { ...memUsers[idx], ...data };
+          const u = memUsers[idx];
+          if (u.name && u.secondName) u.isProfileCreated = true;
           return memUsers[idx];
         }),
         deleteMany: jest.fn().mockImplementation(({ where }: any = {}) => {
@@ -72,7 +75,7 @@ describe('User Auth + Profile Creation (e2e)', () => {
     };
 
     const moduleFixture: TestingModule = await Test.createTestingModule({
-      imports: [SharedModule, SupabaseModule, PublicApiModule, AuthenticatedApiModule],
+      imports: [SharedModule, SupabaseModule, StorageModule, PublicApiModule, AuthenticatedApiModule],
     })
       .overrideProvider(SupabaseClient)
       .useValue({
@@ -155,9 +158,10 @@ describe('User Auth + Profile Creation (e2e)', () => {
       .expect(201);
 
     expect(registerRes.body).toEqual({
-      accessToken: mockAccessToken,
-      refreshToken: 'mock-refresh-token',
-      expiresIn: 3600,
+      access_token: mockAccessToken,
+      refresh_token: 'mock-refresh-token',
+      expires_in: 3600,
+      phone_verification_required: true,
     });
 
     const created = await prisma.users.findUnique({ where: { email } });
@@ -248,9 +252,10 @@ describe('User Auth + Profile Creation (e2e)', () => {
       .expect(200);
 
     expect(loginRes.body).toEqual({
-      accessToken: mockAccessToken,
-      refreshToken: 'mock-refresh-token',
-      expiresIn: 3600,
+      access_token: mockAccessToken,
+      refresh_token: 'mock-refresh-token',
+      expires_in: 3600,
+      phone_verification_required: true,
     });
 
     // 2) Get current user

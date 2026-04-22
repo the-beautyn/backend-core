@@ -172,30 +172,30 @@ export class BookingQueryService {
     const includeHistory = opts?.includeHistory !== false;
     return {
       id: booking.id,
-      salonId: booking.salonId,
-      userId: booking.userId ?? null,
+      salon_id: booking.salonId,
+      user_id: booking.userId ?? null,
       worker: booking.worker
         ? {
             id: booking.worker.id,
-            firstName: booking.worker.firstName,
-            lastName: booking.worker.lastName,
-            photoUrl: booking.worker.photoUrl,
+            first_name: booking.worker.firstName,
+            last_name: booking.worker.lastName,
+            photo_url: booking.worker.photoUrl,
           }
         : null,
       status: booking.status,
       datetime: booking.datetime.toISOString(),
-      endDatetime: booking.endDatetime ? booking.endDatetime.toISOString() : null,
+      end_datetime: booking.endDatetime ? booking.endDatetime.toISOString() : null,
       comment: booking.comment ?? null,
-      crmType: booking.crmType ?? null,
-      crmRecordId: booking.crmRecordId ?? null,
-      crmCompanyId: booking.crmCompanyId ?? null,
-      crmStaffId: booking.crmStaffId ?? null,
-      crmServiceIds: this.toStringArray(booking.crmServiceIds),
-      serviceIds: this.toStringArray(booking.serviceIds),
-      shortLink: booking.shortLink ?? null,
-      createdAt: booking.createdAt.toISOString(),
-      updatedAt: booking.updatedAt.toISOString(),
-      providerSpecific: {
+      crm_type: booking.crmType ?? null,
+      crm_record_id: booking.crmRecordId ?? null,
+      crm_company_id: booking.crmCompanyId ?? null,
+      crm_staff_id: booking.crmStaffId ?? null,
+      crm_service_ids: this.toStringArray(booking.crmServiceIds),
+      service_ids: this.toStringArray(booking.serviceIds),
+      short_link: booking.shortLink ?? null,
+      created_at: booking.createdAt.toISOString(),
+      updated_at: booking.updatedAt.toISOString(),
+      provider_specific: {
         easyweek: this.mapEasyweek(booking),
         altegio: this.mapAltegio(booking),
       },
@@ -203,10 +203,10 @@ export class BookingQueryService {
         ? Array.isArray(booking.history)
           ? booking.history.map((h) => ({
               version: h.version,
-              syncedAt: h.syncedAt.toISOString(),
-              remoteUpdatedAt: h.remoteUpdatedAt ?? null,
+              synced_at: h.syncedAt.toISOString(),
+              remote_updated_at: h.remoteUpdatedAt ?? null,
               payload: h.payload ?? null,
-              diffFromPrev: h.diffFromPrev ?? null,
+              diff_from_prev: h.diffFromPrev ?? null,
             }))
           : undefined
         : undefined,

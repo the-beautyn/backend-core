@@ -2,29 +2,29 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class HomeFeedNextBookingDto {
   @ApiProperty()
-  bookingId!: string;
+  booking_id!: string;
 
   @ApiProperty()
-  salonId!: string;
+  salon_id!: string;
 
   @ApiProperty()
-  salonName!: string;
+  salon_name!: string;
 
   @ApiPropertyOptional()
-  salonCoverImageUrl?: string | null;
+  salon_cover_image_url?: string | null;
 
   @ApiPropertyOptional()
-  salonAddressLine?: string | null;
+  salon_address_line?: string | null;
 
   @ApiProperty()
   datetime!: string;
 
   @ApiPropertyOptional()
-  endDatetime?: string | null;
+  end_datetime?: string | null;
 
   @ApiPropertyOptional()
-  totalPriceCents?: number | null;
+  total_price_cents?: number | null;
 
   @ApiPropertyOptional()
-  durationMinutes?: number | null;
+  duration_minutes?: number | null;
 }

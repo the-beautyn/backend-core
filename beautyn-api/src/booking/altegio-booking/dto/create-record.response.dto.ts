@@ -2,13 +2,13 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateAltegioRecordResponseDto {
   @ApiProperty()
-  bookingId!: string;
+  booking_id!: string;
 
   @ApiProperty()
-  crmRecordId!: number;
+  crm_record_id!: number;
 
   @ApiPropertyOptional()
-  shortLink?: string | null;
+  short_link?: string | null;
 
   @ApiProperty({ enum: ['created'] })
   status!: 'created';

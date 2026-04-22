@@ -12,13 +12,13 @@ export function normalizeHexColor(color?: string | null): string | null {
 export function toCategoryResponse(entity: Category): CategoryResponseDto {
   return {
     id: entity.id,
-    salonId: entity.salonId,
-    crmCategoryId: entity.crmCategoryId,
+    salon_id: entity.salonId,
+    crm_category_id: entity.crmCategoryId,
     name: entity.name,
     color: entity.color ?? null,
-    sortOrder: entity.sortOrder ?? null,
-    serviceIds: Array.isArray((entity as any).serviceIds) ? (entity as any).serviceIds : [],
-    createdAt: entity.createdAt,
-    updatedAt: entity.updatedAt,
+    sort_order: entity.sortOrder ?? null,
+    service_ids: Array.isArray((entity as any).serviceIds) ? (entity as any).serviceIds : [],
+    created_at: entity.createdAt,
+    updated_at: entity.updatedAt,
   };
 }

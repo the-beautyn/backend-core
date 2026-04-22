@@ -5,16 +5,16 @@ export class WorkerDto {
   id!: string;
 
   @ApiProperty({ required: false, nullable: true, example: 'crm_123' })
-  crmWorkerId?: string | null;
+  crm_worker_id?: string | null;
 
   @ApiProperty({ example: 'salon_01HXYZ...' })
-  salonId!: string;
+  salon_id!: string;
 
   @ApiProperty({ example: 'Alice' })
-  firstName!: string;
+  first_name!: string;
 
   @ApiProperty({ example: 'Brown' })
-  lastName!: string;
+  last_name!: string;
 
   @ApiProperty({ example: 'Hair Stylist', required: false, nullable: true })
   position?: string | null;
@@ -29,17 +29,17 @@ export class WorkerDto {
   phone?: string | null;
 
   @ApiProperty({ example: 'https://example.com/photo.jpg', nullable: true, required: false })
-  photoUrl?: string | null;
+  photo_url?: string | null;
 
   @ApiProperty({ type: String, isArray: true, required: false })
-  serviceIds?: string[];
+  service_ids?: string[];
 
   @ApiProperty({ example: true })
-  isActive!: boolean;
+  is_active!: boolean;
 
   @ApiProperty()
-  createdAt!: Date;
+  created_at!: Date;
 
   @ApiProperty()
-  updatedAt!: Date;
+  updated_at!: Date;
 }

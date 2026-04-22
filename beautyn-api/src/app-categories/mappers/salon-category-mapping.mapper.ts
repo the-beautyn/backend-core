@@ -3,11 +3,11 @@ import { SalonCategoryMappingResponseDto } from '../dto/salon-category-mapping-r
 
 export function toSalonCategoryMappingResponse(entity: SalonCategoryMapping): SalonCategoryMappingResponseDto {
   return {
-    salonCategoryId: entity.salonCategoryId,
-    appCategoryId: entity.appCategoryId ?? null,
-    autoMatched: entity.autoMatched,
+    salon_category_id: entity.salonCategoryId,
+    app_category_id: entity.appCategoryId ?? null,
+    auto_matched: entity.autoMatched,
     confidence: entity.confidence ?? null,
-    updatedBy: entity.updatedBy,
-    updatedAt: entity.updatedAt,
+    updated_by: entity.updatedBy,
+    updated_at: entity.updatedAt,
   };
 }

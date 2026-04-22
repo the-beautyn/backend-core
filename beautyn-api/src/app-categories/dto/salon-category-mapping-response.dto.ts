@@ -2,37 +2,37 @@ import { ApiProperty } from '@nestjs/swagger';
 
 export class SalonCategoryMappingResponseDto {
   @ApiProperty()
-  salonCategoryId!: string;
+  salon_category_id!: string;
 
   @ApiProperty({ required: false, nullable: true })
-  appCategoryId!: string | null;
+  app_category_id!: string | null;
 
   @ApiProperty()
-  autoMatched!: boolean;
+  auto_matched!: boolean;
 
   @ApiProperty({ required: false, nullable: true })
   confidence!: number | null;
 
   @ApiProperty()
-  updatedBy!: 'system' | 'owner';
+  updated_by!: 'system' | 'owner';
 
   @ApiProperty()
-  updatedAt!: Date;
+  updated_at!: Date;
 }
 
 export class SalonAppCategoryMappingDto {
   @ApiProperty()
-  salonId!: string;
+  salon_id!: string;
 
   @ApiProperty()
-  salonName!: string;
+  salon_name!: string;
 
   @ApiProperty()
-  salonCategoryId!: string;
+  salon_category_id!: string;
 
   @ApiProperty({ required: false, nullable: true })
-  appCategoryId!: string | null;
+  app_category_id!: string | null;
 
   @ApiProperty({ required: false, nullable: true })
-  appCategoryName!: string | null;
+  app_category_name!: string | null;
 }

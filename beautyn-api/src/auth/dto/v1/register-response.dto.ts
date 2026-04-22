@@ -5,23 +5,23 @@ export class RegisterResponseDto {
     example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
     description: 'JWT access token',
   })
-  accessToken: string;
+  access_token: string;
 
   @ApiProperty({
     example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
     description: 'JWT refresh token',
   })
-  refreshToken: string;
+  refresh_token: string;
 
   @ApiProperty({
     example: 900,
     description: 'Expiration time in seconds',
   })
-  expiresIn: number;
+  expires_in: number;
 
   @ApiProperty({
     example: true,
     description: 'Whether phone OTP verification is required before the user can proceed',
   })
-  phoneVerificationRequired: boolean;
+  phone_verification_required: boolean;
 }

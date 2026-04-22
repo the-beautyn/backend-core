@@ -106,7 +106,7 @@ export class AuthPublicController {
     envelopeErrorSchema({ statusCode: 401, message: 'Unauthorized', error: 'Unauthorized' })
   )
   async refreshToken(@Body() dto: RefreshTokenDto) {
-    return this.authService.refreshSession(dto.refreshToken);
+    return this.authService.refreshSession(dto.refresh_token);
   }
 
   @Post('logout')
@@ -124,7 +124,7 @@ export class AuthPublicController {
     return { success: true };
   }
 
-  @Post('forgot')
+  @Post('forgot-password')
   @HttpCode(HttpStatus.ACCEPTED)
   @ApiOperation({ summary: 'Send password reset email' })
   @ApiBody({ type: ForgotPasswordDto })

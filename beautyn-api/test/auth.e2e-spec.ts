@@ -155,9 +155,10 @@ describe('Auth (e2e)', () => {
         .expect(201);
 
       expect(response.body).toEqual({
-        accessToken: mockSession.access_token,
-        refreshToken: mockSession.refresh_token,
-        expiresIn: mockSession.expires_in,
+        access_token: mockSession.access_token,
+        refresh_token: mockSession.refresh_token,
+        expires_in: mockSession.expires_in,
+        phone_verification_required: true,
       });
 
       // Verify user was created in database
@@ -287,9 +288,10 @@ describe('Auth (e2e)', () => {
         .expect(200);
 
       expect(response.body).toEqual({
-        accessToken: mockSession.access_token,
-        refreshToken: mockSession.refresh_token,
-        expiresIn: mockSession.expires_in,
+        access_token: mockSession.access_token,
+        refresh_token: mockSession.refresh_token,
+        expires_in: mockSession.expires_in,
+        phone_verification_required: true,
       });
     });
 
@@ -353,7 +355,7 @@ describe('Auth (e2e)', () => {
     });
   });
 
-  describe('/api/v1/auth/forgot (POST)', () => {
+  describe('/api/v1/auth/forgot-password (POST)', () => {
     beforeEach(() => {
       process.env.APP_URL = 'http://localhost:3000';
     });
@@ -370,11 +372,17 @@ describe('Auth (e2e)', () => {
 
       // Act & Assert
       const response = await request(app.getHttpServer())
-        .post('/api/v1/auth/forgot')
+        .post('/api/v1/auth/forgot-password')
         .send(forgotPasswordDto)
         .expect(202);
 
       expect(response.body).toEqual({ success: true });
+      expect(supabaseClient.auth.resetPasswordForEmail).toHaveBeenCalledWith(
+        forgotPasswordDto.email,
+        expect.objectContaining({
+          redirectTo: expect.stringMatching(/\/auth\/reset$/),
+        }),
+      );
     });
 
     it('should return 400 when email not found', async () => {
@@ -391,7 +399,7 @@ describe('Auth (e2e)', () => {
 
       // Act & Assert
       await request(app.getHttpServer())
-        .post('/api/v1/auth/forgot')
+        .post('/api/v1/auth/forgot-password')
         .send(forgotPasswordDto)
         .expect(400);
     });
@@ -404,7 +412,7 @@ describe('Auth (e2e)', () => {
 
       // Act & Assert
       await request(app.getHttpServer())
-        .post('/api/v1/auth/forgot')
+        .post('/api/v1/auth/forgot-password')
         .send(invalidDto)
         .expect(400);
     });
@@ -414,8 +422,8 @@ describe('Auth (e2e)', () => {
     it('should reset password successfully', async () => {
       // Arrange
       const resetPasswordDto = {
-        otpToken: 'valid-otp-token',
-        newPassword: 'NewPassword123!',
+        otp_token: 'valid-otp-token',
+        new_password: 'NewPassword123!',
       };
 
       const mockVerifyOtpResponse = {
@@ -441,17 +449,17 @@ describe('Auth (e2e)', () => {
         .expect(200);
 
       expect(response.body).toEqual({
-        accessToken: mockSession.access_token,
-        refreshToken: mockSession.refresh_token,
-        expiresIn: mockSession.expires_in,
+        access_token: mockSession.access_token,
+        refresh_token: mockSession.refresh_token,
+        expires_in: mockSession.expires_in,
       });
     });
 
     it('should return 400 for invalid OTP token', async () => {
       // Arrange
       const resetPasswordDto = {
-        otpToken: 'invalid-otp-token',
-        newPassword: 'NewPassword123!',
+        otp_token: 'invalid-otp-token',
+        new_password: 'NewPassword123!',
       };
 
       const mockVerifyOtpResponse = {
@@ -471,8 +479,8 @@ describe('Auth (e2e)', () => {
     it('should return 400 for invalid input', async () => {
       // Arrange
       const invalidDto = {
-        otpToken: '',
-        newPassword: '123', // Too short
+        otp_token: '',
+        new_password: '123', // Too short
       };
 
       // Act & Assert

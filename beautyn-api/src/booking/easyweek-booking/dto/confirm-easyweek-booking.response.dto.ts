@@ -2,27 +2,27 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class EasyweekBookingSummaryDto {
   @ApiProperty({ description: 'EasyWeek booking UUID' })
-  bookingUuid!: string;
+  booking_uuid!: string;
 
   @ApiPropertyOptional({ description: 'EasyWeek location UUID' })
-  locationUuid?: string | null;
+  location_uuid?: string | null;
 
   @ApiPropertyOptional()
   timezone?: string | null;
 
   @ApiPropertyOptional()
-  isCanceled?: boolean;
+  is_canceled?: boolean;
 
   @ApiPropertyOptional()
-  isCompleted?: boolean;
+  is_completed?: boolean;
 
   @ApiPropertyOptional()
-  statusName?: string | null;
+  status_name?: string | null;
 }
 
 export class ConfirmEasyweekBookingResponseDto {
   @ApiProperty()
-  bookingId!: string;
+  booking_id!: string;
 
   @ApiProperty()
   status!: string;
@@ -31,7 +31,7 @@ export class ConfirmEasyweekBookingResponseDto {
   datetime!: Date;
 
   @ApiPropertyOptional({ description: 'Booking end datetime' })
-  endDatetime?: Date | null;
+  end_datetime?: Date | null;
 
   @ApiPropertyOptional({ type: () => EasyweekBookingSummaryDto })
   easyweek?: EasyweekBookingSummaryDto;

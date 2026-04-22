@@ -25,6 +25,8 @@ import { AltegioBookingModule } from '../booking/altegio-booking/altegio-booking
 import { AltegioBookingPublicController } from './v1/public/altegio-booking.public.controller';
 import { HomeFeedModule } from '../home-feed/home-feed.module';
 import { HomeFeedController } from './v1/public/home-feed.controller';
+import { WellKnownController } from './v1/public/well-known.controller';
+import { AuthResetController } from './v1/public/auth-reset.controller';
 
 @Module({
   imports: [SharedModule, AuthModule, UserModule, ServicesModule, WorkersModule, SalonModule, OnboardingModule, CategoriesModule, AppCategoriesModule, SearchModule, AltegioBookingModule, HomeFeedModule],
@@ -40,6 +42,8 @@ import { HomeFeedController } from './v1/public/home-feed.controller';
     SearchPublicController,
     AltegioBookingPublicController,
     HomeFeedController,
+    WellKnownController,
+    AuthResetController,
   ],
   providers: [AltegioWebhookService, SyncTriggerService, AltegioPartnerClient],
 })

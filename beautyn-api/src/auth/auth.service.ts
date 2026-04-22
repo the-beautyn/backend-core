@@ -62,10 +62,10 @@ export class AuthService {
     });
 
     return {
-      accessToken: data.session.access_token,
-      refreshToken: data.session.refresh_token,
-      expiresIn: data.session.expires_in,
-      phoneVerificationRequired: this.phoneVerificationEnabled,
+      access_token: data.session.access_token,
+      refresh_token: data.session.refresh_token,
+      expires_in: data.session.expires_in,
+      phone_verification_required: this.phoneVerificationEnabled,
     };
   }
 
@@ -97,11 +97,11 @@ export class AuthService {
     }
 
     return {
-      accessToken: data.session.access_token,
-      refreshToken: data.session.refresh_token,
-      expiresIn: data.session.expires_in,
-      isNewUser,
-      phoneVerificationRequired: this.phoneVerificationEnabled && (isNewUser || !existingUser?.isPhoneVerified),
+      access_token: data.session.access_token,
+      refresh_token: data.session.refresh_token,
+      expires_in: data.session.expires_in,
+      is_new_user: isNewUser,
+      phone_verification_required: this.phoneVerificationEnabled && (isNewUser || !existingUser?.isPhoneVerified),
     };
   }
 
@@ -119,10 +119,10 @@ export class AuthService {
     }
 
     return {
-      accessToken: data.session.access_token,
-      refreshToken: data.session.refresh_token,
-      expiresIn: data.session.expires_in,
-      phoneVerificationRequired,
+      access_token: data.session.access_token,
+      refresh_token: data.session.refresh_token,
+      expires_in: data.session.expires_in,
+      phone_verification_required: phoneVerificationRequired,
     };
   }
 
@@ -132,9 +132,9 @@ export class AuthService {
     if (!data.session) throw new UnauthorizedException('Failed to refresh session');
 
     return {
-      accessToken: data.session.access_token,
-      refreshToken: data.session.refresh_token,
-      expiresIn: data.session.expires_in,
+      access_token: data.session.access_token,
+      refresh_token: data.session.refresh_token,
+      expires_in: data.session.expires_in,
     };
   }
 
@@ -150,30 +150,30 @@ export class AuthService {
   }
 
   async forgotPassword({ email }: ForgotPasswordDto) {
+    const appUrl = this.config.get<string>('APP_URL');
     const { error } = await this.sb.auth.resetPasswordForEmail(email, {
-      redirectTo: `${process.env.APP_URL}/auth/reset`,              // your deep-link
+      redirectTo: `${appUrl}/auth/reset`,
     });
     if (error) throw new BadRequestException(error.message);
     return { message: 'Password-reset email sent' };
   }
 
   async resetPassword(dto: ResetPasswordDto) {
-    // dto: { token_hash: string, newPassword: string }   ← OTP style
     const { data, error } = await this.sb.auth.verifyOtp({
       type: 'recovery',
-      token_hash: dto.otpToken,
+      token_hash: dto.otp_token,
     });
     if (error) throw new BadRequestException(error.message);
 
     const { error: updErr } = await this.sb.auth.updateUser({
-      password: dto.newPassword,
+      password: dto.new_password,
     });
     if (updErr) throw new BadRequestException(updErr.message);
 
     return {
-      accessToken: data.session?.access_token,
-      refreshToken: data.session?.refresh_token,
-      expiresIn: data.session?.expires_in,
+      access_token: data.session?.access_token,
+      refresh_token: data.session?.refresh_token,
+      expires_in: data.session?.expires_in,
     };
   }
 }

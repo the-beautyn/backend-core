@@ -275,10 +275,10 @@ describe('SavedSalons (e2e)', () => {
     expect(res.body.data.total).toBe(2);
 
     const first = res.body.data.items[0];
-    expect(first.salonId).toBe(salons[1].id);
-    expect(first.salonName).toBe('Glamour Studio');
+    expect(first.salon_id).toBe(salons[1].id);
+    expect(first.salon_name).toBe('Glamour Studio');
     expect(first.city).toBe('Lviv');
-    expect(first).toHaveProperty('savedAt');
+    expect(first).toHaveProperty('saved_at');
   });
 
   it('GET /api/v1/saved-salons with search filter', async () => {
@@ -293,7 +293,7 @@ describe('SavedSalons (e2e)', () => {
       .expect(200);
 
     expect(res.body.data.items).toHaveLength(1);
-    expect(res.body.data.items[0].salonName).toBe('Beauty Palace');
+    expect(res.body.data.items[0].salon_name).toBe('Beauty Palace');
     expect(res.body.data.total).toBe(1);
   });
 

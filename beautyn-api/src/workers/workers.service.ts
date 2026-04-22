@@ -223,18 +223,18 @@ export class WorkersService {
     const entity = this.mapCrmWorkerToEntity(worker);
     return {
       id: entity.crmWorkerId ?? uuidV5FromStrings('workers-preview', salonId, worker.externalId ?? entity.firstName + ' ' + entity.lastName),
-      crmWorkerId: entity.crmWorkerId ?? null,
-      salonId,
-      firstName: entity.firstName,
-      lastName: entity.lastName,
+      crm_worker_id: entity.crmWorkerId ?? null,
+      salon_id: salonId,
+      first_name: entity.firstName,
+      last_name: entity.lastName,
       position: entity.position ?? null,
       description: entity.description ?? null,
       email: entity.email ?? null,
       phone: entity.phone ?? null,
-      photoUrl: entity.photoUrl ?? null,
-      isActive: entity.isActive ?? true,
-      createdAt: worker.updatedAtIso ? new Date(worker.updatedAtIso) : new Date(),
-      updatedAt: worker.updatedAtIso ? new Date(worker.updatedAtIso) : new Date(),
+      photo_url: entity.photoUrl ?? null,
+      is_active: entity.isActive ?? true,
+      created_at: worker.updatedAtIso ? new Date(worker.updatedAtIso) : new Date(),
+      updated_at: worker.updatedAtIso ? new Date(worker.updatedAtIso) : new Date(),
     };
   }
 

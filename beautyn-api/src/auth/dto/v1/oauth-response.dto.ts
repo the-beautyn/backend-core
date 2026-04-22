@@ -5,29 +5,29 @@ export class OAuthResponseDto {
     example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
     description: 'JWT access token',
   })
-  accessToken: string;
+  access_token: string;
 
   @ApiProperty({
     example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
     description: 'JWT refresh token',
   })
-  refreshToken: string;
+  refresh_token: string;
 
   @ApiProperty({
     example: 900,
     description: 'Expiration time in seconds',
   })
-  expiresIn: number;
+  expires_in: number;
 
   @ApiProperty({
     example: true,
     description: 'Whether this is the first time this user signed in (new account created)',
   })
-  isNewUser: boolean;
+  is_new_user: boolean;
 
   @ApiProperty({
     example: true,
     description: 'Whether phone OTP verification is required before the user can proceed',
   })
-  phoneVerificationRequired: boolean;
+  phone_verification_required: boolean;
 }

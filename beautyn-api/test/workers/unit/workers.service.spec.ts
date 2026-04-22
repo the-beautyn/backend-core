@@ -68,11 +68,11 @@ describe('WorkersService', () => {
       expect(page1.limit).toBe(1);
       expect(page1.total).toBe(2);
       expect(page1.items).toHaveLength(1);
-      expect(page1.items[0].firstName).toBe('John');
+      expect(page1.items[0].first_name).toBe('John');
 
       const page2 = await service.listPublic({ salon_id: 'salon1', q: 'john', active: true, page: 2, limit: 1 } as any);
       expect(page2.items).toHaveLength(1);
-      expect(page2.items[0].lastName).toBe('Johnson');
+      expect(page2.items[0].last_name).toBe('Johnson');
     });
   });
 

@@ -314,10 +314,10 @@ describe('HomeFeed (e2e)', () => {
       expect(res.body.data.categories).toBeDefined();
       expect(res.body.data.categories.length).toBeGreaterThanOrEqual(1);
       expect(res.body.data.categories[0].name).toBe('Nails');
-      expect(res.body.data.categories[0].imageUrl).toBe('https://img.test/nails.jpg');
+      expect(res.body.data.categories[0].image_url).toBe('https://img.test/nails.jpg');
       expect(res.body.data.sections).toEqual([]);
-      expect(res.body.data.nextBooking).toBeUndefined();
-      expect(res.body.data.savedSalons).toBeUndefined();
+      expect(res.body.data.next_booking).toBeUndefined();
+      expect(res.body.data.saved_salons).toBeUndefined();
     });
 
     it('returns popular section when configured', async () => {
@@ -343,7 +343,7 @@ describe('HomeFeed (e2e)', () => {
       expect(res.body.data.sections[0].items.length).toBeGreaterThanOrEqual(1);
       expect(res.body.data.sections[0].items[0]).toHaveProperty('id');
       expect(res.body.data.sections[0].items[0]).toHaveProperty('name');
-      expect(res.body.data.sections[0].items[0]).toHaveProperty('ratingAvg');
+      expect(res.body.data.sections[0].items[0]).toHaveProperty('rating_avg');
     });
 
     it('only includes active sections', async () => {
@@ -384,10 +384,10 @@ describe('HomeFeed (e2e)', () => {
         .set('Authorization', 'Bearer valid')
         .expect(200);
 
-      expect(res.body.data.nextBooking).toBeDefined();
-      expect(res.body.data.nextBooking.salonName).toBe('Beauty Palace');
-      expect(res.body.data.nextBooking.bookingId).toBeDefined();
-      expect(res.body.data.savedSalons).toBeDefined();
+      expect(res.body.data.next_booking).toBeDefined();
+      expect(res.body.data.next_booking.salon_name).toBe('Beauty Palace');
+      expect(res.body.data.next_booking.booking_id).toBeDefined();
+      expect(res.body.data.saved_salons).toBeDefined();
       expect(res.body.data.categories).toBeDefined();
     });
 
@@ -397,8 +397,8 @@ describe('HomeFeed (e2e)', () => {
         .set('Authorization', 'Bearer valid')
         .expect(200);
 
-      expect(res.body.data.nextBooking).toBeNull();
-      expect(res.body.data.savedSalons).toEqual([]);
+      expect(res.body.data.next_booking).toBeNull();
+      expect(res.body.data.saved_salons).toEqual([]);
     });
 
     it('marks isSaved on section salon cards', async () => {
@@ -429,8 +429,8 @@ describe('HomeFeed (e2e)', () => {
       const items = res.body.data.sections[0].items;
       const saved = items.find((i: any) => i.id === salons[0].id);
       const notSaved = items.find((i: any) => i.id === salons[1].id);
-      expect(saved?.isSaved).toBe(true);
-      expect(notSaved?.isSaved).toBe(false);
+      expect(saved?.is_saved).toBe(true);
+      expect(notSaved?.is_saved).toBe(false);
     });
   });
 

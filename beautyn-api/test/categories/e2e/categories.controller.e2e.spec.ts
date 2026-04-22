@@ -146,14 +146,14 @@ describe('CategoriesController (e2e)', () => {
   it('POST /api/v1/salons/:salonId/categories creates category for owner', async () => {
     service.create.mockResolvedValue({
       id: 'cat-1',
-      salonId: 'salon-1',
-      crmCategoryId: '123',
+      salon_id: 'salon-1',
+      crm_category_id: '123',
       name: 'VIP',
       color: null,
-      sortOrder: null,
-      serviceIds: [],
-      createdAt: '2024-01-01T00:00:00.000Z' as unknown as Date,
-      updatedAt: '2024-01-01T00:00:00.000Z' as unknown as Date,
+      sort_order: null,
+      service_ids: [],
+      created_at: '2024-01-01T00:00:00.000Z' as unknown as Date,
+      updated_at: '2024-01-01T00:00:00.000Z' as unknown as Date,
     });
 
     const res = await request(app.getHttpServer())

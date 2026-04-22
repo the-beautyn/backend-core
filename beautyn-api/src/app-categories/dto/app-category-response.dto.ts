@@ -14,17 +14,17 @@ export class AppCategoryResponseDto {
   keywords!: string[];
 
   @ApiProperty({ required: false })
-  sortOrder?: number | null;
+  sort_order?: number | null;
 
   @ApiProperty({ required: false })
-  imageUrl?: string | null;
+  image_url?: string | null;
 
   @ApiProperty()
-  isActive!: boolean;
+  is_active!: boolean;
 
   @ApiProperty()
-  createdAt!: Date;
+  created_at!: Date;
 
   @ApiProperty()
-  updatedAt!: Date;
+  updated_at!: Date;
 }

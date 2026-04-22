@@ -43,8 +43,8 @@ export class HomeFeedService {
         this.fetchNextBooking(params.userId),
         this.savedSalonsService.listByUser(params.userId, { limit: 10 }),
       ]);
-      response.nextBooking = nextBookingResult;
-      response.savedSalons = savedSalonsResult.items;
+      response.next_booking = nextBookingResult;
+      response.saved_salons = savedSalonsResult.items;
     }
 
     const sectionResults = await Promise.all(
@@ -60,7 +60,7 @@ export class HomeFeedService {
         const savedSet = await this.savedSalonsService.isSavedBatch(params.userId, uniqueSalonIds);
         for (const section of response.sections) {
           for (const item of section.items) {
-            item.isSaved = savedSet.has(item.id);
+            item.is_saved = savedSet.has(item.id);
           }
         }
       }

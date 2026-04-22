@@ -147,7 +147,7 @@ describe('ServicesService', () => {
       const res = await service.create('salon-1', { title: 'Cut', category_id: 'cat-1', duration: 3600, price: 1000 } as any);
       expect(integration.createService).toHaveBeenCalledWith('salon-1', 'ALTEGIO', expect.objectContaining({ name: 'Cut', categoryExternalId: 'ext-cat' }));
       expect((prisma as any).service.create).toHaveBeenCalled();
-      expect(res).toMatchObject({ title: 'Cut', crmServiceId: 'ext-svc', duration: 3600, price: 1000 });
+      expect(res).toMatchObject({ title: 'Cut', crm_service_id: 'ext-svc', duration: 3600, price: 1000 });
       // category link updated
       expect(prisma.category.update).toHaveBeenCalledWith({
         where: { id: 'cat-1' },
