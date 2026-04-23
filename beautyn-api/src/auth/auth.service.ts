@@ -227,9 +227,10 @@ export class AuthService {
       token_hash: dto.otp_token,
     });
     if (error) throw new BadRequestException(error.message);
-    if (!data.user) {
+    if (!data.user?.email) {
       throw new BadRequestException('OTP verification did not return a user');
     }
+    const email = data.user.email;
 
     // Update via the admin API rather than `this.sb.auth.updateUser(...)`.
     // updateUser() reads from the shared client's _currentSession, which
@@ -243,10 +244,22 @@ export class AuthService {
     );
     if (updErr) throw new BadRequestException(updErr.message);
 
+    // The recovery session from verifyOtp is invalidated once the password
+    // changes, so we sign in with the new password to mint fresh tokens the
+    // client can actually use for authenticated requests.
+    const { data: signInData, error: signInErr } = await this.sb.auth.signInWithPassword({
+      email,
+      password: dto.new_password,
+    });
+    if (signInErr) throw new UnauthorizedException(signInErr.message);
+    if (!signInData.session) {
+      throw new UnauthorizedException('Failed to sign in after password reset');
+    }
+
     return {
-      access_token: data.session?.access_token,
-      refresh_token: data.session?.refresh_token,
-      expires_in: data.session?.expires_in,
+      access_token: signInData.session.access_token,
+      refresh_token: signInData.session.refresh_token,
+      expires_in: signInData.session.expires_in,
     };
   }
 }
