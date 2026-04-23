@@ -56,9 +56,7 @@ export class AuthPublicController {
 
   @Post('check-email')
   @UseGuards(UserThrottlerGuard)
-  @Throttle({
-    'email-check': { limit: 10, ttl: 60 * 1000 },
-  })
+  @Throttle({ 'email-check': {} })
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Check if email is registered and how' })
   @ApiBody({ type: CheckEmailDto })
@@ -157,10 +155,7 @@ export class AuthPublicController {
 
   @Post('phone/send-otp')
   @UseGuards(JwtAuthGuard, UserThrottlerGuard)
-  @Throttle({
-    'otp-burst': { limit: 1, ttl: 60 * 1000 },
-    'otp-hour': { limit: 3, ttl: 60 * 60 * 1000 },
-  })
+  @Throttle({ 'otp-burst': {}, 'otp-hour': {} })
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Send phone verification OTP' })
@@ -179,9 +174,7 @@ export class AuthPublicController {
 
   @Post('phone/verify-otp')
   @UseGuards(JwtAuthGuard, UserThrottlerGuard)
-  @Throttle({
-    'otp-verify': { limit: 10, ttl: 5 * 60 * 1000 },
-  })
+  @Throttle({ 'otp-verify': {} })
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Verify phone OTP code' })
@@ -204,10 +197,7 @@ export class AuthPublicController {
 
   @Post('phone/resend-otp')
   @UseGuards(JwtAuthGuard, UserThrottlerGuard)
-  @Throttle({
-    'otp-burst': { limit: 1, ttl: 60 * 1000 },
-    'otp-hour': { limit: 3, ttl: 60 * 60 * 1000 },
-  })
+  @Throttle({ 'otp-burst': {}, 'otp-hour': {} })
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Resend phone verification OTP' })
