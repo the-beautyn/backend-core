@@ -20,16 +20,20 @@ export class UserThrottlerGuard extends ThrottlerGuard {
   // names it in @Throttle({...}). Without this, @nestjs/throttler runs every
   // registered throttler on every guarded request, which caused send-otp to
   // tick otp-verify's bucket (and vice versa).
+  //
+  // Presence check uses Reflect.hasMetadata rather than reading the limit
+  // value — that way routes can opt in with `@Throttle({ 'otp-burst': {} })`
+  // and inherit limit/ttl from the module config (env-sourced), without
+  // having to hardcode numbers at the call site.
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const handler = context.getHandler();
     const classRef = context.getClass();
 
     for (const t of this.throttlers) {
-      const hasExplicitConfig = this.reflector.getAllAndOverride(
-        `${THROTTLER_LIMIT}${t.name}`,
-        [handler, classRef],
-      );
-      if (!hasExplicitConfig) {
+      const key = `${THROTTLER_LIMIT}${t.name}`;
+      const declared =
+        Reflect.hasMetadata(key, handler) || Reflect.hasMetadata(key, classRef);
+      if (!declared) {
         Reflect.defineMetadata(`${THROTTLER_SKIP}${t.name}`, true, handler);
       }
     }
