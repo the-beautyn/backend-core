@@ -22,7 +22,8 @@
       "Bash(npx dotenv:*)",
       "Bash(npm install:*)",
       "Bash(xargs ls:*)",
-      "Bash(xcodebuild test:*)"
+      "Bash(xcodebuild test:*)",
+      "Bash(git *)"
     ]
   }
 }
