@@ -47,6 +47,11 @@ Thumbs.db
 .env*
 
 ####################################
+# 🤖  Claude Code (machine-local overrides)
+####################################
+/beautyn-api/.claude/settings.local.json
+
+####################################
 # 📦  Package-manager lockfiles (scoped)
 /beautyn-api/package-lock.json
 /beautyn-api/yarn.lock
