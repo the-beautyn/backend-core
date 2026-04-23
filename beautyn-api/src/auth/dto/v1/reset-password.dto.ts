@@ -27,7 +27,7 @@ export class ResetPasswordDto {
   })
   @Matches(PASSWORD_COMPOSITION, {
     message:
-      'new_password must contain at least one uppercase letter, one lowercase letter, one digit, and one special character',
+      'new_password must contain at least one uppercase letter, one lowercase letter, and one digit',
   })
   new_password: string;
 }

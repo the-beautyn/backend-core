@@ -449,9 +449,20 @@ describe('AuthService', () => {
         data: { user: mockSupabaseUser, session: mockSession },
         error: null,
       };
+      const freshSession = {
+        access_token: 'fresh-access-token',
+        refresh_token: 'fresh-refresh-token',
+        expires_in: 3600,
+        token_type: 'bearer',
+        user: mockSupabaseUser,
+      };
       (supabaseClient.auth.verifyOtp as unknown as jest.Mock).mockResolvedValue(mockVerifyOtpResponse);
       (supabaseClient.auth.admin.updateUserById as unknown as jest.Mock).mockResolvedValue({
         data: { user: mockSupabaseUser },
+        error: null,
+      });
+      (supabaseClient.auth.signInWithPassword as unknown as jest.Mock).mockResolvedValue({
+        data: { user: mockSupabaseUser, session: freshSession },
         error: null,
       });
 
@@ -467,10 +478,16 @@ describe('AuthService', () => {
         mockSupabaseUser.id,
         { password: resetPasswordDto.new_password },
       );
+      // Supabase revokes the recovery session once the password changes, so
+      // we must mint fresh tokens via signInWithPassword before returning.
+      expect(supabaseClient.auth.signInWithPassword).toHaveBeenCalledWith({
+        email: mockSupabaseUser.email,
+        password: resetPasswordDto.new_password,
+      });
       expect(result).toEqual({
-        access_token: mockSession.access_token,
-        refresh_token: mockSession.refresh_token,
-        expires_in: mockSession.expires_in,
+        access_token: freshSession.access_token,
+        refresh_token: freshSession.refresh_token,
+        expires_in: freshSession.expires_in,
       });
     });
 

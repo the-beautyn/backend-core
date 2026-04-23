@@ -432,8 +432,21 @@ describe('Auth (e2e)', () => {
         error: null,
       };
 
+      const freshSession = {
+        access_token: 'fresh-access-token',
+        refresh_token: 'fresh-refresh-token',
+        expires_in: 3600,
+        token_type: 'bearer',
+        user: mockUser,
+      };
+      const mockSignInResponse = {
+        data: { user: mockUser, session: freshSession },
+        error: null,
+      };
+
       (supabaseClient.auth.verifyOtp as jest.Mock).mockResolvedValue(mockVerifyOtpResponse);
       (supabaseClient.auth.admin.updateUserById as jest.Mock).mockResolvedValue(mockUpdateUserResponse);
+      (supabaseClient.auth.signInWithPassword as jest.Mock).mockResolvedValue(mockSignInResponse);
 
       // Act & Assert
       const response = await request(app.getHttpServer())
@@ -441,10 +454,14 @@ describe('Auth (e2e)', () => {
         .send(resetPasswordDto)
         .expect(200);
 
+      expect(supabaseClient.auth.signInWithPassword).toHaveBeenCalledWith({
+        email: mockUser.email,
+        password: resetPasswordDto.new_password,
+      });
       expect(response.body).toEqual({
-        access_token: mockSession.access_token,
-        refresh_token: mockSession.refresh_token,
-        expires_in: mockSession.expires_in,
+        access_token: freshSession.access_token,
+        refresh_token: freshSession.refresh_token,
+        expires_in: freshSession.expires_in,
       });
     });
 
