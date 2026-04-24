@@ -3,6 +3,7 @@ import { ConflictException } from '@nestjs/common';
 import { UserService, computeProfileCreated } from '../../src/user/user.service';
 import { UserRepository } from '../../src/user/user.repository';
 import { PhoneVerificationService } from '../../src/auth/phone-verification.service';
+import { UserSettingsService } from '../../src/user-settings/user-settings.service';
 import { Prisma, UserRole, Users } from '@prisma/client';
 
 const baseUser: Users = {
@@ -48,6 +49,13 @@ describe('UserService', () => {
         {
           provide: PhoneVerificationService,
           useValue: { isEnabled: jest.fn().mockReturnValue(true) },
+        },
+        {
+          provide: UserSettingsService,
+          useValue: {
+            getSettingsIfAny: jest.fn().mockResolvedValue(null),
+            hasSettings: jest.fn().mockReturnValue(false),
+          },
         },
       ],
     }).compile();

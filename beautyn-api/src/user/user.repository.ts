@@ -75,6 +75,8 @@ export class UserRepository {
         ...(profile?.secondName ? { secondName: profile.secondName } : {}),
         ...(profile?.phone ? { phone: profile.phone } : {}),
         ...(profile?.authProvider ? { authProvider: profile.authProvider } : {}),
+        ...(role === UserRole.client ? { clientSettings: { create: {} } } : {}),
+        ...(role === UserRole.owner ? { ownerSettings: { create: {} } } : {}),
       },
       select: userSelect,
     });

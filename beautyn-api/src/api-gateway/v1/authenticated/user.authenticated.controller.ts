@@ -3,6 +3,7 @@ import {
   Get,
   Patch,
   Body,
+  Query,
   Req,
   UseGuards,
   UseInterceptors,
@@ -13,6 +14,7 @@ import {
   ApiOkResponse,
   ApiBearerAuth,
   ApiBody,
+  ApiQuery,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { Request } from 'express';
@@ -33,12 +35,26 @@ export class UserAuthenticatedController {
 
   @Get('me')
   @ApiOperation({ summary: 'Get current user profile' })
+  @ApiQuery({
+    name: 'include',
+    required: false,
+    description:
+      'Comma-separated list of optional expansions. Supported: "settings".',
+    example: 'settings',
+  })
   @ApiOkResponse(envelopeRef(UserResponseDto))
   @ApiUnauthorizedResponse(
     envelopeErrorSchema({ statusCode: 401, message: 'Unauthorized', error: 'Unauthorized' })
   )
-  async me(@Req() req: Request & { user: { id: string } }) {
-    return this.userService.findById(req.user.id);
+  async me(
+    @Req() req: Request & { user: { id: string } },
+    @Query('include') include?: string,
+  ) {
+    const includeSettings = (include ?? '')
+      .split(',')
+      .map((s) => s.trim())
+      .includes('settings');
+    return this.userService.findById(req.user.id, { includeSettings });
   }
 
   @Patch('update')

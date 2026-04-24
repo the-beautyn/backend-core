@@ -10,6 +10,7 @@ import { UserResponseDto } from './dto/user-response.dto';
 import { NotificationUserDto } from './dto/notification-user.dto';
 import { Prisma, Users, UserRole, AuthProvider } from '@prisma/client';
 import { PhoneVerificationService } from '../auth/phone-verification.service';
+import { UserSettingsService } from '../user-settings/user-settings.service';
 
 const PHONE_CONFLICT_MESSAGE = 'Phone number is already in use';
 
@@ -41,6 +42,7 @@ export class UserService {
   constructor(
     private readonly repo: UserRepository,
     private readonly phoneVerification: PhoneVerificationService,
+    private readonly userSettings: UserSettingsService,
   ) {}
 
   private toResponse(user: Users): UserResponseDto {
@@ -61,12 +63,19 @@ export class UserService {
     };
   }
 
-  async findById(id: string): Promise<UserResponseDto> {
+  async findById(
+    id: string,
+    opts?: { includeSettings?: boolean },
+  ): Promise<UserResponseDto> {
     const user = await this.repo.findById(id);
     if (!user) {
       throw new NotFoundException(`User not found with ID: ${id}`);
     }
-    return this.toResponse(user);
+    const response = this.toResponse(user);
+    if (opts?.includeSettings) {
+      response.settings = await this.userSettings.getSettingsIfAny(user.id, user.role);
+    }
+    return response;
   }
 
   async updateProfile(

@@ -45,8 +45,36 @@ model Users {
   brandMemberships      BrandMember[]
   searchHistory         SearchHistory[]
   savedSalons           SavedSalon[]
+  clientSettings        ClientSettings?
+  ownerSettings         OwnerSettings?
 
   @@map("users")
+}
+
+model ClientSettings {
+  userId                    String   @id @map("user_id") @db.Uuid
+  pushNotificationsEnabled  Boolean  @default(true) @map("push_notifications_enabled")
+  emailNotificationsEnabled Boolean  @default(true) @map("email_notifications_enabled")
+  smsNotificationsEnabled   Boolean  @default(true) @map("sms_notifications_enabled")
+  createdAt                 DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                 DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user Users @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("client_settings")
+}
+
+model OwnerSettings {
+  userId                     String   @id @map("user_id") @db.Uuid
+  inAppNotificationsEnabled  Boolean  @default(true) @map("in_app_notifications_enabled")
+  emailNotificationsEnabled  Boolean  @default(true) @map("email_notifications_enabled")
+  smsNotificationsEnabled    Boolean  @default(true) @map("sms_notifications_enabled")
+  createdAt                  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                  DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user Users @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("owner_settings")
 }
 
 /// Enum mapped to existing Postgres type `user_role`

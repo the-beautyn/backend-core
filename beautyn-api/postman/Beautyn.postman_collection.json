@@ -489,6 +489,14 @@
                 "v1",
                 "user",
                 "me"
+              ],
+              "query": [
+                {
+                  "key": "include",
+                  "value": "settings",
+                  "description": "Comma-separated expansions. Supported: \"settings\".",
+                  "disabled": true
+                }
               ]
             }
           },
@@ -525,6 +533,83 @@
             "body": {
               "mode": "raw",
               "raw": "{\n  \"name\": \"{{name}}\",\n  \"second_name\": \"{{secondName}}\",\n  \"phone\": \"{{$randomPhoneNumber}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "User Settings",
+      "item": [
+        {
+          "name": "get_settings",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/user/settings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "user",
+                "settings"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "update_notifications",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/user/settings/notifications",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "user",
+                "settings",
+                "notifications"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"push_enabled\": true,\n  \"in_app_enabled\": true,\n  \"email_enabled\": true,\n  \"sms_enabled\": true\n}",
               "options": {
                 "raw": {
                   "language": "json"

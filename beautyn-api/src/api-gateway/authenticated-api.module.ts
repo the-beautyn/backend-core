@@ -33,12 +33,15 @@ import { SavedSalonsController } from './v1/authenticated/saved-salons.controlle
 import { HomeFeedModule } from '../home-feed/home-feed.module';
 import { HomeFeedSectionsAdminController } from './v1/authenticated/home-feed-sections.admin.controller';
 import { StorageController } from './v1/authenticated/storage.controller';
+import { UserSettingsModule } from '../user-settings/user-settings.module';
+import { UserSettingsAuthenticatedController } from './v1/authenticated/user-settings.authenticated.controller';
 
 
 @Module({
-  imports: [UserModule, OnboardingModule, CrmSalonChangesModule, SalonModule, CategoriesModule, ServicesModule, WorkersModule, AppCategoriesModule, SearchModule, AltegioBookingModule, BookingModule, EasyweekBookingModule, CrmIntegrationModule, BrandModule, SavedSalonsModule, HomeFeedModule],
+  imports: [UserModule, UserSettingsModule, OnboardingModule, CrmSalonChangesModule, SalonModule, CategoriesModule, ServicesModule, WorkersModule, AppCategoriesModule, SearchModule, AltegioBookingModule, BookingModule, EasyweekBookingModule, CrmIntegrationModule, BrandModule, SavedSalonsModule, HomeFeedModule],
   controllers: [
     UserAuthenticatedController,
+    UserSettingsAuthenticatedController,
     OnboardingController,
     CrmSalonChangesController,
     SalonsAuthenticatedController,
