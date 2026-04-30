@@ -54,6 +54,9 @@ export class UserService {
       second_name: user.secondName ?? null,
       phone: user.phone ?? null,
       avatar_url: user.avatarUrl ?? null,
+      birth_date: user.birthDate ? user.birthDate.toISOString().slice(0, 10) : null,
+      city: user.city ?? null,
+      sex: user.sex ?? null,
       auth_provider: user.authProvider,
       is_phone_verified: user.isPhoneVerified,
       is_profile_created: user.isProfileCreated,
@@ -108,11 +111,19 @@ export class UserService {
       isPhoneVerified,
     );
 
+    const birthDate =
+      dto.birth_date !== undefined ? (dto.birth_date ? new Date(dto.birth_date) : null) : undefined;
+    const city =
+      dto.city !== undefined ? (dto.city?.trim() ? dto.city.trim() : null) : undefined;
+
     const data: Partial<Users> = {
       ...(dto.name !== undefined ? { name } : {}),
       ...(dto.second_name !== undefined ? { secondName } : {}),
       ...(dto.phone !== undefined ? { phone, isPhoneVerified } : {}),
       ...(dto.avatar_url !== undefined ? { avatarUrl } : {}),
+      ...(birthDate !== undefined ? { birthDate } : {}),
+      ...(city !== undefined ? { city } : {}),
+      ...(dto.sex !== undefined ? { sex: dto.sex } : {}),
       isProfileCreated,
     };
 

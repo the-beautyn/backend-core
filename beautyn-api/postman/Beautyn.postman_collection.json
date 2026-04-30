@@ -532,7 +532,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"{{name}}\",\n  \"second_name\": \"{{secondName}}\",\n  \"phone\": \"{{$randomPhoneNumber}}\"\n}",
+              "raw": "{\n  \"name\": \"{{name}}\",\n  \"second_name\": \"{{secondName}}\",\n  \"phone\": \"{{$randomPhoneNumber}}\",\n  \"birth_date\": \"2002-02-21\",\n  \"city\": \"Львів\",\n  \"sex\": \"female\"\n}",
               "options": {
                 "raw": {
                   "language": "json"

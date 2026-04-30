@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional, getSchemaPath } from '@nestjs/swagger';
-import { UserRole, AuthProvider } from '@prisma/client';
+import { UserRole, AuthProvider, Sex } from '@prisma/client';
 import { Expose } from 'class-transformer';
 import { ClientSettingsResponseDto } from '../../client-settings/dto/client-settings-response.dto';
 import { OwnerSettingsResponseDto } from '../../owner-settings/dto/owner-settings-response.dto';
@@ -32,6 +32,22 @@ export class UserResponseDto {
   @ApiProperty({ example: 'https://example.com/avatar.png', nullable: true, required: false })
   @Expose()
   avatar_url!: string | null;
+
+  @ApiProperty({ example: '2002-02-21', nullable: true, required: false })
+  @Expose()
+  birth_date!: string | null;
+
+  @ApiProperty({ example: 'Львів', nullable: true, required: false })
+  @Expose()
+  city!: string | null;
+
+  @ApiProperty({
+    enum: ['male', 'female', 'prefer_not_to_say', 'other'],
+    nullable: true,
+    required: false,
+  })
+  @Expose()
+  sex!: Sex | null;
 
   @ApiProperty({ enum: ['email', 'apple', 'google'], example: 'email' })
   @Expose()

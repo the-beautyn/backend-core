@@ -1,5 +1,14 @@
-import { IsOptional, IsString, IsUrl } from 'class-validator';
+import {
+  IsEnum,
+  IsISO8601,
+  IsOptional,
+  IsString,
+  IsUrl,
+  Matches,
+  MaxLength,
+} from 'class-validator';
 import { Transform } from 'class-transformer';
+import { Sex } from '@prisma/client';
 import { IsAllowedAvatarDomain } from '../../shared/validators/is-allowed-avatar-domain.validator';
 import { IsValidPhone } from '../../shared/validators/is-valid-phone.validator';
 import { normalizePhone } from '../../shared/validators/normalize-phone';
@@ -28,4 +37,18 @@ export class UpdateUserDto {
   @IsUrl({ protocols: ['https'] })
   @IsAllowedAvatarDomain({ message: 'avatar_url must be hosted on an allowed domain.' })
   avatar_url?: string;
+
+  @IsOptional()
+  @IsISO8601({ strict: true }, { message: 'birth_date must be an ISO date (YYYY-MM-DD).' })
+  @Matches(/^\d{4}-\d{2}-\d{2}$/, { message: 'birth_date must be YYYY-MM-DD.' })
+  birth_date?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  city?: string;
+
+  @IsOptional()
+  @IsEnum(Sex)
+  sex?: Sex;
 }
