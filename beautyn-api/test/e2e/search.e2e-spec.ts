@@ -10,7 +10,9 @@ import { SearchSuggestionsService } from '../../src/search/search-suggestions.se
 import { SearchHistoryService } from '../../src/search/search-history.service';
 import { SearchQueryBuilderService } from '../../src/search/search-query-builder.service';
 import { GeoLocationService } from '../../src/search/geo-location.service';
+import { SavedSalonsService } from '../../src/saved-salons/saved-salons.service';
 import { JwtAuthGuard } from '../../src/shared/guards/jwt-auth.guard';
+import { OptionalJwtAuthGuard } from '../../src/shared/guards/optional-jwt-auth.guard';
 import { TransformInterceptor } from '../../src/shared/interceptors/transform.interceptor';
 import { Reflector } from '@nestjs/core';
 import { SearchPublicController } from '../../src/api-gateway/v1/public/search.public.controller';
@@ -74,6 +76,18 @@ describe('Search API (e2e)', () => {
     addVisit: jest.fn().mockResolvedValue(undefined),
   };
 
+  const mockSavedSalons: Partial<SavedSalonsService> = {
+    isSavedBatch: jest.fn().mockResolvedValue(new Set<string>()),
+  };
+
+  const mockOptionalJwtGuard = {
+    canActivate: jest.fn().mockImplementation((context) => {
+      const req = context.switchToHttp().getRequest();
+      req.user = null;
+      return true;
+    }),
+  };
+
   const mockJwtGuard = {
     canActivate: jest.fn().mockImplementation((context) => {
       const req = context.switchToHttp().getRequest();
@@ -95,10 +109,13 @@ describe('Search API (e2e)', () => {
         { provide: SearchQueryBuilderService, useValue: mockQueryBuilder },
         { provide: GeoLocationService, useValue: mockGeo },
         { provide: SearchHistoryService, useValue: mockHistory },
+        { provide: SavedSalonsService, useValue: mockSavedSalons },
       ],
     })
       .overrideGuard(JwtAuthGuard)
       .useValue(mockJwtGuard)
+      .overrideGuard(OptionalJwtAuthGuard)
+      .useValue(mockOptionalJwtGuard)
       .compile();
 
     app = moduleFixture.createNestApplication();

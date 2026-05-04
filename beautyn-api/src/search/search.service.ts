@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { Request } from 'express';
+import { SavedSalonsService } from '../saved-salons/saved-salons.service';
 import { SearchRequestDto } from './dto/search-request.dto';
 import { SearchResponseDto, SearchResultDto } from './dto/search-response.dto';
 import { GeoLocationService, ResolvedGeoContext } from './geo-location.service';
@@ -11,9 +12,10 @@ export class SearchService {
   constructor(
     private readonly geo: GeoLocationService,
     private readonly queryBuilder: SearchQueryBuilderService,
+    private readonly savedSalons: SavedSalonsService,
   ) {}
 
-  async search(req: Request, dto: SearchRequestDto): Promise<SearchResultDto> {
+  async search(req: Request, dto: SearchRequestDto, userId: string | null): Promise<SearchResultDto> {
     const page = this.normalizePage(dto.page);
     const limit = this.normalizeLimit(dto.limit);
     const geoContext = this.geo.resolveGeoContext(req, dto);
@@ -25,6 +27,16 @@ export class SearchService {
       limit,
       total: result.total,
     };
+
+    if (userId !== null && response.items.length > 0) {
+      const savedSet = await this.savedSalons.isSavedBatch(
+        userId,
+        response.items.map((i) => i.salon_id),
+      );
+      for (const item of response.items) {
+        item.is_saved = savedSet.has(item.salon_id);
+      }
+    }
 
     const meta: Record<string, any> = {};
     if (effectiveRadiusKm !== undefined) {

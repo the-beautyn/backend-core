@@ -27,6 +27,9 @@ export class SearchResponseDto {
 
   @ApiPropertyOptional()
   image_url?: string;
+
+  @ApiPropertyOptional()
+  is_saved?: boolean;
 }
 
 export class SearchResultDto {
