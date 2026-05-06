@@ -204,4 +204,8 @@ export class UserService {
   async setAuthProvider(id: string, authProvider: AuthProvider): Promise<void> {
     await this.repo.updateById(id, { authProvider });
   }
+
+  async deleteById(id: string): Promise<void> {
+    await this.repo.deleteById(id);
+  }
 }

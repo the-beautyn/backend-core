@@ -7,6 +7,7 @@ import { RegisterDto } from '../../src/auth/dto/v1/register.dto';
 import { LoginDto } from '../../src/auth/dto/v1/login.dto';
 import { ForgotPasswordDto } from '../../src/auth/dto/v1/forgot-password.dto';
 import { ResetPasswordDto } from '../../src/auth/dto/v1/reset-password.dto';
+import { ChangePasswordDto } from '../../src/auth/dto/v1/change-password.dto';
 import { Prisma, UserRole } from '@prisma/client';
 import { ConfigService } from '@nestjs/config';
 import { PhoneVerificationService } from '../../src/auth/phone-verification.service';
@@ -56,6 +57,7 @@ describe('AuthService', () => {
       create: jest.fn(),
       createWithId: jest.fn(),
       findByEmail: jest.fn(),
+      findById: jest.fn(),
       setAuthProvider: jest.fn(),
     };
 
@@ -527,6 +529,128 @@ describe('AuthService', () => {
 
       await expect(service.resetPassword(resetPasswordDto)).rejects.toThrow(
         new BadRequestException(mockUpdateError.message),
+      );
+    });
+  });
+
+  describe('changePassword', () => {
+    const userId = mockSupabaseUser.id;
+    const changePasswordDto: ChangePasswordDto = {
+      current_password: 'CurrentPassword123!',
+      new_password: 'NewPassword456!',
+    };
+
+    const freshSession = {
+      access_token: 'fresh-access-token',
+      refresh_token: 'fresh-refresh-token',
+      expires_in: 3600,
+      token_type: 'bearer',
+      user: mockSupabaseUser,
+    };
+
+    it('verifies current password, rotates it via admin API, and mints fresh tokens', async () => {
+      userService.findById.mockResolvedValue(mockUser as never);
+      (supabaseClient.auth.signInWithPassword as unknown as jest.Mock)
+        .mockResolvedValueOnce({ data: { user: mockSupabaseUser, session: mockSession }, error: null })
+        .mockResolvedValueOnce({ data: { user: mockSupabaseUser, session: freshSession }, error: null });
+      (supabaseClient.auth.admin.updateUserById as unknown as jest.Mock).mockResolvedValue({
+        data: { user: mockSupabaseUser },
+        error: null,
+      });
+
+      const result = await service.changePassword(userId, changePasswordDto);
+
+      expect(userService.findById).toHaveBeenCalledWith(userId);
+      // First call verifies the current password.
+      expect(supabaseClient.auth.signInWithPassword).toHaveBeenNthCalledWith(1, {
+        email: mockUser.email,
+        password: changePasswordDto.current_password,
+      });
+      // Update goes through admin API scoped by userId — same race-avoidance
+      // rationale as resetPassword.
+      expect(supabaseClient.auth.admin.updateUserById).toHaveBeenCalledWith(userId, {
+        password: changePasswordDto.new_password,
+      });
+      // Second sign-in mints fresh tokens.
+      expect(supabaseClient.auth.signInWithPassword).toHaveBeenNthCalledWith(2, {
+        email: mockUser.email,
+        password: changePasswordDto.new_password,
+      });
+      expect(result).toEqual({
+        access_token: freshSession.access_token,
+        refresh_token: freshSession.refresh_token,
+        expires_in: freshSession.expires_in,
+      });
+    });
+
+    it('throws UnauthorizedException when the current password is wrong (and never touches admin API)', async () => {
+      userService.findById.mockResolvedValue(mockUser as never);
+      (supabaseClient.auth.signInWithPassword as unknown as jest.Mock).mockResolvedValueOnce({
+        data: { user: null, session: null },
+        error: { message: 'Invalid login credentials' },
+      });
+
+      await expect(service.changePassword(userId, changePasswordDto)).rejects.toThrow(
+        new UnauthorizedException('Current password is incorrect'),
+      );
+      expect(supabaseClient.auth.admin.updateUserById).not.toHaveBeenCalled();
+      // Must not silently issue new tokens after a failed verification.
+      expect(supabaseClient.auth.signInWithPassword).toHaveBeenCalledTimes(1);
+    });
+
+    it('throws BadRequestException when new password equals current (after verification, before update)', async () => {
+      const sameDto: ChangePasswordDto = {
+        current_password: 'SamePassword123!',
+        new_password: 'SamePassword123!',
+      };
+      userService.findById.mockResolvedValue(mockUser as never);
+      (supabaseClient.auth.signInWithPassword as unknown as jest.Mock).mockResolvedValueOnce({
+        data: { user: mockSupabaseUser, session: mockSession },
+        error: null,
+      });
+
+      await expect(service.changePassword(userId, sameDto)).rejects.toThrow(
+        new BadRequestException('New password must differ from current'),
+      );
+      expect(supabaseClient.auth.admin.updateUserById).not.toHaveBeenCalled();
+      // No second sign-in either — we abort before mutating anything.
+      expect(supabaseClient.auth.signInWithPassword).toHaveBeenCalledTimes(1);
+    });
+
+    it('throws BadRequestException when admin.updateUserById fails', async () => {
+      userService.findById.mockResolvedValue(mockUser as never);
+      (supabaseClient.auth.signInWithPassword as unknown as jest.Mock).mockResolvedValueOnce({
+        data: { user: mockSupabaseUser, session: mockSession },
+        error: null,
+      });
+      const updateError = { message: 'Password update failed' };
+      (supabaseClient.auth.admin.updateUserById as unknown as jest.Mock).mockResolvedValue({
+        data: { user: null },
+        error: updateError,
+      });
+
+      await expect(service.changePassword(userId, changePasswordDto)).rejects.toThrow(
+        new BadRequestException(updateError.message),
+      );
+      // Don't try to re-sign in if the update itself failed.
+      expect(supabaseClient.auth.signInWithPassword).toHaveBeenCalledTimes(1);
+    });
+
+    it('throws UnauthorizedException when the post-update sign-in fails', async () => {
+      userService.findById.mockResolvedValue(mockUser as never);
+      (supabaseClient.auth.signInWithPassword as unknown as jest.Mock)
+        .mockResolvedValueOnce({ data: { user: mockSupabaseUser, session: mockSession }, error: null })
+        .mockResolvedValueOnce({
+          data: { user: null, session: null },
+          error: { message: 'Token issuance failed' },
+        });
+      (supabaseClient.auth.admin.updateUserById as unknown as jest.Mock).mockResolvedValue({
+        data: { user: mockSupabaseUser },
+        error: null,
+      });
+
+      await expect(service.changePassword(userId, changePasswordDto)).rejects.toThrow(
+        new UnauthorizedException('Token issuance failed'),
       );
     });
   });

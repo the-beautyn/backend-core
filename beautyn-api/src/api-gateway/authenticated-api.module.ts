@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { UserModule } from '../user/user.module';
+import { AuthModule } from '../auth/auth.module';
 import { OnboardingModule } from '../onboarding/onboarding.module';
 import { CrmSalonChangesModule } from '../crm-salon-changes/crm-salon-changes.module';
 import { UserAuthenticatedController } from './v1/authenticated/user.authenticated.controller';
@@ -38,7 +39,7 @@ import { UserSettingsAuthenticatedController } from './v1/authenticated/user-set
 
 
 @Module({
-  imports: [UserModule, UserSettingsModule, OnboardingModule, CrmSalonChangesModule, SalonModule, CategoriesModule, ServicesModule, WorkersModule, AppCategoriesModule, SearchModule, AltegioBookingModule, BookingModule, EasyweekBookingModule, CrmIntegrationModule, BrandModule, SavedSalonsModule, HomeFeedModule],
+  imports: [AuthModule, UserModule, UserSettingsModule, OnboardingModule, CrmSalonChangesModule, SalonModule, CategoriesModule, ServicesModule, WorkersModule, AppCategoriesModule, SearchModule, AltegioBookingModule, BookingModule, EasyweekBookingModule, CrmIntegrationModule, BrandModule, SavedSalonsModule, HomeFeedModule],
   controllers: [
     UserAuthenticatedController,
     UserSettingsAuthenticatedController,

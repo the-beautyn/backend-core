@@ -11,6 +11,7 @@ import { EmailStatus } from './dto/v1/check-email-response.dto';
 import { OAuthSignInDto } from './dto/v1/oauth-sign-in.dto';
 import { ForgotPasswordDto } from './dto/v1/forgot-password.dto';
 import { ResetPasswordDto } from './dto/v1/reset-password.dto';
+import { ChangePasswordDto } from './dto/v1/change-password.dto';
 import { UserService } from '../user/user.service';
 import { ConfigService } from '@nestjs/config';
 import { SupabaseClient } from '@supabase/supabase-js';
@@ -210,6 +211,62 @@ export class AuthService {
     const { error } = await this.sb.auth.admin.signOut(accessToken);
     if (error) throw new BadRequestException(error.message);
     return { message: 'Logged out' };
+  }
+
+  async deleteAccount(userId: string) {
+    // Hard-delete the Supabase auth record first. Revokes all refresh
+    // tokens AND removes the auth.users row in one shot — after this
+    // returns the user is irrecoverable. If it fails we throw before
+    // touching app data, so a retry is safe.
+    const { error } = await this.sb.auth.admin.deleteUser(userId);
+    if (error) throw new BadRequestException(error.message);
+
+    // Cascade-clean app data. Children of `users` (client_settings,
+    // owner_settings, saved_salons, search_history, onboarding_step,
+    // brand_members) have ON DELETE CASCADE — one delete covers them.
+    // Bookings keep `userId` (nullable, no FK) so history stays.
+    await this.users.deleteById(userId);
+
+    return { success: true };
+  }
+
+  async changePassword(userId: string, dto: ChangePasswordDto) {
+    // findById throws NotFoundException if user doesn't exist.
+    const user = await this.users.findById(userId);
+
+    // Verify current password by attempting a sign-in with it.
+    const { error: signInErr } = await this.sb.auth.signInWithPassword({
+      email: user.email,
+      password: dto.current_password,
+    });
+    if (signInErr) throw new UnauthorizedException('Current password is incorrect');
+
+    // Reject if new password is the same as the current one.
+    if (dto.new_password === dto.current_password) {
+      throw new BadRequestException('New password must differ from current');
+    }
+
+    // Update the password via the admin API (avoids shared-client session races).
+    const { error: updErr } = await this.sb.auth.admin.updateUserById(userId, {
+      password: dto.new_password,
+    });
+    if (updErr) throw new BadRequestException(updErr.message);
+
+    // Mint fresh tokens with the new password.
+    const { data: newSessionData, error: newSignInErr } = await this.sb.auth.signInWithPassword({
+      email: user.email,
+      password: dto.new_password,
+    });
+    if (newSignInErr) throw new UnauthorizedException(newSignInErr.message);
+    if (!newSessionData.session) {
+      throw new UnauthorizedException('Failed to sign in after password change');
+    }
+
+    return {
+      access_token: newSessionData.session.access_token,
+      refresh_token: newSessionData.session.refresh_token,
+      expires_in: newSessionData.session.expires_in,
+    };
   }
 
   async forgotPassword({ email }: ForgotPasswordDto) {
