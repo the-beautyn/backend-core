@@ -32,6 +32,9 @@ model Users {
   secondName            String?           @map("second_name") @db.VarChar(100)
   phone                 String?           @db.VarChar(30)
   avatarUrl             String?           @map("avatar_url")
+  birthDate             DateTime?         @map("birth_date") @db.Date
+  city                  String?           @db.VarChar(120)
+  sex                   Sex?
   isProfileCreated      Boolean           @default(false) @map("is_profile_created")
   authProvider          AuthProvider      @default(email) @map("auth_provider")
   isPhoneVerified       Boolean           @default(false) @map("is_phone_verified")
@@ -45,8 +48,36 @@ model Users {
   brandMemberships      BrandMember[]
   searchHistory         SearchHistory[]
   savedSalons           SavedSalon[]
+  clientSettings        ClientSettings?
+  ownerSettings         OwnerSettings?
 
   @@map("users")
+}
+
+model ClientSettings {
+  userId                    String   @id @map("user_id") @db.Uuid
+  pushNotificationsEnabled  Boolean  @default(true) @map("push_notifications_enabled")
+  emailNotificationsEnabled Boolean  @default(true) @map("email_notifications_enabled")
+  smsNotificationsEnabled   Boolean  @default(true) @map("sms_notifications_enabled")
+  createdAt                 DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                 DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user Users @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("client_settings")
+}
+
+model OwnerSettings {
+  userId                     String   @id @map("user_id") @db.Uuid
+  inAppNotificationsEnabled  Boolean  @default(true) @map("in_app_notifications_enabled")
+  emailNotificationsEnabled  Boolean  @default(true) @map("email_notifications_enabled")
+  smsNotificationsEnabled    Boolean  @default(true) @map("sms_notifications_enabled")
+  createdAt                  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                  DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user Users @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("owner_settings")
 }
 
 /// Enum mapped to existing Postgres type `user_role`
@@ -64,6 +95,15 @@ enum AuthProvider {
   google @map("google")
 
   @@map("auth_provider")
+}
+
+enum Sex {
+  male              @map("male")
+  female            @map("female")
+  prefer_not_to_say @map("prefer_not_to_say")
+  other             @map("other")
+
+  @@map("sex")
 }
 
 enum OnboardingStepState {

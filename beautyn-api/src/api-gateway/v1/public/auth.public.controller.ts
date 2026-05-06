@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Controller,
   Post,
+  Delete,
   Body,
   HttpCode,
   HttpStatus,
@@ -126,6 +127,22 @@ export class AuthPublicController {
     const { accessToken } = req.user;
     await this.authService.logout(accessToken);
     return { success: true };
+  }
+
+  @Delete('account')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Delete the authenticated user account' })
+  @ApiBearerAuth()
+  @ApiOkResponse(envelopeSuccessOnly())
+  @ApiBadRequestResponse(
+    envelopeErrorSchema({ statusCode: 400, message: 'Bad Request', error: 'Bad Request' })
+  )
+  @ApiForbiddenResponse(
+    envelopeErrorSchema({ statusCode: 403, message: 'Forbidden', error: 'Forbidden' })
+  )
+  async deleteAccount(@Req() req: Request & { user: { id: string } }) {
+    return this.authService.deleteAccount(req.user.id);
   }
 
   @Post('forgot-password')

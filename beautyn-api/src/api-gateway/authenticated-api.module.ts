@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { UserModule } from '../user/user.module';
+import { AuthModule } from '../auth/auth.module';
 import { OnboardingModule } from '../onboarding/onboarding.module';
 import { CrmSalonChangesModule } from '../crm-salon-changes/crm-salon-changes.module';
 import { UserAuthenticatedController } from './v1/authenticated/user.authenticated.controller';
@@ -33,12 +34,15 @@ import { SavedSalonsController } from './v1/authenticated/saved-salons.controlle
 import { HomeFeedModule } from '../home-feed/home-feed.module';
 import { HomeFeedSectionsAdminController } from './v1/authenticated/home-feed-sections.admin.controller';
 import { StorageController } from './v1/authenticated/storage.controller';
+import { UserSettingsModule } from '../user-settings/user-settings.module';
+import { UserSettingsAuthenticatedController } from './v1/authenticated/user-settings.authenticated.controller';
 
 
 @Module({
-  imports: [UserModule, OnboardingModule, CrmSalonChangesModule, SalonModule, CategoriesModule, ServicesModule, WorkersModule, AppCategoriesModule, SearchModule, AltegioBookingModule, BookingModule, EasyweekBookingModule, CrmIntegrationModule, BrandModule, SavedSalonsModule, HomeFeedModule],
+  imports: [AuthModule, UserModule, UserSettingsModule, OnboardingModule, CrmSalonChangesModule, SalonModule, CategoriesModule, ServicesModule, WorkersModule, AppCategoriesModule, SearchModule, AltegioBookingModule, BookingModule, EasyweekBookingModule, CrmIntegrationModule, BrandModule, SavedSalonsModule, HomeFeedModule],
   controllers: [
     UserAuthenticatedController,
+    UserSettingsAuthenticatedController,
     OnboardingController,
     CrmSalonChangesController,
     SalonsAuthenticatedController,

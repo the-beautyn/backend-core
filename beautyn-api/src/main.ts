@@ -68,6 +68,10 @@ import { StorageUploadResponseDto } from './shared/storage/dto/upload-response.d
 import { CheckEmailResponseDto } from './auth/dto/v1/check-email-response.dto';
 import { OAuthResponseDto } from './auth/dto/v1/oauth-response.dto';
 import { VerifyOtpResponseDto } from './auth/dto/v1/verify-otp-response.dto';
+import { ClientSettingsResponseDto } from './client-settings/dto/client-settings-response.dto';
+import { ClientNotificationSettingsDto } from './client-settings/dto/client-notification-settings.dto';
+import { OwnerSettingsResponseDto } from './owner-settings/dto/owner-settings-response.dto';
+import { OwnerNotificationSettingsDto } from './owner-settings/dto/owner-notification-settings.dto';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -174,6 +178,11 @@ async function bootstrap() {
       CheckEmailResponseDto,
       OAuthResponseDto,
       VerifyOtpResponseDto,
+      // User settings
+      ClientSettingsResponseDto,
+      ClientNotificationSettingsDto,
+      OwnerSettingsResponseDto,
+      OwnerNotificationSettingsDto,
     ],
   });
   SwaggerModule.setup('api/docs', app, doc);

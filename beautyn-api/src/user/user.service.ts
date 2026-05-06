@@ -10,6 +10,7 @@ import { UserResponseDto } from './dto/user-response.dto';
 import { NotificationUserDto } from './dto/notification-user.dto';
 import { Prisma, Users, UserRole, AuthProvider } from '@prisma/client';
 import { PhoneVerificationService } from '../auth/phone-verification.service';
+import { UserSettingsService } from '../user-settings/user-settings.service';
 
 const PHONE_CONFLICT_MESSAGE = 'Phone number is already in use';
 
@@ -41,6 +42,7 @@ export class UserService {
   constructor(
     private readonly repo: UserRepository,
     private readonly phoneVerification: PhoneVerificationService,
+    private readonly userSettings: UserSettingsService,
   ) {}
 
   private toResponse(user: Users): UserResponseDto {
@@ -52,6 +54,9 @@ export class UserService {
       second_name: user.secondName ?? null,
       phone: user.phone ?? null,
       avatar_url: user.avatarUrl ?? null,
+      birth_date: user.birthDate ? user.birthDate.toISOString().slice(0, 10) : null,
+      city: user.city ?? null,
+      sex: user.sex ?? null,
       auth_provider: user.authProvider,
       is_phone_verified: user.isPhoneVerified,
       is_profile_created: user.isProfileCreated,
@@ -61,12 +66,19 @@ export class UserService {
     };
   }
 
-  async findById(id: string): Promise<UserResponseDto> {
+  async findById(
+    id: string,
+    opts?: { includeSettings?: boolean },
+  ): Promise<UserResponseDto> {
     const user = await this.repo.findById(id);
     if (!user) {
       throw new NotFoundException(`User not found with ID: ${id}`);
     }
-    return this.toResponse(user);
+    const response = this.toResponse(user);
+    if (opts?.includeSettings) {
+      response.settings = await this.userSettings.getSettingsIfAny(user.id, user.role);
+    }
+    return response;
   }
 
   async updateProfile(
@@ -99,11 +111,19 @@ export class UserService {
       isPhoneVerified,
     );
 
+    const birthDate =
+      dto.birth_date !== undefined ? (dto.birth_date ? new Date(dto.birth_date) : null) : undefined;
+    const city =
+      dto.city !== undefined ? (dto.city?.trim() ? dto.city.trim() : null) : undefined;
+
     const data: Partial<Users> = {
       ...(dto.name !== undefined ? { name } : {}),
       ...(dto.second_name !== undefined ? { secondName } : {}),
       ...(dto.phone !== undefined ? { phone, isPhoneVerified } : {}),
       ...(dto.avatar_url !== undefined ? { avatarUrl } : {}),
+      ...(birthDate !== undefined ? { birthDate } : {}),
+      ...(city !== undefined ? { city } : {}),
+      ...(dto.sex !== undefined ? { sex: dto.sex } : {}),
       isProfileCreated,
     };
 
@@ -183,5 +203,9 @@ export class UserService {
 
   async setAuthProvider(id: string, authProvider: AuthProvider): Promise<void> {
     await this.repo.updateById(id, { authProvider });
+  }
+
+  async deleteById(id: string): Promise<void> {
+    await this.repo.deleteById(id);
   }
 }

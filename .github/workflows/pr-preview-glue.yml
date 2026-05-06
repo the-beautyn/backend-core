@@ -134,11 +134,11 @@ jobs:
           CLEAN_POSTGRES_URL=$(echo "$POSTGRES_URL" | tr -d '"')
           CLEAN_POSTGRES_URL_NON_POOLING=$(echo "$POSTGRES_URL_NON_POOLING" | tr -d '"')
           CLEAN_SUPABASE_URL=$(echo "$SUPABASE_URL" | tr -d '"')
-          CLEAN_SUPABASE_DEFAULT_KEY=$(echo "$SUPABASE_DEFAULT_KEY" | tr -d '"')
+          CLEAN_SUPABASE_ANON_KEY=$(echo "$SUPABASE_ANON_KEY" | tr -d '"')
           CLEAN_SUPABASE_SERVICE_ROLE_KEY=$(echo "$SUPABASE_SERVICE_ROLE_KEY" | tr -d '"')
 
           # Validate
-          for var_name in CLEAN_POSTGRES_URL CLEAN_POSTGRES_URL_NON_POOLING CLEAN_SUPABASE_URL CLEAN_SUPABASE_DEFAULT_KEY CLEAN_SUPABASE_SERVICE_ROLE_KEY; do
+          for var_name in CLEAN_POSTGRES_URL CLEAN_POSTGRES_URL_NON_POOLING CLEAN_SUPABASE_URL CLEAN_SUPABASE_ANON_KEY CLEAN_SUPABASE_SERVICE_ROLE_KEY; do
             if [ -z "${!var_name}" ]; then
               echo "❌ ERROR: $var_name is empty after cleaning."
               exit 1
@@ -160,7 +160,7 @@ jobs:
           echo "::add-mask::$DATABASE_URL"
           echo "::add-mask::$DIRECT_URL"
           echo "::add-mask::$CLEAN_SUPABASE_SERVICE_ROLE_KEY"
-          echo "::add-mask::$CLEAN_SUPABASE_DEFAULT_KEY"
+          echo "::add-mask::$CLEAN_SUPABASE_ANON_KEY"
 
           echo "✅ DATABASE_URL built"
           echo "✅ DIRECT_URL built"
@@ -169,7 +169,7 @@ jobs:
           echo "BUILT_DATABASE_URL=$DATABASE_URL"                       >> "$GITHUB_ENV"
           echo "BUILT_DIRECT_URL=$DIRECT_URL"                           >> "$GITHUB_ENV"
           echo "BUILT_SUPABASE_URL=$CLEAN_SUPABASE_URL"                 >> "$GITHUB_ENV"
-          echo "BUILT_SUPABASE_ANON_KEY=$CLEAN_SUPABASE_DEFAULT_KEY"    >> "$GITHUB_ENV"
+          echo "BUILT_SUPABASE_ANON_KEY=$CLEAN_SUPABASE_ANON_KEY"    >> "$GITHUB_ENV"
           echo "BUILT_SERVICE_ROLE_KEY=$CLEAN_SUPABASE_SERVICE_ROLE_KEY" >> "$GITHUB_ENV"
 
       # ── Seed _prisma_migrations on the preview branch ─────────

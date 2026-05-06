@@ -15,6 +15,9 @@ const userSelect = {
   secondName: true,
   phone: true,
   avatarUrl: true,
+  birthDate: true,
+  city: true,
+  sex: true,
   authProvider: true,
   isPhoneVerified: true,
   isProfileCreated: true,
@@ -39,6 +42,10 @@ export class UserRepository {
 
   updateById(id: string, data: Partial<Users>) {
     return this.prisma.users.update({ where: { id }, data, select: userSelect });
+  }
+
+  deleteById(id: string) {
+    return this.prisma.users.delete({ where: { id } });
   }
 
   createWithId(
@@ -75,6 +82,8 @@ export class UserRepository {
         ...(profile?.secondName ? { secondName: profile.secondName } : {}),
         ...(profile?.phone ? { phone: profile.phone } : {}),
         ...(profile?.authProvider ? { authProvider: profile.authProvider } : {}),
+        ...(role === UserRole.client ? { clientSettings: { create: {} } } : {}),
+        ...(role === UserRole.owner ? { ownerSettings: { create: {} } } : {}),
       },
       select: userSelect,
     });

@@ -3,6 +3,7 @@ import {
   ConflictException,
   UnauthorizedException,
   BadRequestException,
+  InternalServerErrorException,
 } from '@nestjs/common';
 import { LoginDto } from './dto/v1/login.dto';
 import { RegisterDto, REGISTERABLE_ROLES } from './dto/v1/register.dto';
@@ -11,6 +12,7 @@ import { EmailStatus } from './dto/v1/check-email-response.dto';
 import { OAuthSignInDto } from './dto/v1/oauth-sign-in.dto';
 import { ForgotPasswordDto } from './dto/v1/forgot-password.dto';
 import { ResetPasswordDto } from './dto/v1/reset-password.dto';
+import { ChangePasswordDto } from './dto/v1/change-password.dto';
 import { UserService } from '../user/user.service';
 import { ConfigService } from '@nestjs/config';
 import { SupabaseClient } from '@supabase/supabase-js';
@@ -210,6 +212,80 @@ export class AuthService {
     const { error } = await this.sb.auth.admin.signOut(accessToken);
     if (error) throw new BadRequestException(error.message);
     return { message: 'Logged out' };
+  }
+
+  async deleteAccount(userId: string) {
+    // Delete app data first, then Supabase auth. The reverse order is
+    // unsafe: if Supabase succeeds and the DB delete then throws (lock
+    // contention, transient error), the user can no longer authenticate
+    // to retry — and admin.deleteUser on a missing id errors out, so a
+    // server-side retry is also brittle. With this order, a DB failure
+    // leaves the auth row intact and the user can retry; an auth failure
+    // after a successful DB delete is recoverable by retrying just the
+    // auth step (the JWT is still valid until refresh tokens are pruned).
+    //
+    // Cascades on `users` (client_settings, owner_settings, saved_salons,
+    // search_history, onboarding_step, brand_members) clean up children.
+    // Bookings keep `userId` (nullable, no FK) so history stays.
+    await this.users.deleteById(userId);
+
+    const { error } = await this.sb.auth.admin.deleteUser(userId);
+    if (error) {
+      throw new InternalServerErrorException(
+        `Account data was removed but auth deletion failed: ${error.message}`,
+      );
+    }
+
+    return { success: true };
+  }
+
+  async changePassword(userId: string, dto: ChangePasswordDto) {
+    // findById throws NotFoundException if user doesn't exist.
+    const user = await this.users.findById(userId);
+
+    // Verify current password by attempting a sign-in with it. This mints
+    // a live access/refresh token pair we don't actually use — capture
+    // it so we can revoke it if anything below this point fails.
+    const { data: verifyData, error: signInErr } = await this.sb.auth.signInWithPassword({
+      email: user.email,
+      password: dto.current_password,
+    });
+    if (signInErr) throw new UnauthorizedException('Current password is incorrect');
+    const verificationToken = verifyData.session?.access_token;
+
+    try {
+      // Reject if new password is the same as the current one.
+      if (dto.new_password === dto.current_password) {
+        throw new BadRequestException('New password must differ from current');
+      }
+
+      // Update the password via the admin API (avoids shared-client session races).
+      const { error: updErr } = await this.sb.auth.admin.updateUserById(userId, {
+        password: dto.new_password,
+      });
+      if (updErr) throw new BadRequestException(updErr.message);
+    } catch (err) {
+      if (verificationToken) {
+        await this.sb.auth.admin.signOut(verificationToken).catch(() => {});
+      }
+      throw err;
+    }
+
+    // Mint fresh tokens with the new password.
+    const { data: newSessionData, error: newSignInErr } = await this.sb.auth.signInWithPassword({
+      email: user.email,
+      password: dto.new_password,
+    });
+    if (newSignInErr) throw new UnauthorizedException(newSignInErr.message);
+    if (!newSessionData.session) {
+      throw new UnauthorizedException('Failed to sign in after password change');
+    }
+
+    return {
+      access_token: newSessionData.session.access_token,
+      refresh_token: newSessionData.session.refresh_token,
+      expires_in: newSessionData.session.expires_in,
+    };
   }
 
   async forgotPassword({ email }: ForgotPasswordDto) {
