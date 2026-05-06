@@ -12,6 +12,7 @@ import { StorageModule } from '../src/shared/storage/storage.module';
 import { AppThrottlerModule } from '../src/shared/throttler/app-throttler.module';
 import { PublicApiModule } from '../src/api-gateway/public-api.module';
 import { AuthenticatedApiModule } from '../src/api-gateway/authenticated-api.module';
+import { TransformInterceptor } from '../src/shared/interceptors/transform.interceptor';
 
 describe('User Settings - role-specific (e2e)', () => {
   let app: INestApplication;
@@ -151,6 +152,7 @@ describe('User Settings - role-specific (e2e)', () => {
         transformOptions: { enableImplicitConversion: true },
       }),
     );
+    app.useGlobalInterceptors(app.get(TransformInterceptor));
     await app.init();
   });
 
@@ -178,7 +180,10 @@ describe('User Settings - role-specific (e2e)', () => {
         .expect(200);
 
       expect(res.body).toEqual({
-        notifications: { push_enabled: true, email_enabled: true, sms_enabled: true },
+        success: true,
+        data: {
+          notifications: { push_enabled: true, email_enabled: true, sms_enabled: true },
+        },
       });
       expect(memClientSettings.get(mockUserId)).toBeDefined();
     });
@@ -191,7 +196,10 @@ describe('User Settings - role-specific (e2e)', () => {
         .expect(200);
 
       expect(res.body).toEqual({
-        notifications: { push_enabled: false, email_enabled: true, sms_enabled: true },
+        success: true,
+        data: {
+          notifications: { push_enabled: false, email_enabled: true, sms_enabled: true },
+        },
       });
     });
 
@@ -209,7 +217,8 @@ describe('User Settings - role-specific (e2e)', () => {
         .set('Authorization', `Bearer ${mockAccessToken}`)
         .expect(200);
 
-      expect(res.body).toMatchObject({
+      expect(res.body.success).toBe(true);
+      expect(res.body.data).toMatchObject({
         id: mockUserId,
         settings: {
           notifications: { push_enabled: true, email_enabled: true, sms_enabled: true },
@@ -223,7 +232,7 @@ describe('User Settings - role-specific (e2e)', () => {
         .set('Authorization', `Bearer ${mockAccessToken}`)
         .expect(200);
 
-      expect(res.body.settings).toBeUndefined();
+      expect(res.body.data.settings).toBeUndefined();
     });
   });
 
@@ -240,7 +249,10 @@ describe('User Settings - role-specific (e2e)', () => {
         .expect(200);
 
       expect(res.body).toEqual({
-        notifications: { in_app_enabled: true, email_enabled: true, sms_enabled: true },
+        success: true,
+        data: {
+          notifications: { in_app_enabled: true, email_enabled: true, sms_enabled: true },
+        },
       });
       expect(memOwnerSettings.get(mockUserId)).toBeDefined();
       expect(memClientSettings.get(mockUserId)).toBeUndefined();
@@ -254,7 +266,10 @@ describe('User Settings - role-specific (e2e)', () => {
         .expect(200);
 
       expect(res.body).toEqual({
-        notifications: { in_app_enabled: false, email_enabled: true, sms_enabled: true },
+        success: true,
+        data: {
+          notifications: { in_app_enabled: false, email_enabled: true, sms_enabled: true },
+        },
       });
     });
 
@@ -272,7 +287,7 @@ describe('User Settings - role-specific (e2e)', () => {
         .set('Authorization', `Bearer ${mockAccessToken}`)
         .expect(200);
 
-      expect(res.body.settings).toEqual({
+      expect(res.body.data.settings).toEqual({
         notifications: { in_app_enabled: true, email_enabled: true, sms_enabled: true },
       });
     });
@@ -297,7 +312,7 @@ describe('User Settings - role-specific (e2e)', () => {
         .set('Authorization', `Bearer ${mockAccessToken}`)
         .expect(200);
 
-      expect(res.body.settings).toBeNull();
+      expect(res.body.data.settings).toBeNull();
     });
   });
 });

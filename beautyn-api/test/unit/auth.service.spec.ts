@@ -68,7 +68,7 @@ describe('AuthService', () => {
       resetPasswordForEmail: jest.fn(),
       verifyOtp: jest.fn(),
       admin: {
-        signOut: jest.fn(),
+        signOut: jest.fn().mockResolvedValue({ error: null }),
         updateUserById: jest.fn(),
       },
     };
