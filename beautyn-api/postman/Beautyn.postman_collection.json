@@ -767,7 +767,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"auth_token\": \"YOUR_EASYWEEK_AUTH_TOKEN\",\n    \"workspace_slug\": \"the-best-company\",\n    \"salon_uuids\": [\"25fd5793-3025-40db-85e9-bcb7ebbf11d7\"]\n}",
+              "raw": "{\n    \"auth_token\": \"YOUR_EASYWEEK_AUTH_TOKEN\",\n    \"workspace_slug\": \"the-best-company\",\n    \"salon_uuids\": [\"25fd5793-3025-40db-85e9-bcb7ebbf11d7\"],\n    \"widget_url\": \"https://booking.easyweek.com.ua/the-best-company\"\n}",
               "options": {
                 "raw": {
                   "language": "json"

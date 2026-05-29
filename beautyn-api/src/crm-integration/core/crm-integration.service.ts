@@ -97,27 +97,34 @@ export class CrmIntegrationService {
     authToken,
     workspaceSlug,
     externalSalonIds,
+    widgetUrl,
   }: {
     userId: string;
     authToken: string;
     workspaceSlug: string;
     externalSalonIds: string[];
+    widgetUrl?: string;
   }): Promise<{ salonIds: string[] }> {
+    // Use the owner-provided widget URL, or derive it from the workspace slug.
+    const bookingUrl = widgetUrl?.trim() || `https://booking.easyweek.com.ua/${workspaceSlug}`;
     const salonIds: string[] = [];
     for (const externalSalonId of externalSalonIds) {
       const ext = String(externalSalonId);
       const existing = await this.prisma.salon.findFirst({
         where: { provider: CrmType.EASYWEEK, externalSalonId: ext },
-        select: { id: true, ownerUserId: true },
+        select: { id: true, ownerUserId: true, bookingUrl: true },
       });
       if (existing) {
         if (existing.ownerUserId && existing.ownerUserId !== userId) {
           throw new BadRequestException('EasyWeek salon already linked to another user');
         }
-        if (!existing.ownerUserId) {
+        if (!existing.ownerUserId || !existing.bookingUrl) {
           await this.prisma.salon.update({
             where: { id: existing.id },
-            data: { ownerUserId: userId },
+            data: {
+              ...(existing.ownerUserId ? {} : { ownerUserId: userId }),
+              ...(existing.bookingUrl ? {} : { bookingUrl }),
+            },
           });
         }
         salonIds.push(existing.id);
@@ -125,7 +132,7 @@ export class CrmIntegrationService {
       }
 
       const salon = await this.prisma.salon.create({
-        data: { ownerUserId: userId, externalSalonId: ext, provider: CrmType.EASYWEEK },
+        data: { ownerUserId: userId, externalSalonId: ext, provider: CrmType.EASYWEEK, bookingUrl },
         select: { id: true },
       });
       // Persist non-secret identifiers

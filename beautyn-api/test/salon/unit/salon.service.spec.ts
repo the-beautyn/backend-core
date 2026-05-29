@@ -1,10 +1,12 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { ConfigService } from '@nestjs/config';
 import { SalonService } from '../../../src/salon/salon.service';
 import { PrismaService } from '../../../src/shared/database/prisma.service';
 import { createFakePrismaForSalon } from '../utils/fakes.prisma.salon';
 import { ServicesRepository } from '../../../src/services/repositories/services.repo';
 import { WorkersRepository } from '../../../src/workers/repositories/workers.repository';
 import { CrmSalonDiffService } from '../../../src/crm-salon-changes/crm-salon-diff.service';
+import { SavedSalonsService } from '../../../src/saved-salons/saved-salons.service';
 
 describe('SalonService', () => {
   let service: SalonService;
@@ -12,12 +14,16 @@ describe('SalonService', () => {
   let servicesRepo: { findBySalon: jest.Mock };
   let workersRepo: { listBySalon: jest.Mock };
   let crmSalonDiff: { pullAndDetect: jest.Mock };
+  let savedSalons: { isSavedBatch: jest.Mock };
+  let config: { get: jest.Mock };
 
   beforeEach(async () => {
     prisma = createFakePrismaForSalon();
     servicesRepo = { findBySalon: jest.fn() };
     workersRepo = { listBySalon: jest.fn() };
     crmSalonDiff = { pullAndDetect: jest.fn() };
+    savedSalons = { isSavedBatch: jest.fn().mockResolvedValue(new Set<string>()) };
+    config = { get: jest.fn().mockReturnValue('https://stage.beautyn.com.ua') };
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         SalonService,
@@ -25,6 +31,8 @@ describe('SalonService', () => {
         { provide: ServicesRepository, useValue: servicesRepo },
         { provide: WorkersRepository, useValue: workersRepo },
         { provide: CrmSalonDiffService, useValue: crmSalonDiff },
+        { provide: SavedSalonsService, useValue: savedSalons },
+        { provide: ConfigService, useValue: config },
       ],
     }).compile();
 

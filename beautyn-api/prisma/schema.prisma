@@ -206,6 +206,8 @@ model Salon {
   workingSchedule String?   @map("working_schedule")
   imagesCount     Int?      @map("images_count")
   coverImageUrl   String?   @map("cover_image_url")
+  // External booking widget URL (EasyWeek salons open this on "Book")
+  bookingUrl      String?   @map("booking_url")
   createdAt       DateTime  @default(now()) @map("created_at")
   updatedAt       DateTime  @updatedAt @map("updated_at")
   deletedAt       DateTime? @map("deleted_at")

@@ -77,6 +77,7 @@ export class OnboardingController {
       dto.auth_token,
       dto.workspace_slug,
       dto.salon_uuids,
+      dto.widget_url,
     );
     return { success: true } as any;
   }

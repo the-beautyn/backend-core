@@ -87,9 +87,8 @@ function toDotHhmm(input: Hhmm): string {
   return `${H}.${M}`;
 }
 
-/** Format a single WorkingDay into "Monday: 09.00-12.00 13.00-18.00" */
-export function formatWorkingDay(day: WorkingDay): string {
-  const name = DAY_NAME[day.day];
+/** Format only the hours portion of a WorkingDay, e.g. "09.00-18.00" or "09.00-12.00 13.00-18.00" */
+function dayHours(day: WorkingDay): string {
   const start = toDotHhmm(day.opensAt);
   const end = toDotHhmm(day.closesAt);
   const breaks = Array.isArray(day.breaks) ? day.breaks : [];
@@ -102,16 +101,49 @@ export function formatWorkingDay(day: WorkingDay): string {
     cursor = bEnd;
   }
   if (cursor < end) segments.push(`${cursor}-${end}`);
-  const hours = segments.length ? segments.join(' ') : `${start}-${end}`;
-  return `${name}: ${hours}`;
+  return segments.length ? segments.join(' ') : `${start}-${end}`;
 }
 
-/** Join multiple WorkingDay lines separated by newlines. */
+/** Format a single WorkingDay into "Monday: 09.00-12.00 13.00-18.00" */
+export function formatWorkingDay(day: WorkingDay): string {
+  return `${DAY_NAME[day.day]}: ${dayHours(day)}`;
+}
+
+/**
+ * Collapse a week into a single line, grouping consecutive days that share the
+ * same hours, e.g. "Monday-Tuesday: 09.00-18.00 • Wednesday: 09.00-12.00".
+ * Days are ordered Mon..Sun; a missing day breaks adjacency.
+ */
 export function formatWorkingSchedule(days: WorkingDay[]): string {
   const order: Day[] = [1, 2, 3, 4, 5, 6, 0]; // Mon..Sun
   const rank = new Map<Day, number>(order.map((d, i) => [d, i] as [Day, number]));
-  const sorted = (days || []).slice().sort((a, b) => (rank.get(a.day) ?? 99) - (rank.get(b.day) ?? 99));
-  return sorted.map(formatWorkingDay).join('\n');
+  const sorted = (days || [])
+    .slice()
+    .sort((a, b) => (rank.get(a.day) ?? 99) - (rank.get(b.day) ?? 99));
+
+  type Group = { startDay: Day; endDay: Day; endRank: number; hours: string };
+  const groups: Group[] = [];
+  for (const day of sorted) {
+    const r = rank.get(day.day) ?? 99;
+    const hours = dayHours(day);
+    const last = groups[groups.length - 1];
+    if (last && last.hours === hours && last.endRank === r - 1) {
+      last.endDay = day.day;
+      last.endRank = r;
+    } else {
+      groups.push({ startDay: day.day, endDay: day.day, endRank: r, hours });
+    }
+  }
+
+  return groups
+    .map((g) => {
+      const label =
+        g.startDay === g.endDay
+          ? DAY_NAME[g.startDay]
+          : `${DAY_NAME[g.startDay]}-${DAY_NAME[g.endDay]}`;
+      return `${label}: ${g.hours}`;
+    })
+    .join(' • ');
 }
 
 // --- Bookings ---

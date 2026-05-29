@@ -36,8 +36,8 @@ export class OnboardingService {
     return { salons };
   }
 
-  async finalizeEasyWeekLink(userId: string, authToken: string, workspaceSlug: string, externalSalonUuids: string[]) {
-    await this.crmIntegration.linkEasyWeek({ userId, authToken, workspaceSlug, externalSalonIds: externalSalonUuids });
+  async finalizeEasyWeekLink(userId: string, authToken: string, workspaceSlug: string, externalSalonUuids: string[], widgetUrl?: string) {
+    await this.crmIntegration.linkEasyWeek({ userId, authToken, workspaceSlug, externalSalonIds: externalSalonUuids, widgetUrl });
     await this.markCrmLinkedByUser(userId);
     return { success: true };
   }
