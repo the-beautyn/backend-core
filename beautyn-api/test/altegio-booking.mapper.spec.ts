@@ -12,9 +12,9 @@ describe('Altegio booking mapper', () => {
     );
 
     expect(result.services).toEqual([
-      expect.objectContaining({ id: 's1', isAvailable: true }),
-      expect.objectContaining({ id: 's2', isAvailable: false }),
-      expect.objectContaining({ id: 's3', isAvailable: false }),
+      expect.objectContaining({ id: 's1', is_available: true }),
+      expect.objectContaining({ id: 's2', is_available: false }),
+      expect.objectContaining({ id: 's3', is_available: false }),
     ]);
     expect(result.categories).toHaveLength(2);
   });

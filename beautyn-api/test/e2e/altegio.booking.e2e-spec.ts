@@ -152,7 +152,7 @@ describe('Altegio booking flow (e2e)', () => {
       .query({ 'selectedServiceIds[]': serviceId })
       .expect(200);
     expect(servicesResp.body.success).toBe(true);
-    expect(servicesResp.body.data.services[0].isAvailable).toBe(true);
+    expect(servicesResp.body.data.services[0].is_available).toBe(true);
 
     const workersResp = await request(app.getHttpServer())
       .get(`/api/v1/booking/altegio/${salonId}/workers`)

@@ -37,11 +37,11 @@ export function mapBookableServices(
     }
     return {
       id: s.id,
-      categoryId: s.categoryId ?? null,
+      category_id: s.categoryId ?? null,
       name: s.name,
       price: s.price,
-      durationSec: s.duration ?? null,
-      isAvailable: s.crmServiceId ? allowedExternalServiceIds.has(String(s.crmServiceId)) : false,
+      duration_sec: s.duration ?? null,
+      is_available: s.crmServiceId ? allowedExternalServiceIds.has(String(s.crmServiceId)) : false,
     };
   });
 

@@ -133,7 +133,7 @@ describe('AltegioBookingService', () => {
     const res = await service.getBookableServices(salonId, { selectedServiceIds: [serviceId] });
 
     expect(crmIntegration.bookServices).toHaveBeenCalledWith(salonId, CrmType.ALTEGIO, { serviceIds: [Number(crmServiceId)], staffId: undefined });
-    expect(res.services[0].isAvailable).toBe(true);
+    expect(res.services[0].is_available).toBe(true);
   });
 
   it('returns workers with slots when requested', async () => {
