@@ -79,6 +79,7 @@ export class AltegioBookingService {
       this.crmIntegration.bookServices(ctx.salonId, ctx.provider, {
         serviceIds: serviceIdsForFilter,
         staffId: staffId ?? undefined,
+        datetime: query.datetime,
       }),
     );
     const allowedIds = new Set<string>((allowed.services ?? []).map((s) => String(s.id)));

@@ -186,7 +186,7 @@ export class AltegioProvider implements ICrmProvider {
   }
 
   // ---- Booking flow (Altegio-specific) ----
-  async getBookServices(args?: { serviceIds?: number[]; staffId?: number }) {
+  async getBookServices(args?: { serviceIds?: number[]; staffId?: number; datetime?: string }) {
     return BookingFlow.getBookServices(this.ctx(), args);
   }
 

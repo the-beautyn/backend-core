@@ -72,8 +72,8 @@ export function mapTimeSlots(rawSlots: Array<{ time: string; datetime: string; s
   const slots: TimeSlotDto[] = rawSlots.map((slot) => ({
     time: slot.time,
     datetime: slot.datetime,
-    seanceLengthSec: slot.seance_length ?? 0,
-    sumLengthSec: slot.sum_length ?? 0,
+    seance_length_sec: slot.seance_length ?? 0,
+    sum_length_sec: slot.sum_length ?? 0,
   }));
   return { slots };
 }

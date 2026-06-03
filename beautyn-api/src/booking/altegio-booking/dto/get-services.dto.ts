@@ -1,6 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Expose, Transform } from 'class-transformer';
-import { IsArray, IsOptional, IsUUID } from 'class-validator';
+import { IsArray, IsISO8601, IsOptional, IsUUID } from 'class-validator';
 
 export class GetBookableServicesDto {
   @ApiPropertyOptional({ type: [String], name: 'selectedServiceIds' })
@@ -15,4 +15,9 @@ export class GetBookableServicesDto {
   @IsUUID('4')
   @IsOptional()
   workerId?: string;
+
+  @ApiPropertyOptional()
+  @IsISO8601()
+  @IsOptional()
+  datetime?: string;
 }

@@ -36,8 +36,8 @@ describe('Altegio booking mapper', () => {
     expect(res.slots[0]).toEqual({
       time: '10:00',
       datetime: '2025-01-01T10:00:00+03:00',
-      seanceLengthSec: 3600,
-      sumLengthSec: 3900,
+      seance_length_sec: 3600,
+      sum_length_sec: 3900,
     });
   });
 });

@@ -29,7 +29,7 @@ export class CrmAdapterService {
   async bookServices(
     salonId: string,
     provider: CrmType,
-    args?: { serviceIds?: number[]; staffId?: number },
+    args?: { serviceIds?: number[]; staffId?: number; datetime?: string },
   ) {
     this.caps.assert(provider, 'supportsBookingServicesPull');
     return this.runOp('book.services', salonId, provider, async () => {

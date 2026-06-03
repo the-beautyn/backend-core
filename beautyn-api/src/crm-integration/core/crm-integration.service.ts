@@ -176,7 +176,7 @@ export class CrmIntegrationService {
   }
 
   // --- Booking flow passthrough ---
-  async bookServices(salonId: string, provider: CrmType, args?: { serviceIds?: number[]; staffId?: number }) {
+  async bookServices(salonId: string, provider: CrmType, args?: { serviceIds?: number[]; staffId?: number; datetime?: string }) {
     return this.adapter.bookServices(salonId, provider, args);
   }
 

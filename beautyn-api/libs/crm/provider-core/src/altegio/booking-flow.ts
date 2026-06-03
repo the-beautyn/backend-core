@@ -61,12 +61,13 @@ export type AltegioCreateRecordResponse = any; // Altegio returns full record pa
 
 export async function getBookServices(
   ctx: AltegioContext,
-  args?: { serviceIds?: number[]; staffId?: number },
+  args?: { serviceIds?: number[]; staffId?: number; datetime?: string },
 ): Promise<AltegioBookServicesResponse> {
   const externalSalonId = ctx.requireExternalSalonId();
   const query: Record<string, any> = {};
   if (args?.serviceIds?.length) query['service_ids[]'] = args.serviceIds;
   if (args?.staffId !== undefined) query.staff_id = args.staffId;
+  if (args?.datetime) query.datetime = args.datetime;
   return ctx.http<AltegioBookServicesResponse>('GET', `/api/v1/book_services/${externalSalonId}`, { query });
 }
 

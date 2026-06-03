@@ -3089,6 +3089,12 @@
                           "key": "workerId",
                           "value": "{{workerId}}",
                           "type": "text"
+                        },
+                        {
+                          "key": "datetime",
+                          "value": "",
+                          "description": "ISO 8601; filters service availability at that datetime",
+                          "disabled": true
                         }
                       ]
                     }
