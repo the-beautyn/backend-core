@@ -5,12 +5,22 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
+import { SupabaseClient } from '@supabase/supabase-js';
 import { InternalApiKeyGuard } from '../../../src/shared/guards/internal-api-key.guard';
 
 export async function buildPublicApp(controllers: any[], providers: any[]): Promise<INestApplication> {
   const moduleRef: TestingModule = await Test.createTestingModule({
     controllers,
-    providers,
+    providers: [
+      ...providers,
+      // Public controllers use OptionalJwtAuthGuard, which injects SupabaseClient.
+      // Anonymous test requests never reach it (no Bearer header → user = null), so a
+      // stub is enough to let the guard construct.
+      {
+        provide: SupabaseClient,
+        useValue: { auth: { getUser: jest.fn().mockResolvedValue({ data: { user: null }, error: null }) } },
+      },
+    ],
   }).compile();
 
   const app = moduleRef.createNestApplication();

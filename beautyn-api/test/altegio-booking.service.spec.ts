@@ -8,74 +8,9 @@ describe('AltegioBookingService', () => {
   const serviceId = 'service-1';
   const crmServiceId = '101';
   const crmWorkerId = '201';
-  const recordPayload = {
-    id: 625547217,
-    company_id: 1312212,
-    staff_id: 2918233,
-    services: [
-      {
-        id: 13151708,
-        title: 'Haircut',
-        cost: 300,
-        cost_to_pay: 300,
-        manual_cost: 300,
-        cost_per_unit: 300,
-        discount: 0,
-        first_cost: 300,
-        amount: 1,
-      },
-    ],
-    goods_transactions: [],
-    staff: {
-      id: 2918233,
-      api_id: null,
-      name: 'Ali Ambassador',
-      specialization: 'Hairdresser',
-      position: [],
-      avatar: 'https://assets.alteg.io/masters/sm/6/69/69fc6d6c382182c_20251201104007.png',
-      avatar_big: 'https://assets.alteg.io/masters/origin/0/0b/0b82823589e0b45_20251201104008.png',
-      rating: 0,
-      votes_count: 0,
-    },
-    client: {
-      id: 173722637,
-      name: 'James Smith',
-      surname: '',
-      patronymic: '',
-      display_name: 'James Smith',
-      comment: '',
-      phone: '+380950000001',
-      card: '',
-      email: 'test4@gmail.com',
-      success_visits_count: 4,
-      fail_visits_count: 0,
-      discount: 0,
-      custom_fields: [],
-      sex: 0,
-      birthday: '',
-      client_tags: [],
-    },
-    documents: [
-      {
-        id: 716000577,
-        type_id: 7,
-        storage_id: 0,
-        user_id: 12801186,
-        company_id: 1312212,
-        number: 716000577,
-        comment: '',
-        date_created: '2026-01-27 14:00:00',
-        category_id: 0,
-        visit_id: 533553883,
-        record_id: 625547217,
-        type_title: 'Візит',
-        is_sale_bill_printed: false,
-      },
-    ],
-    datetime: '2026-01-27T14:00:00+02:00',
-    seance_length: 3600,
-    short_link: 'https://a5.gl/c/QuTzp/PTJIy/',
-  };
+  // book_record returns `{ success, data: [{ id, record_id, record_hash }], meta }`;
+  // the provider's http() strips the envelope down to `data` (the array).
+  const bookRecordResponse = [{ id: 1, record_id: 625547217, record_hash: 'a1b2c3d4' }];
   let prisma: any;
   let crmIntegration: any;
   let users: any;
@@ -104,7 +39,7 @@ describe('AltegioBookingService', () => {
       bookTimes: jest.fn().mockResolvedValue({
         times: [{ time: '10:00', datetime: '2025-01-01T10:00:00+03:00', seance_length: 3600, sum_length: 4200 }],
       }),
-      createRecord: jest.fn().mockResolvedValue({ data: recordPayload }),
+      createRecord: jest.fn().mockResolvedValue(bookRecordResponse),
     };
     users = {
       findContactInfo: jest.fn().mockResolvedValue({
@@ -154,7 +89,7 @@ describe('AltegioBookingService', () => {
     expect(res.workers[0].slots?.length).toBeGreaterThan(0);
   });
 
-  it('creates record and persists booking', async () => {
+  it('creates online booking and persists booking', async () => {
     prisma.service.findMany.mockResolvedValue([{ id: serviceId, crmServiceId, name: 'Cut', price: 1200, duration: 30, categoryId: null }]);
     prisma.worker.findFirst.mockResolvedValue({ id: workerId, crmWorkerId, firstName: 'John', lastName: 'Doe' });
     bookingHandler.createAltegioBooking.mockResolvedValue({ booking: { id: 'booking-1' }, changed: true });
@@ -164,39 +99,69 @@ describe('AltegioBookingService', () => {
       serviceIds: [serviceId],
       datetime: '2025-01-01T10:00:00+03:00',
       comment: 'Beautyn',
-      attendance: 1,
     });
 
     expect(crmIntegration.createRecord).toHaveBeenCalledWith(
       salonId,
       CrmType.ALTEGIO,
       expect.objectContaining({
-        staff_id: Number(crmWorkerId),
-        services: [{ id: Number(crmServiceId) }],
-        datetime: '2025-01-01T10:00:00+03:00',
-        seance_length: 4200,
+        fullname: 'User Test',
+        phone: '+123',
+        type: 'mobile',
+        appointments: [
+          { id: 1, staff_id: Number(crmWorkerId), services: [Number(crmServiceId)], datetime: '2025-01-01T10:00:00+03:00' },
+        ],
       }),
     );
     expect(bookingHandler.createAltegioBooking).toHaveBeenCalledWith(
       expect.objectContaining({
         salonId,
         booking: expect.objectContaining({
-          crmRecordId: String(recordPayload.id),
-          staffId: String(recordPayload.staff_id),
-          clientId: String(recordPayload.client.id),
+          crmRecordId: String(bookRecordResponse[0].record_id),
+          staffId: String(crmWorkerId),
+          clientId: null,
         }),
         userId: 'user-1',
       }),
     );
     expect(res).toEqual({
       booking_id: 'booking-1',
-      crm_record_id: recordPayload.id,
-      short_link: recordPayload.short_link,
+      crm_record_id: bookRecordResponse[0].record_id,
+      short_link: null,
       status: 'created',
     });
   });
 
-  it('passes CRM payload details into handler', async () => {
+  it('books with any team member (staff_id 0) when no workerId is given', async () => {
+    prisma.service.findMany.mockResolvedValue([{ id: serviceId, crmServiceId, name: 'Cut', price: 1200, duration: 30, categoryId: null }]);
+    bookingHandler.createAltegioBooking.mockResolvedValue({ booking: { id: 'booking-1' }, changed: true });
+
+    const res = await service.createRecord(salonId, 'user-1', {
+      serviceIds: [serviceId],
+      datetime: '2025-01-01T10:00:00+03:00',
+    });
+
+    // No worker is resolved when workerId is omitted.
+    expect(prisma.worker.findFirst).not.toHaveBeenCalled();
+    expect(crmIntegration.createRecord).toHaveBeenCalledWith(
+      salonId,
+      CrmType.ALTEGIO,
+      expect.objectContaining({
+        appointments: [
+          { id: 1, staff_id: 0, services: [Number(crmServiceId)], datetime: '2025-01-01T10:00:00+03:00' },
+        ],
+      }),
+    );
+    // The local booking carries no staff until it syncs back from Altegio.
+    expect(bookingHandler.createAltegioBooking).toHaveBeenCalledWith(
+      expect.objectContaining({
+        booking: expect.objectContaining({ staffId: null }),
+      }),
+    );
+    expect(res.status).toBe('created');
+  });
+
+  it('builds the local booking from request data + record id', async () => {
     prisma.service.findMany.mockResolvedValue([{ id: serviceId, crmServiceId, name: 'Cut', price: 1200, duration: 30, categoryId: null }]);
     prisma.worker.findFirst.mockResolvedValue({ id: workerId, crmWorkerId, firstName: 'John', lastName: 'Doe' });
     bookingHandler.createAltegioBooking.mockResolvedValue({ booking: { id: 'booking-1' }, changed: true });
@@ -204,22 +169,36 @@ describe('AltegioBookingService', () => {
     await service.createRecord(salonId, 'user-1', {
       workerId,
       serviceIds: [serviceId],
-      datetime: recordPayload.datetime,
+      datetime: '2026-01-27T14:00:00+02:00',
       comment: 'Beautyn',
-      attendance: 1,
     });
 
     expect(bookingHandler.createAltegioBooking).toHaveBeenCalledWith(
       expect.objectContaining({
         booking: expect.objectContaining({
-          services: recordPayload.services,
-          documents: recordPayload.documents,
-          staff: recordPayload.staff,
-          client: recordPayload.client,
-          goodsTransactions: recordPayload.goods_transactions,
-          raw: recordPayload,
+          services: [{ id: Number(crmServiceId) }],
+          staff: null,
+          client: { name: 'User Test', phone: '+123', email: 'user@test.com' },
+          seanceLength: null,
+          datetime: '2026-01-27T14:00:00+02:00',
+          raw: expect.objectContaining({ response: bookRecordResponse[0] }),
         }),
       }),
     );
+  });
+
+  it('rejects booking when the user has no phone', async () => {
+    prisma.service.findMany.mockResolvedValue([{ id: serviceId, crmServiceId, name: 'Cut', price: 1200, duration: 30, categoryId: null }]);
+    prisma.worker.findFirst.mockResolvedValue({ id: workerId, crmWorkerId, firstName: 'John', lastName: 'Doe' });
+    users.findContactInfo.mockResolvedValue({ id: 'user-1', email: 'user@test.com', name: 'User', second_name: 'Test', phone: null });
+
+    await expect(
+      service.createRecord(salonId, 'user-1', {
+        workerId,
+        serviceIds: [serviceId],
+        datetime: '2025-01-01T10:00:00+03:00',
+      }),
+    ).rejects.toThrow('Client phone is required to book');
+    expect(crmIntegration.createRecord).not.toHaveBeenCalled();
   });
 });

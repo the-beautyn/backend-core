@@ -1,6 +1,6 @@
 import type { Logger } from 'winston';
 
-export type AltegioHttp = <T>(method: string, path: string, opts?: { query?: Record<string, any>; body?: any }) => Promise<T>;
+export type AltegioHttp = <T>(method: string, path: string, opts?: { query?: Record<string, any>; body?: any; auth?: 'partner' | 'dual' }) => Promise<T>;
 
 export type AltegioContext = {
   log: Logger | any;

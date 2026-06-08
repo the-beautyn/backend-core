@@ -50,12 +50,17 @@ describe('Salon controllers', () => {
         .get('/api/v1/salons/1?include=services,images')
         .expect(200);
       expect(res.body).toEqual(salon);
-      expect(service.findById).toHaveBeenCalledWith('1', {
-        services: true,
-        workers: false,
-        categories: false,
-        images: true,
-      });
+      // 3rd arg is the requesting user id (for `is_saved`); null for anonymous requests.
+      expect(service.findById).toHaveBeenCalledWith(
+        '1',
+        {
+          services: true,
+          workers: false,
+          categories: false,
+          images: true,
+        },
+        null,
+      );
     });
 
     it('GET /api/v1/salons/:id returns 404 when not found', async () => {

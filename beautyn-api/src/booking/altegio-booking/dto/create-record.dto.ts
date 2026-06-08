@@ -1,11 +1,14 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
-import { ArrayMaxSize, ArrayMinSize, IsArray, IsInt, IsISO8601, IsOptional, IsUUID, Max, Min, MinLength } from 'class-validator';
+import { ArrayMaxSize, ArrayMinSize, IsArray, IsISO8601, IsOptional, IsUUID, MinLength } from 'class-validator';
 
 export class CreateAltegioRecordDto {
-  @ApiProperty()
+  // Optional: when omitted the booking is created with "any team member"
+  // (Altegio `staff_id: 0`), matching the "Будь-який" option in the flow.
+  @ApiPropertyOptional()
+  @IsOptional()
   @IsUUID('4')
-  workerId!: string;
+  workerId?: string;
 
   @ApiProperty({ type: [String] })
   @Transform(({ value }) => (Array.isArray(value) ? value : [value]))
@@ -23,11 +26,4 @@ export class CreateAltegioRecordDto {
   @MinLength(1)
   @IsOptional()
   comment?: string;
-
-  @ApiPropertyOptional({ default: 1 })
-  @IsInt()
-  @Min(1)
-  @Max(10)
-  @IsOptional()
-  attendance?: number;
 }

@@ -29,7 +29,7 @@ describe('Altegio booking flow (e2e)', () => {
     providerMock.getBookTimes.mockResolvedValue({
       times: [{ time: '10:00', datetime: '2025-01-02T10:00:00+03:00', seance_length: 3600, sum_length: 4200 }],
     });
-    providerMock.createRecord.mockResolvedValue({ id: 9001, short_link: 'https://alt/9001' });
+    providerMock.createRecord.mockResolvedValue([{ id: 1, record_id: 9001, record_hash: 'hash-9001' }]);
   };
 
   beforeAll(async () => {
