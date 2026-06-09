@@ -256,6 +256,7 @@ export class SalonService {
       longitude: input.location?.lon !== undefined ? new Prisma.Decimal(input.location?.lon) : undefined,
       phone: input.phone,
       email: input.email,
+      timezone: input.timezone,
       ratingAvg: null,
       ratingCount: null,
       workingSchedule: input.workingSchedule,

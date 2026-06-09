@@ -23,6 +23,7 @@ export class ClientBookingsController {
     @Query('to') to?: string,
     @Query('limit') limit?: string,
     @Query('cursor') cursor?: string,
+    @Query('sort') sort?: string,
     @Req() req?: Request & { user?: { id?: string } },
   ): Promise<BookingListResponseDto> {
     const userId = req?.user?.id as string;
@@ -36,6 +37,7 @@ export class ClientBookingsController {
       to: toDate || undefined,
       limit: Number.isFinite(take) ? take : undefined,
       cursor: cursor || undefined,
+      sort: sort === 'datetime_asc' ? 'datetime_asc' : sort === 'datetime_desc' ? 'datetime_desc' : undefined,
     });
   }
 

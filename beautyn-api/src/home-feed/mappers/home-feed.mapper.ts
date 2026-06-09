@@ -1,25 +1,25 @@
 import { HomeFeedNextBookingDto } from '../dto/home-feed-next-booking.dto';
 import { HomeFeedSalonCardDto } from '../dto/home-feed-salon-card.dto';
+import { BookingDto } from '../../booking/dto/booking.response.dto';
 import { RawSearchRow } from '../../search/search-query-builder.service';
 
-export function mapBookingToNextBooking(
-  booking: any,
-  salon: any,
-): HomeFeedNextBookingDto {
+// Built from the fully-resolved `BookingDto` (same source as the bookings list)
+// so the Home "next appointment" card shows the same price / duration / services.
+export function mapBookingToNextBooking(booking: BookingDto): HomeFeedNextBookingDto {
   const dto = new HomeFeedNextBookingDto();
   dto.booking_id = booking.id;
-  dto.salon_id = booking.salonId;
-  dto.salon_name = salon?.name ?? '';
-  dto.salon_cover_image_url = salon?.coverImageUrl ?? null;
-  dto.salon_address_line = salon?.addressLine ?? null;
-  dto.datetime = booking.datetime instanceof Date
-    ? booking.datetime.toISOString()
-    : booking.datetime;
-  dto.end_datetime = booking.endDatetime
-    ? (booking.endDatetime instanceof Date ? booking.endDatetime.toISOString() : booking.endDatetime)
-    : null;
-  dto.total_price_cents = null;
-  dto.duration_minutes = null;
+  dto.salon_id = booking.salon_id;
+  dto.salon_name = booking.salon?.name ?? '';
+  dto.salon_cover_image_url = booking.salon?.cover_image_url ?? null;
+  dto.salon_address_line = booking.salon?.address_line ?? null;
+  dto.salon_timezone = booking.salon?.timezone ?? null;
+  dto.datetime = booking.datetime;
+  dto.end_datetime = booking.end_datetime ?? null;
+  // `total_price` is the raw provider amount (minor units); the iOS client divides
+  // by 100, identical to the bookings list, so both screens show the same price.
+  dto.total_price_cents = booking.total_price ?? null;
+  dto.duration_minutes = booking.duration_minutes ?? null;
+  dto.service_names = booking.service_names ?? [];
   return dto;
 }
 

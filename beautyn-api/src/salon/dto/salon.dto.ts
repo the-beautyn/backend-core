@@ -76,6 +76,13 @@ export class SalonDto {
   @Expose()
   booking_url?: string;
 
+  @ApiProperty({
+    required: false,
+    description: 'IANA timezone identifier of the salon (e.g. "Europe/Kyiv"). Null when unknown.',
+  })
+  @Expose()
+  timezone?: string;
+
   @ApiProperty({ required: false, type: ServiceDto, isArray: true })
   @Expose()
   services?: ServiceDto[];

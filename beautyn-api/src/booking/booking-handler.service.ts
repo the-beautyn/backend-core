@@ -793,12 +793,14 @@ export class BookingHandlerService {
     const mapped = services.map((s: any) => ({
       externalId: s?.id ? String(s.id) : s?.externalId ?? null,
       title: s?.title ?? null,
-      cost: this.toNumber(s?.cost),
-      costToPay: this.toNumber(s?.cost_to_pay ?? s?.costToPay),
-      manualCost: this.toNumber(s?.manual_cost ?? s?.manualCost),
-      costPerUnit: this.toNumber(s?.cost_per_unit ?? s?.costPerUnit),
+      // Monetary fields → cents (see toCents). `discount` is a percentage and
+      // `amount` is a quantity, so both stay as-is.
+      cost: this.toCents(s?.cost),
+      costToPay: this.toCents(s?.cost_to_pay ?? s?.costToPay),
+      manualCost: this.toCents(s?.manual_cost ?? s?.manualCost),
+      costPerUnit: this.toCents(s?.cost_per_unit ?? s?.costPerUnit),
       discount: this.toNumber(s?.discount),
-      firstCost: this.toNumber(s?.first_cost ?? s?.firstCost),
+      firstCost: this.toCents(s?.first_cost ?? s?.firstCost),
       amount: this.toNumber(s?.amount),
     }));
     return this.sortByKey(mapped, (s) => `${s.externalId ?? ''}|${s.title ?? ''}`);
@@ -941,6 +943,15 @@ export class BookingHandlerService {
     if (value === null || value === undefined) return null;
     const num = Number(value);
     return Number.isFinite(num) ? num : null;
+  }
+
+  // Altegio returns monetary values in major currency units (e.g. ₴700), but the
+  // canonical internal unit is cents — the services sync converts Altegio prices
+  // with `* 100` (services.service.ts). Convert booking costs the same way so a
+  // synced booking matches app-created bookings and `total_price` stays in cents.
+  private toCents(value: any): number | null {
+    const num = this.toNumber(value);
+    return num === null ? null : Math.round(num * 100);
   }
 
   private sortByKey<T>(items: T[], keyFn: (item: T) => string): T[] {

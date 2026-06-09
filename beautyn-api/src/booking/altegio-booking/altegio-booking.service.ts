@@ -219,6 +219,8 @@ export class AltegioBookingService {
     ]);
     const crmStaffId = worker ? this.requireCrmId(worker.crmWorkerId, 'worker') : null;
     const crmServiceIds = services.map((s) => this.requireCrmId(s.crmServiceId, 'service'));
+    // Altegio stores seance length in seconds; Service.duration is also seconds.
+    const totalDurationSec = services.reduce((sum, s) => sum + (s.duration ?? 0), 0);
 
     // book_record requires a fullname + a valid phone; fail fast with a clear error.
     const fullname = [user.name, user.second_name].filter(Boolean).join(' ').trim();
@@ -257,11 +259,19 @@ export class AltegioBookingService {
       confirmed: null,
       visitAttendance: null,
       length: null,
-      seanceLength: null,
+      // Seed seance length + service titles/costs from the services the client
+      // just selected so the booking card shows price/duration/services and an
+      // end time immediately. A later CRM sync reconciles with Altegio's data.
+      seanceLength: totalDurationSec > 0 ? totalDurationSec : null,
       isDeleted: null,
       staff: null,
       client: { name: fullname, phone, email: user.email ?? undefined },
-      services: crmServiceIds.map((id) => ({ id })),
+      services: services.map((s) => ({
+        id: this.requireCrmId(s.crmServiceId, 'service'),
+        title: s.name,
+        cost: s.price,
+        cost_to_pay: s.price,
+      })),
       documents: null,
       goodsTransactions: null,
       raw: { request: payload, response: created },
@@ -292,7 +302,7 @@ export class AltegioBookingService {
     };
   }
 
-  private async resolveServicesByIds(salonId: string, serviceIds: string[]): Promise<Array<{ id: string; crmServiceId: string | null; name: string }>> {
+  private async resolveServicesByIds(salonId: string, serviceIds: string[]): Promise<Array<{ id: string; crmServiceId: string | null; name: string; price: number; duration: number }>> {
     if (!serviceIds.length) return [];
     const services = await this.prisma.service.findMany({ where: { salonId, id: { in: serviceIds } } });
     if (services.length !== serviceIds.length) {

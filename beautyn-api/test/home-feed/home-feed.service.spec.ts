@@ -36,12 +36,17 @@ describe('HomeFeedService', () => {
     buildOpenOnDateFilter: jest.fn(),
   } as any;
 
+  const bookingQueryService = {
+    getForClient: jest.fn(),
+  } as any;
+
   const service = new HomeFeedService(
     prisma,
     sectionConfigRepo,
     appCategoriesService,
     savedSalonsService,
     searchQueryBuilder,
+    bookingQueryService,
   );
 
   beforeEach(() => {
@@ -80,12 +85,16 @@ describe('HomeFeedService', () => {
   describe('authorized user', () => {
     it('returns nextBooking and savedSalons for authorized user', async () => {
       const bookingDate = new Date('2026-04-01T10:00:00Z');
-      prisma.booking.findFirst.mockResolvedValue({
+      prisma.booking.findFirst.mockResolvedValue({ id: 'b1' });
+      bookingQueryService.getForClient.mockResolvedValue({
         id: 'b1',
-        salonId: 'salon-1',
-        datetime: bookingDate,
-        endDatetime: new Date('2026-04-01T11:00:00Z'),
-        salon: { name: 'Beauty Palace', coverImageUrl: 'https://img.test/1.jpg', addressLine: '1 Main St' },
+        salon_id: 'salon-1',
+        salon: { name: 'Beauty Palace', cover_image_url: 'https://img.test/1.jpg', address_line: '1 Main St' },
+        datetime: bookingDate.toISOString(),
+        end_datetime: new Date('2026-04-01T11:00:00Z').toISOString(),
+        service_names: ['Manicure'],
+        total_price: 30000,
+        duration_minutes: 60,
       });
 
       savedSalonsService.listByUser.mockResolvedValue({
@@ -98,6 +107,10 @@ describe('HomeFeedService', () => {
       expect(result.next_booking!.booking_id).toBe('b1');
       expect(result.next_booking!.salon_name).toBe('Beauty Palace');
       expect(result.next_booking!.datetime).toBe(bookingDate.toISOString());
+      expect(result.next_booking!.total_price_cents).toBe(30000);
+      expect(result.next_booking!.duration_minutes).toBe(60);
+      expect(result.next_booking!.service_names).toEqual(['Manicure']);
+      expect(bookingQueryService.getForClient).toHaveBeenCalledWith('b1', 'user-1');
       expect(result.saved_salons).toHaveLength(1);
       expect(result.categories).toEqual([]);
     });

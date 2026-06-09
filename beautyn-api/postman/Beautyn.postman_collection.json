@@ -3492,6 +3492,12 @@
                           "value": null,
                           "type": "text",
                           "disabled": true
+                        },
+                        {
+                          "key": "sort",
+                          "value": "datetime_asc",
+                          "type": "text",
+                          "disabled": true
                         }
                       ]
                     }

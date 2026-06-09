@@ -16,6 +16,11 @@ export class HomeFeedNextBookingDto {
   @ApiPropertyOptional()
   salon_address_line?: string | null;
 
+  @ApiPropertyOptional({
+    description: 'IANA timezone identifier of the salon (e.g. "Europe/Kyiv"). Null when unknown.',
+  })
+  salon_timezone?: string | null;
+
   @ApiProperty()
   datetime!: string;
 
@@ -27,4 +32,7 @@ export class HomeFeedNextBookingDto {
 
   @ApiPropertyOptional()
   duration_minutes?: number | null;
+
+  @ApiPropertyOptional({ type: [String] })
+  service_names?: string[];
 }

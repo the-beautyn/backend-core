@@ -21,6 +21,7 @@ export class SalonMapper {
       images_count: entity.imagesCount ?? undefined,
       cover_image_url: entity.coverImageUrl ?? undefined,
       booking_url: entity.bookingUrl ?? undefined,
+      timezone: entity.timezone ?? undefined,
     };
   }
 

@@ -371,6 +371,8 @@ describe('HomeFeed (e2e)', () => {
         datetime: futureDate,
         endDatetime: new Date(futureDate.getTime() + 3600000),
         status: 'created',
+        createdAt: new Date(),
+        updatedAt: new Date(),
       });
       savedSalons.push({
         id: randomUUID(),

@@ -176,10 +176,12 @@ describe('AltegioBookingService', () => {
     expect(bookingHandler.createAltegioBooking).toHaveBeenCalledWith(
       expect.objectContaining({
         booking: expect.objectContaining({
-          services: [{ id: Number(crmServiceId) }],
+          // Service title/cost + seance length are seeded from the selected
+          // services so the card is complete before the CRM sync runs.
+          services: [{ id: Number(crmServiceId), title: 'Cut', cost: 1200, cost_to_pay: 1200 }],
           staff: null,
           client: { name: 'User Test', phone: '+123', email: 'user@test.com' },
-          seanceLength: null,
+          seanceLength: 30,
           datetime: '2026-01-27T14:00:00+02:00',
           raw: expect.objectContaining({ response: bookRecordResponse[0] }),
         }),

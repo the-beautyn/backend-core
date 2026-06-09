@@ -4,6 +4,15 @@ import { PrismaService } from '../shared/database/prisma.service';
 import { BookingDto, BookingListResponseDto, BookingProviderAltegioDto, BookingProviderEasyweekDto } from './dto/booking.response.dto';
 
 type BookingWithRelations = Booking & {
+  salon: {
+    id: string;
+    name: string | null;
+    addressLine: string | null;
+    latitude: Prisma.Decimal | null;
+    longitude: Prisma.Decimal | null;
+    coverImageUrl: string | null;
+    timezone: string | null;
+  } | null;
   worker: { id: string; firstName: string; lastName: string; photoUrl: string | null } | null;
   easyweekDetails: {
     bookingId: string;
@@ -26,6 +35,17 @@ type BookingWithRelations = Booking & {
 @Injectable()
 export class BookingQueryService {
   private readonly include = {
+    salon: {
+      select: {
+        id: true,
+        name: true,
+        addressLine: true,
+        latitude: true,
+        longitude: true,
+        coverImageUrl: true,
+        timezone: true,
+      },
+    },
     worker: { select: { id: true, firstName: true, lastName: true, photoUrl: true } },
     easyweekDetails: {
       include: {
@@ -74,8 +94,10 @@ export class BookingQueryService {
     to?: Date;
     cursor?: string;
     limit?: number;
+    sort?: 'datetime_asc' | 'datetime_desc';
   }): Promise<BookingListResponseDto> {
     const take = this.clampTake(params.limit);
+    const direction: Prisma.SortOrder = params.sort === 'datetime_asc' ? 'asc' : 'desc';
     const where: Prisma.BookingWhereInput = {
       userId: params.userId,
       ...(params.status ? { status: params.status } : {}),
@@ -95,7 +117,7 @@ export class BookingQueryService {
       take: take + 1,
       skip: params.cursor ? 1 : 0,
       cursor: params.cursor ? { id: params.cursor } : undefined,
-      orderBy: [{ datetime: 'desc' }, { id: 'desc' }],
+      orderBy: [{ datetime: direction }, { id: direction }],
     });
 
     const nextCursor = items.length > take ? items[take].id : undefined;
@@ -170,9 +192,22 @@ export class BookingQueryService {
 
   private mapBooking(booking: BookingWithRelations, opts?: { includeHistory?: boolean }): BookingDto {
     const includeHistory = opts?.includeHistory !== false;
+    const easyweek = this.mapEasyweek(booking);
+    const altegio = this.mapAltegio(booking);
     return {
       id: booking.id,
       salon_id: booking.salonId,
+      salon: booking.salon
+        ? {
+            id: booking.salon.id,
+            name: booking.salon.name ?? null,
+            address_line: booking.salon.addressLine ?? null,
+            latitude: booking.salon.latitude != null ? Number(booking.salon.latitude) : null,
+            longitude: booking.salon.longitude != null ? Number(booking.salon.longitude) : null,
+            cover_image_url: booking.salon.coverImageUrl ?? null,
+            timezone: booking.salon.timezone ?? null,
+          }
+        : null,
       user_id: booking.userId ?? null,
       worker: booking.worker
         ? {
@@ -185,6 +220,10 @@ export class BookingQueryService {
       status: booking.status,
       datetime: booking.datetime.toISOString(),
       end_datetime: booking.endDatetime ? booking.endDatetime.toISOString() : null,
+      service_names: this.computeServiceNames(easyweek, altegio),
+      total_price: this.computeTotalPrice(easyweek, altegio),
+      currency: this.computeCurrency(easyweek),
+      duration_minutes: this.computeDurationMinutes(booking, easyweek, altegio),
       comment: booking.comment ?? null,
       crm_type: booking.crmType ?? null,
       crm_record_id: booking.crmRecordId ?? null,
@@ -196,8 +235,8 @@ export class BookingQueryService {
       created_at: booking.createdAt.toISOString(),
       updated_at: booking.updatedAt.toISOString(),
       provider_specific: {
-        easyweek: this.mapEasyweek(booking),
-        altegio: this.mapAltegio(booking),
+        easyweek,
+        altegio,
       },
       history: includeHistory
         ? Array.isArray(booking.history)
@@ -211,6 +250,78 @@ export class BookingQueryService {
           : undefined
         : undefined,
     };
+  }
+
+  private computeServiceNames(
+    ew?: BookingProviderEasyweekDto,
+    al?: BookingProviderAltegioDto,
+  ): string[] {
+    const ewNames = (ew?.ordered_services ?? []).map((s) => s.name).filter((n): n is string => !!n);
+    if (ewNames.length) return ewNames;
+    return (al?.services ?? []).map((s) => s.title).filter((t): t is string => !!t);
+  }
+
+  private computeTotalPrice(
+    ew?: BookingProviderEasyweekDto,
+    al?: BookingProviderAltegioDto,
+  ): number | null {
+    if (ew) {
+      if (ew.order?.total != null) return ew.order.total;
+      const sum = (ew.ordered_services ?? []).reduce(
+        (acc, s) => acc + (s.price ?? 0) * (s.quantity ?? 1),
+        0,
+      );
+      if (sum > 0) return sum;
+    }
+    const alSum = (al?.services ?? []).reduce((acc, s) => acc + (s.cost_to_pay ?? s.cost ?? 0), 0);
+    return alSum > 0 ? alSum : null;
+  }
+
+  private computeCurrency(ew?: BookingProviderEasyweekDto): string | null {
+    return (ew?.ordered_services ?? []).find((s) => !!s.currency)?.currency ?? null;
+  }
+
+  // The booking window (end - start) is the most reliable duration source, so we
+  // prefer it. Provider duration fields are stored in seconds and used as fallback.
+  private computeDurationMinutes(
+    booking: BookingWithRelations,
+    ew?: BookingProviderEasyweekDto,
+    al?: BookingProviderAltegioDto,
+  ): number | null {
+    if (booking.endDatetime && booking.datetime) {
+      const diffMs = booking.endDatetime.getTime() - booking.datetime.getTime();
+      if (diffMs > 0) return Math.round(diffMs / 60000);
+    }
+    if (ew?.duration) {
+      const fromIso = this.iso8601ToMinutes(ew.duration.iso8601 ?? null);
+      if (fromIso != null) return fromIso;
+      if (ew.duration.value != null) return this.secondsToMinutes(ew.duration.value);
+    }
+    const ewServicesSum = (ew?.ordered_services ?? []).reduce(
+      (acc, s) => acc + (s.duration_value ?? 0),
+      0,
+    );
+    if (ewServicesSum > 0) return this.secondsToMinutes(ewServicesSum);
+    const alLength = al?.seance_length ?? al?.length ?? null;
+    if (alLength != null && alLength > 0) return this.secondsToMinutes(alLength);
+    return null;
+  }
+
+  private secondsToMinutes(seconds: number): number {
+    return Math.round(seconds / 60);
+  }
+
+  private iso8601ToMinutes(iso: string | null): number | null {
+    if (!iso) return null;
+    const match = /^P(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?)?$/.exec(iso);
+    if (!match) return null;
+    const [, d, h, m, s] = match;
+    const total =
+      (d ? Number(d) : 0) * 1440 +
+      (h ? Number(h) : 0) * 60 +
+      (m ? Number(m) : 0) +
+      Math.round((s ? Number(s) : 0) / 60);
+    return total > 0 ? total : null;
   }
 
   private mapEasyweek(booking: BookingWithRelations): BookingProviderEasyweekDto | undefined {
