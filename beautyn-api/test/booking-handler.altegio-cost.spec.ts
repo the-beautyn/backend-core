@@ -49,4 +49,19 @@ describe('BookingHandlerService.mapAltegioServices — Altegio cost → cents', 
     expect(result[0].cost).toBeNull();
     expect(result[0].costToPay).toBeNull();
   });
+
+  // Regression for the pre-sync "price 100x" bug. The app-create path (altegio-booking.service)
+  // seeds the booking from the selected services, whose Service.price is stored in CENTS. It
+  // emits Altegio's major units (price / 100) precisely so this normalization lands back on the
+  // original cents. Feeding cents straight in would double-convert (25000 → 2,500,000) and the
+  // card would read ₴25000 instead of ₴250 until a CRM sync overwrote it.
+  it('round-trips an app-created seed back to the original cents (no ×100 double-convert)', () => {
+    const servicePriceCents = 25000; // ₴250, as stored on Service.price
+    const seededMajorUnits = servicePriceCents / 100; // 250 — what altegio-booking.service emits
+    const result = mapAltegioServices([
+      { id: 10, title: 'Beard trimming', cost: seededMajorUnits, cost_to_pay: seededMajorUnits },
+    ]);
+    expect(result[0].cost).toBe(servicePriceCents);
+    expect(result[0].costToPay).toBe(servicePriceCents);
+  });
 });

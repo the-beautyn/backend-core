@@ -69,6 +69,10 @@ export class BookingQueryService {
     },
   } satisfies Prisma.BookingInclude;
 
+  // EasyWeek cancels to 'canceled'; Altegio soft-deletes to 'deleted'. Both belong in the
+  // Cancelled tab and must be excluded from upcoming/past.
+  private static readonly CANCELLED_STATUSES = ['canceled', 'deleted'];
+
   constructor(private readonly prisma: PrismaService) {}
 
   async getForClient(bookingId: string, userId: string): Promise<BookingDto | null> {
@@ -98,18 +102,7 @@ export class BookingQueryService {
   }): Promise<BookingListResponseDto> {
     const take = this.clampTake(params.limit);
     const direction: Prisma.SortOrder = params.sort === 'datetime_asc' ? 'asc' : 'desc';
-    const where: Prisma.BookingWhereInput = {
-      userId: params.userId,
-      ...(params.status ? { status: params.status } : {}),
-      ...(params.from || params.to
-        ? {
-            datetime: {
-              ...(params.from ? { gte: params.from } : {}),
-              ...(params.to ? { lte: params.to } : {}),
-            },
-          }
-        : {}),
-    };
+    const where = this.buildClientScopeWhere(params, new Date());
 
     const items = await this.prisma.booking.findMany({
       where,
@@ -127,6 +120,74 @@ export class BookingQueryService {
       next_cursor: nextCursor,
       limit: take,
     };
+  }
+
+  // The My Bookings tabs send `status` as a bucket selector (created → upcoming,
+  // completed → past, canceled → cancelled). We translate that into a datetime-driven
+  // WHERE evaluated at read-time, so a booking is never stranded just because the CRM
+  // never flipped its stored status:
+  //   • upcoming  → not cancelled AND the visit hasn't happened (end, fallback start, is in
+  //                 the future) AND not already marked attended (Altegio attendance=1).
+  //   • past      → not cancelled AND (end/start has passed OR Altegio attendance=1).
+  //   • cancelled → EasyWeek 'canceled' + Altegio 'deleted'.
+  // Any other/absent status falls back to the legacy generic status + date-range filter.
+  private buildClientScopeWhere(
+    params: { userId: string; status?: string; from?: Date; to?: Date },
+    now: Date,
+  ): Prisma.BookingWhereInput {
+    const base: Prisma.BookingWhereInput = { userId: params.userId };
+    const notCancelled = { notIn: BookingQueryService.CANCELLED_STATUSES };
+    const attended: Prisma.BookingWhereInput = { altegioDetails: { is: { attendance: 1 } } };
+    // "Not attended" must be NULL-safe: `NOT: { altegioDetails: { is: { attendance: 1 } } }`
+    // compiles to `NOT (attendance = 1 AND booking_id IS NOT NULL)`, which evaluates to NULL
+    // (→ row dropped) when attendance IS NULL — the state app-created Altegio bookings sit in
+    // until a CRM sync sets attendance = 0. Spell out the NULL/no-details cases explicitly so a
+    // freshly booked appointment shows in Upcoming immediately, before any reconcile.
+    const notAttended: Prisma.BookingWhereInput = {
+      OR: [
+        { altegioDetails: { is: null } },                       // EasyWeek / no Altegio details row
+        { altegioDetails: { is: { attendance: null } } },       // Altegio, not yet synced
+        { altegioDetails: { is: { attendance: { not: 1 } } } }, // Altegio, attendance ≠ 1
+      ],
+    };
+    const endInPast: Prisma.BookingWhereInput[] = [
+      { endDatetime: { lt: now } },
+      { AND: [{ endDatetime: null }, { datetime: { lt: now } }] },
+    ];
+    const endInFuture: Prisma.BookingWhereInput[] = [
+      { endDatetime: { gte: now } },
+      { AND: [{ endDatetime: null }, { datetime: { gte: now } }] },
+    ];
+
+    switch (params.status) {
+      case 'created':
+        return {
+          ...base,
+          status: notCancelled,
+          AND: [{ OR: endInFuture }, notAttended],
+        };
+      case 'completed':
+        return {
+          ...base,
+          status: notCancelled,
+          OR: [...endInPast, attended],
+        };
+      case 'canceled':
+        return { ...base, status: { in: BookingQueryService.CANCELLED_STATUSES } };
+      default:
+        return {
+          ...base,
+          ...(params.status ? { status: params.status } : {}),
+          ...(params.from || params.to
+            ? {
+                datetime: {
+                  ...(params.from ? { gte: params.from } : {}),
+                  ...(params.to ? { lte: params.to } : {}),
+                },
+              }
+            : {}),
+        };
+    }
   }
 
   async listForSalon(params: {

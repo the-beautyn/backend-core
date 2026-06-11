@@ -177,8 +177,11 @@ describe('AltegioBookingService', () => {
       expect.objectContaining({
         booking: expect.objectContaining({
           // Service title/cost + seance length are seeded from the selected
-          // services so the card is complete before the CRM sync runs.
-          services: [{ id: Number(crmServiceId), title: 'Cut', cost: 1200, cost_to_pay: 1200 }],
+          // services so the card is complete before the CRM sync runs. Service.price
+          // is in cents (1200 = ₴12); the seed emits Altegio's major units (12) so
+          // booking-handler.mapAltegioServices' ×100 lands back on 1200 cents instead
+          // of double-converting to 120000.
+          services: [{ id: Number(crmServiceId), title: 'Cut', cost: 12, cost_to_pay: 12 }],
           staff: null,
           client: { name: 'User Test', phone: '+123', email: 'user@test.com' },
           seanceLength: 30,

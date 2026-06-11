@@ -269,8 +269,12 @@ export class AltegioBookingService {
       services: services.map((s) => ({
         id: this.requireCrmId(s.crmServiceId, 'service'),
         title: s.name,
-        cost: s.price,
-        cost_to_pay: s.price,
+        // Service.price is stored in cents, but booking-handler.mapAltegioServices
+        // normalizes Altegio's wire format (major currency units) to cents with a ×100.
+        // Emit major units here so the seeded cost isn't converted twice — otherwise the
+        // pre-sync booking card shows 100× the price until a CRM sync rewrites it.
+        cost: s.price / 100,
+        cost_to_pay: s.price / 100,
       })),
       documents: null,
       goodsTransactions: null,
