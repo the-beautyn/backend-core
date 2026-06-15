@@ -21,7 +21,7 @@ import {
   SalonData,
   BookingData,
 } from '@crm/provider-core';
-import { SyncSchedulerService } from '@crm/sync-scheduler';
+import { SyncSchedulerService, Lane } from '@crm/sync-scheduler';
 import { EasyweekBookingDtoNormalized } from './dto/easyweek-booking.dto';
 
 @Injectable()
@@ -256,8 +256,60 @@ export class CrmIntegrationService {
     return { jobId };
   }
 
+  // Fan a dispatch tick out to per-salon jobs across all active CRM-linked salons. Best-effort: a
+  // single salon failing to enqueue does not abort the rest. Draft salons (no externalSalonId) are
+  // skipped. The SLOW lane also refreshes the catalog (categories/services/workers/salon) — those
+  // run on their own queues/workers, isolated from the fast bookings lane. Fast = bookings-only.
+  async dispatchLane(lane: Lane): Promise<{ enqueued: number; catalog: number; total: number }> {
+    const salons = await this.prisma.salon.findMany({
+      where: { deletedAt: null, provider: { not: null }, externalSalonId: { not: null } },
+      select: { id: true, provider: true },
+    });
+    const includeCatalog = lane === 'slow';
+    let enqueued = 0;
+    let catalog = 0;
+    for (const s of salons) {
+      if (!s.provider) continue;
+      const provider = s.provider as CrmType;
+      try {
+        await this.scheduler.scheduleSync({ salonId: s.id, provider, lane }, { type: 'bookings' });
+        enqueued += 1;
+      } catch (e) {
+        this.log.warn('Failed to enqueue bookings lane job', {
+          salonId: s.id,
+          lane,
+          error: String((e as any)?.message ?? e),
+        });
+      }
+      if (includeCatalog) {
+        try {
+          // Own queues (crm-categories/services/workers/salons) — no lane/priority needed.
+          await this.scheduler.scheduleSync({ salonId: s.id, provider }, { type: 'categories' });
+          await this.scheduler.scheduleSync({ salonId: s.id, provider }, { type: 'services' });
+          await this.scheduler.scheduleSync({ salonId: s.id, provider }, { type: 'workers' });
+          await this.scheduler.scheduleSync({ salonId: s.id, provider }, { type: 'salon' });
+          catalog += 1;
+        } catch (e) {
+          this.log.warn('Failed to enqueue catalog sync jobs', {
+            salonId: s.id,
+            error: String((e as any)?.message ?? e),
+          });
+        }
+      }
+    }
+    this.log.info('Bookings dispatch fan-out', { lane, enqueued, catalog, total: salons.length });
+    return { enqueued, catalog, total: salons.length };
+  }
+
   async pullAltegioBookings(salonId: string, bookingIds: string[]) {
     return this.adapter.pullAltegioBookings(salonId, bookingIds);
+  }
+
+  async listAltegioRecords(
+    salonId: string,
+    params: { startDate?: string; endDate?: string; withDeleted?: boolean; count?: number },
+  ) {
+    return this.adapter.listAltegioRecords(salonId, params);
   }
 
   async pullEasyweekBookings(salonId: string, bookingIds: string[]) {

@@ -48,12 +48,54 @@ export async function pullBookings(ctx: AltegioContext, bookingIds: string[]): P
   return { items, fetched: items.length, total: ids.length };
 }
 
+export type ListRecordsParams = {
+  startDate?: string; // YYYY-MM-DD, visit-date window start
+  endDate?: string; // YYYY-MM-DD, visit-date window end
+  withDeleted?: boolean; // include cancelled/deleted records (flagged isDeleted)
+  count?: number; // page size (Altegio caps at 200)
+};
+
+// Fetch a company's records in one paginated list call (`GET /records/{company_id}`), instead of
+// one GET per id. Returns every record in the visit-date window — callers MUST scope to records
+// they own (by crmRecordId). `withDeleted` makes cancelled records come back flagged
+// `isDeleted` rather than 404-vanishing, so cancellations are observed.
+export async function listRecords(ctx: AltegioContext, params: ListRecordsParams): Promise<Page<AltegioBooking>> {
+  const externalSalonId = ctx.requireExternalSalonId();
+  // Altegio caps a page at 200; page until a short page comes back (the envelope's `meta` is
+  // stripped by `http()`, so we can't read total_count — a partial page means we're done).
+  const count = Math.min(Math.max(params.count ?? 200, 1), 200);
+  const items: AltegioBooking[] = [];
+
+  for (let page = 1; page <= 1000; page += 1) {
+    const query: Record<string, any> = { page, count };
+    if (params.startDate) query.start_date = params.startDate;
+    if (params.endDate) query.end_date = params.endDate;
+    if (params.withDeleted) query.with_deleted = 1;
+
+    const res = await ctx.http<any>('GET', `/api/v1/records/${externalSalonId}`, { query });
+    const records: any[] = Array.isArray(res) ? res : Array.isArray(res?.data) ? res.data : [];
+    for (const record of records) {
+      items.push(mapRecord(record));
+    }
+    if (records.length < count) break;
+    await wait(300);
+  }
+
+  return { items, fetched: items.length, total: items.length };
+}
+
 async function fetchBooking(ctx: AltegioContext, salonId: number, bookingId: string): Promise<AltegioBooking> {
   const res = await ctx.http<any>('GET', `/api/v1/record/${salonId}/${encodeURIComponent(bookingId)}`);
   const payload = (res as any)?.data ?? res;
+  return mapRecord(payload, bookingId);
+}
 
+// Maps a raw Altegio record to our AltegioBooking. The single-record and list endpoints return
+// the same record shape, so both paths share this. `fallbackId` keeps the crmRecordId when a
+// single fetch echoes no id.
+function mapRecord(payload: any, fallbackId?: string): AltegioBooking {
   return {
-    crmRecordId: payload?.id ? String(payload.id) : bookingId,
+    crmRecordId: payload?.id ? String(payload.id) : fallbackId ?? null,
     companyId: payload?.company_id ? String(payload.company_id) : null,
     staffId: payload?.staff_id ? String(payload.staff_id) : null,
     clientId: payload?.client?.id ? String(payload.client.id) : null,

@@ -1,6 +1,6 @@
 import { CrmType } from '@crm/shared';
 import { CategoryData, ServiceData, WorkerData, WorkerSchedule, WorkerWorkingSchedule, SalonData, Page, BookingData } from './dtos';
-import { AltegioBooking } from './altegio/bookings';
+import { AltegioBooking, ListRecordsParams } from './altegio/bookings';
 import { EasyWeekBooking } from './easyweek/bookings';
 
 /** Minimal context for a provider operation */
@@ -125,6 +125,7 @@ export interface ICrmProvider {
 
   // Bookings
   pullAltegioBookings(bookingIds: string[]): Promise<Page<AltegioBooking>>;
+  listAltegioRecords(params: ListRecordsParams): Promise<Page<AltegioBooking>>;
   pullEasyWeekBookings(bookingIds: string[]): Promise<Page<EasyWeekBooking>>;
   // Categories
   pullCategories(): Promise<Page<CategoryData>>;

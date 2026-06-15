@@ -13,7 +13,7 @@ import { CrmType } from '@crm/shared';
 import { createChildLogger } from '@shared/logger';
 import { CrmError, ErrorKind } from '@crm/shared';
 import { EasyWeekBooking } from './easyweek/bookings';
-import { AltegioBooking } from './altegio/bookings';
+import { AltegioBooking, ListRecordsParams } from './altegio/bookings';
 
 export class AltegioProvider implements ICrmProvider {
   private log = createChildLogger('provider.altegio');
@@ -140,6 +140,10 @@ export class AltegioProvider implements ICrmProvider {
 
   async pullAltegioBookings(bookingIds: string[]): Promise<Page<AltegioBooking>> {
     return BookingsBlock.pullBookings(this.ctx(), bookingIds);
+  }
+
+  async listAltegioRecords(params: ListRecordsParams): Promise<Page<AltegioBooking>> {
+    return BookingsBlock.listRecords(this.ctx(), params);
   }
 
   async pullEasyWeekBookings(bookingIds: string[]): Promise<Page<EasyWeekBooking>> {

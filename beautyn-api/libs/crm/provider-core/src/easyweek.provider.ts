@@ -10,7 +10,7 @@ import { TokenStorageService } from '@crm/token-storage';
 import { AccountRegistryService } from '@crm/account-registry';
 import { createChildLogger } from '@shared/logger';
 import { CrmError, ErrorKind } from '@crm/shared';
-import { AltegioBooking } from './altegio/bookings';
+import { AltegioBooking, ListRecordsParams } from './altegio/bookings';
 import { EasyWeekBooking } from './easyweek/bookings';
 
 export class EasyWeekProvider implements ICrmProvider {
@@ -52,6 +52,10 @@ export class EasyWeekProvider implements ICrmProvider {
   }
 
   async pullAltegioBookings(bookingIds: string[]): Promise<Page<AltegioBooking>> {
+    throw new CrmError('EasyWeek does not support AltegioBookings', { kind: ErrorKind.NOT_SUPPORTED, retryable: false });
+  }
+
+  async listAltegioRecords(_params: ListRecordsParams): Promise<Page<AltegioBooking>> {
     throw new CrmError('EasyWeek does not support AltegioBookings', { kind: ErrorKind.NOT_SUPPORTED, retryable: false });
   }
 
