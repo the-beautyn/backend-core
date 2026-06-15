@@ -297,7 +297,7 @@ export class CrmIntegrationService {
         }
       }
     }
-    this.log.info('Bookings dispatch fan-out', { lane, enqueued, catalog, total: salons.length });
+    this.log.info('Sync lane fan-out', { lane, enqueued, catalog, total: salons.length });
     return { enqueued, catalog, total: salons.length };
   }
 

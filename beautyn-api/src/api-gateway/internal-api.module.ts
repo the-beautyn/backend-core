@@ -6,6 +6,7 @@ import { ServicesInternalController } from './v1/internal/services.internal.cont
 import { WorkersModule } from '../workers/workers.module';
 import { WorkersInternalController } from './v1/internal/workers.internal.controller';
 import { BookingsInternalController } from './v1/internal/bookings.internal.controller';
+import { SyncInternalController } from './v1/internal/sync.internal.controller';
 import { BookingModule } from '../booking/booking.module';
 import { EasyweekBookingModule } from '../booking/easyweek-booking/easyweek-booking.module';
 import { AltegioBookingModule } from '../booking/altegio-booking/altegio-booking.module';
@@ -30,6 +31,7 @@ import { CrmIntegrationModule } from '../crm-integration/core/crm-integration.mo
     WorkersInternalController,
     BookingsInternalController,
     SalonsInternalController,
+    SyncInternalController,
   ],
 })
 export class InternalApiModule {}

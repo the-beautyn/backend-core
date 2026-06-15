@@ -21,12 +21,12 @@ async function bootstrap() {
   const providerFactory = app.get(ProviderFactory);
   const worker = startCronDiffWorker({ providerFactory });
 
-  // Register the two-lane bookings-dispatch schedules (fast 2-min / slow 90-min). Master flag off
-  // → no schedules registered → no polling (today's behavior). Flip off + restart to stop polling.
+  // Register the two-lane sync schedules (fast 2-min / slow 90-min). Master flag off → no schedules
+  // registered → no polling (today's behavior). Flip off + restart to stop polling.
   if (envBool('BOOKINGS_LANES_ENABLED')) {
-    await new SyncSchedulerService().registerBookingsDispatchSchedules();
+    await new SyncSchedulerService().registerSyncLaneSchedules();
     // eslint-disable-next-line no-console
-    console.log('Bookings dispatch schedules registered (fast + slow lanes)');
+    console.log('Sync lane schedules registered (fast + slow)');
   }
 
   // Keep process alive; attach graceful shutdown

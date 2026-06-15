@@ -28,7 +28,7 @@ Each worker is its **own process** draining **one queue**. They're defined in
 | `workers` | `crm-workers` | staff → `/internal/workers/sync` | `enqueueWorkersSync` / slow lane | on-demand |
 | `bookings` | `crm-bookings` | → `/internal/bookings/rebase` | owner "sync now" + **fast/slow lane dispatch** | on-demand + **timer** |
 | `salons` | `crm-salons` | → `/internal/salons/pull` (creates **change-proposals**, not overwrites) | `enqueueSalonSync` / slow lane | on-demand |
-| `cron` | `crm-cron-diff` | (registers + fires the lane ticks) → `/internal/bookings/dispatch` | **its own repeatable schedules** | **scheduled** |
+| `cron` | `crm-cron-diff` | (registers + fires the lane ticks) → `/internal/sync/dispatch` | **its own repeatable schedules** | **scheduled** |
 
 **The only autonomous/scheduled piece is the `cron` worker.** Everything else only runs when an app
 event (onboarding, an owner tapping "sync now", or a lane dispatch) enqueues a job. There are no
@@ -72,11 +72,11 @@ still covers them); the most imminent are always synced.
 ### Data flow
 ```
 [cron worker]  ← run ONE instance
-   on boot (if BOOKINGS_LANES_ENABLED): registerBookingsDispatchSchedules()
+   on boot (if BOOKINGS_LANES_ENABLED): registerSyncLaneSchedules()
      → 2 repeatable BullMQ jobs on crm-cron-diff:
          fast  every 120000ms   {lane:'fast'}
          slow  every 5400000ms  {lane:'slow'}
-   on each tick → POST /api/v1/internal/bookings/dispatch {lane}
+   on each tick → POST /api/v1/internal/sync/dispatch {lane}
                                           │
 [API] dispatch ──────────────────────────┘  CrmIntegrationService.dispatchLane(lane):
    list active CRM salons (provider + externalSalonId set, not deleted)
@@ -105,7 +105,7 @@ workers; not owner-reachable.
 
 | Endpoint | Caller | Purpose |
 |---|---|---|
-| `POST /api/v1/internal/bookings/dispatch` `{lane}` | `cron` worker | fan a lane tick out to per-salon jobs |
+| `POST /api/v1/internal/sync/dispatch` `{lane}` | `cron` worker | fan a lane tick out to per-salon jobs |
 | `POST /api/v1/internal/bookings/rebase` `{salon_id, lane?}` | `bookings` worker | reconcile bookings (no `lane` → full/slow) |
 | `POST /api/v1/internal/categories/sync` | `categories`/`initial` | upsert categories |
 | `POST /api/v1/internal/services/sync` | `services`/`initial` | upsert services |
@@ -123,7 +123,7 @@ workers; not owner-reachable.
 Example (internal):
 ```bash
 KEY=$(grep '^INTERNAL_API_KEY=' .env.local | cut -d= -f2- | tr -d '"')
-curl -s -X POST http://127.0.0.1:3000/api/v1/internal/bookings/dispatch \
+curl -s -X POST http://127.0.0.1:3000/api/v1/internal/sync/dispatch \
   -H "x-internal-key: $KEY" -H 'content-type: application/json' -d '{"lane":"fast"}'
 # → {"enqueued":N,"catalog":M,"total":N}
 ```
@@ -180,11 +180,11 @@ npm run worker:cron:local      # the autonomous timer
 npm run worker:bookings:local  # per-salon bookings jobs
 ```
 Swap the suffix for the env: `:dev`, `:stage`. The `cron` worker prints
-`Bookings dispatch schedules registered (fast + slow lanes)` on boot when enabled.
+`Sync lane schedules registered (fast + slow)` on boot when enabled.
 
 ### Production (Railway)
 Two services from the same repo:
-- **API service** → start command `npm run start:prod` (serves `/internal/bookings/dispatch` + `/rebase`).
+- **API service** → start command `npm run start:prod` (serves `/internal/sync/dispatch` + `/rebase`).
 - **Worker service** → start command `npm run worker:prod` (runs **all 7** workers via `concurrently`,
   including `cron` + `bookings`). The `cron` worker must run as a **single instance** (it's the
   scheduler).
