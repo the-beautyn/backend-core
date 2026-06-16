@@ -1,7 +1,45 @@
-import { HomeFeedNextBookingDto } from '../dto/home-feed-next-booking.dto';
+import {
+  HomeFeedNextBookingDto,
+  HomeFeedNextBookingServiceDto,
+} from '../dto/home-feed-next-booking.dto';
 import { HomeFeedSalonCardDto } from '../dto/home-feed-salon-card.dto';
 import { BookingDto } from '../../booking/dto/booking.response.dto';
 import { RawSearchRow } from '../../search/search-query-builder.service';
+
+// Per-service price/description live under the provider block; `service_names`
+// is the name-only fallback. Mirrors the iOS `BookingMapper.mapServices`
+// precedence (easyweek → altegio → names) so the Home "next appointment" detail
+// shows the same per-service prices as the bookings list. Prices stay in minor
+// units (cents); the client divides by 100.
+function mapNextBookingServices(booking: BookingDto): HomeFeedNextBookingServiceDto[] {
+  const easyweek = booking.provider_specific?.easyweek?.ordered_services;
+  if (easyweek && easyweek.length > 0) {
+    return easyweek.map((service) => ({
+      id: service.external_uuid ?? service.name ?? '',
+      name: service.name ?? '',
+      description: service.description ?? null,
+      price_cents: service.price ?? null,
+    }));
+  }
+
+  const altegio = booking.provider_specific?.altegio?.services;
+  if (altegio && altegio.length > 0) {
+    return altegio.map((service) => ({
+      id: service.external_id ?? service.title ?? '',
+      name: service.title ?? '',
+      description: null,
+      price_cents: service.cost_to_pay ?? service.cost ?? null,
+    }));
+  }
+
+  // No provider breakdown — names only, no per-service price.
+  return (booking.service_names ?? []).map((name) => ({
+    id: name,
+    name,
+    description: null,
+    price_cents: null,
+  }));
+}
 
 // Built from the fully-resolved `BookingDto` (same source as the bookings list)
 // so the Home "next appointment" card shows the same price / duration / services.
@@ -20,6 +58,8 @@ export function mapBookingToNextBooking(booking: BookingDto): HomeFeedNextBookin
   dto.total_price_cents = booking.total_price ?? null;
   dto.duration_minutes = booking.duration_minutes ?? null;
   dto.service_names = booking.service_names ?? [];
+  dto.services = mapNextBookingServices(booking);
+  dto.short_link = booking.short_link ?? null;
   return dto;
 }
 
