@@ -4,9 +4,9 @@ import { IsUUID } from 'class-validator';
 export class ConfirmEasyweekBookingDto {
   @ApiProperty({ format: 'uuid' })
   @IsUUID()
-  salonId!: string;
+  salon_id!: string;
 
   @ApiProperty({ description: 'EasyWeek booking UUID' })
   @IsUUID()
-  bookingUuid!: string;
+  booking_uuid!: string;
 }
