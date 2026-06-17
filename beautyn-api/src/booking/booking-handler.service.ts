@@ -26,6 +26,10 @@ type NormalizedEasyweek = {
 
 @Injectable()
 export class BookingHandlerService {
+  // EasyWeek cancels to 'canceled'; Altegio soft-deletes to 'deleted'. Both are
+  // the cancelled state for cancelledAt stamping. Mirrors BookingQueryService.
+  private static readonly CANCELLED_STATUSES = ['canceled', 'deleted'];
+
   constructor(private readonly prisma: PrismaService) {}
 
   async createEasyweekBooking(params: {
@@ -77,6 +81,7 @@ export class BookingHandlerService {
           salonId: params.salonId,
           userId: params.userId ?? null,
           status,
+          cancelledAt: this.resolveCancelledAt(null, null, status),
           datetime: start,
           endDatetime: end ?? null,
           crmType: CrmType.EASYWEEK,
@@ -166,6 +171,7 @@ export class BookingHandlerService {
         data: {
           userId: existing.userId ?? null,
           status,
+          cancelledAt: this.resolveCancelledAt(existing.status, existing.cancelledAt, status),
           datetime: start,
           endDatetime: end ?? null,
           crmCompanyId: normalized.locationUuid ?? null,
@@ -235,6 +241,7 @@ export class BookingHandlerService {
           salonId: params.salonId,
           userId: params.userId ?? null,
           status,
+          cancelledAt: this.resolveCancelledAt(null, null, status),
           datetime: start,
           endDatetime: end,
           crmType: CrmType.ALTEGIO,
@@ -319,6 +326,7 @@ export class BookingHandlerService {
         data: {
           userId: existing.userId ?? null,
           status,
+          cancelledAt: this.resolveCancelledAt(existing.status, existing.cancelledAt, status),
           datetime: start,
           endDatetime: end,
           crmCompanyId: params.booking?.companyId ?? null,
@@ -931,6 +939,17 @@ export class BookingHandlerService {
       }
     }
     return { added, removed, changed };
+  }
+
+  // Stamp the moment a booking transitions into a cancelled state, so the Cancelled
+  // tab can be ordered by when it was cancelled (not the appointment date). Preserve
+  // the original stamp across later re-syncs of an already-cancelled booking, clear it
+  // if the booking is reactivated, and backfill legacy rows that predate the field.
+  private resolveCancelledAt(prevStatus: string | null, prevCancelledAt: Date | null, nextStatus: string): Date | null {
+    if (!BookingHandlerService.CANCELLED_STATUSES.includes(nextStatus)) return null;
+    const wasCancelled = prevStatus != null && BookingHandlerService.CANCELLED_STATUSES.includes(prevStatus);
+    if (wasCancelled) return prevCancelledAt ?? new Date();
+    return new Date();
   }
 
   private toDate(value?: string | number | null): Date | null {

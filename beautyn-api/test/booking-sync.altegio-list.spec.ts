@@ -70,7 +70,8 @@ describe('BookingSyncService.rebaseFromCrm — Altegio list reconciliation', () 
     await service.rebaseFromCrm(salonId);
     expect(prisma.booking.updateMany).toHaveBeenCalledTimes(1);
     const arg = prisma.booking.updateMany.mock.calls[0][0];
-    expect(arg.data).toEqual({ status: 'deleted' });
+    expect(arg.data.status).toBe('deleted');
+    expect(arg.data.cancelledAt).toBeInstanceOf(Date); // stamp the purge moment as the cancellation time
     expect(arg.where.id.in).toEqual(['b2']); // future absent → cancelled; past 'b3' untouched
   });
 

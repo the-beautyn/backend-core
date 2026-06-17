@@ -246,7 +246,9 @@ export class AltegioBookingService {
     const recordId = created?.record_id ?? null;
     if (!recordId) throw new BadGatewayException('Altegio did not return a record id');
 
-    const bookingPayload: AltegioBooking = {
+    // Seed a booking from the client's selections so the card has price/duration/
+    // services even if the immediate CRM read below is unavailable.
+    let bookingPayload: AltegioBooking = {
       crmRecordId: String(recordId),
       companyId: ctx.externalSalonId ? String(ctx.externalSalonId) : null,
       // null when "any team member" — the real staff is filled in on booking sync.
@@ -280,12 +282,30 @@ export class AltegioBookingService {
       goodsTransactions: null,
       raw: { request: payload, response: created },
     };
+
+    // Mirror the EasyWeek confirm flow: read the record straight back from Altegio
+    // so the persisted booking carries the CRM's own data — notably `short_link`,
+    // plus the real staff/services — from the first save instead of waiting for a
+    // background sync. Best-effort: if Altegio can't return the record yet (eventual
+    // consistency / rate limit) we keep the seeded payload; a later sync reconciles it.
+    try {
+      const page = await this.crmIntegration.pullAltegioBookings(ctx.salonId, [String(recordId)]);
+      const fetched = page?.items?.[0];
+      if (fetched) bookingPayload = fetched;
+    } catch (e) {
+      this.log.warn('Altegio post-create record read failed; using seeded booking', {
+        salonId,
+        recordId: String(recordId),
+        error: String((e as any)?.message ?? e),
+      });
+    }
+
     const createdBooking = await this.bookingHandler.createAltegioBooking({ salonId, booking: bookingPayload, userId });
 
     return {
       booking_id: createdBooking.booking.id,
       crm_record_id: Number(recordId),
-      short_link: null,
+      short_link: createdBooking.booking.shortLink ?? null,
       status: 'created',
     };
   }

@@ -135,6 +135,7 @@ export type BookingDto = {
   short_link?: string | null;
   created_at: string;
   updated_at: string;
+  cancelled_at?: string | null;
   provider_specific?: {
     easyweek?: BookingProviderEasyweekDto;
     altegio?: BookingProviderAltegioDto;
@@ -222,6 +223,7 @@ export class BookingResponseDto {
   @ApiPropertyOptional() short_link?: string | null;
   @ApiProperty() created_at!: string;
   @ApiProperty() updated_at!: string;
+  @ApiPropertyOptional() cancelled_at?: string | null;
   @ApiPropertyOptional({ type: () => BookingProviderSpecificDto })
   provider_specific?: BookingProviderSpecificDto;
   @ApiPropertyOptional({ type: [BookingHistoryEntryDto] })

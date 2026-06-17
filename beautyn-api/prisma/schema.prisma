@@ -384,6 +384,7 @@ model Booking {
   status        String   @default("created")
   datetime      DateTime @map("datetime") @db.Timestamptz(6)
   endDatetime   DateTime? @map("end_datetime") @db.Timestamptz(6)
+  cancelledAt   DateTime? @map("cancelled_at") @db.Timestamptz(6)
   comment       String?  @map("comment")
   crmType       String?  @map("crm_type")
   crmRecordId   String?  @map("crm_record_id")

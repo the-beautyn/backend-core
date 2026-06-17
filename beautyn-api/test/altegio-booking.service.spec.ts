@@ -40,6 +40,9 @@ describe('AltegioBookingService', () => {
         times: [{ time: '10:00', datetime: '2025-01-01T10:00:00+03:00', seance_length: 3600, sum_length: 4200 }],
       }),
       createRecord: jest.fn().mockResolvedValue(bookRecordResponse),
+      // Default: the immediate read-back returns nothing, so createRecord falls back
+      // to the seeded payload. Tests that exercise the CRM read override this.
+      pullAltegioBookings: jest.fn().mockResolvedValue({ items: [], fetched: 0, total: 1 }),
     };
     users = {
       findContactInfo: jest.fn().mockResolvedValue({
@@ -190,6 +193,58 @@ describe('AltegioBookingService', () => {
         }),
       }),
     );
+  });
+
+  it('reads the record back from Altegio so the booking carries CRM data (short_link) at create', async () => {
+    prisma.service.findMany.mockResolvedValue([{ id: serviceId, crmServiceId, name: 'Cut', price: 1200, duration: 30, categoryId: null }]);
+    prisma.worker.findFirst.mockResolvedValue({ id: workerId, crmWorkerId, firstName: 'John', lastName: 'Doe' });
+
+    const recordId = String(bookRecordResponse[0].record_id);
+    const fetchedRecord = {
+      crmRecordId: recordId,
+      services: [{ id: Number(crmServiceId), title: 'Cut', cost: 12, cost_to_pay: 12 }],
+      raw: { id: bookRecordResponse[0].record_id, short_link: 'https://n123.alteg.io/r/abcd' },
+    };
+    crmIntegration.pullAltegioBookings = jest.fn().mockResolvedValue({ items: [fetchedRecord], fetched: 1, total: 1 });
+    bookingHandler.createAltegioBooking.mockResolvedValue({
+      booking: { id: 'booking-1', shortLink: 'https://n123.alteg.io/r/abcd' },
+      changed: true,
+    });
+
+    const res = await service.createRecord(salonId, 'user-1', {
+      workerId,
+      serviceIds: [serviceId],
+      datetime: '2025-01-01T10:00:00+03:00',
+    });
+
+    // We read the just-created record back by its Altegio id…
+    expect(crmIntegration.pullAltegioBookings).toHaveBeenCalledWith(salonId, [recordId]);
+    // …and persist THAT record (CRM data) instead of only the seeded payload…
+    expect(bookingHandler.createAltegioBooking).toHaveBeenCalledWith(
+      expect.objectContaining({ salonId, booking: fetchedRecord, userId: 'user-1' }),
+    );
+    // …so the response carries the CRM short link from the first save.
+    expect(res.short_link).toBe('https://n123.alteg.io/r/abcd');
+  });
+
+  it('falls back to the seeded booking (null short link) when Altegio cannot return the record yet', async () => {
+    prisma.service.findMany.mockResolvedValue([{ id: serviceId, crmServiceId, name: 'Cut', price: 1200, duration: 30, categoryId: null }]);
+    crmIntegration.pullAltegioBookings = jest.fn().mockRejectedValue(new Error('record not ready'));
+    bookingHandler.createAltegioBooking.mockResolvedValue({ booking: { id: 'booking-1' }, changed: true });
+
+    const res = await service.createRecord(salonId, 'user-1', {
+      serviceIds: [serviceId],
+      datetime: '2025-01-01T10:00:00+03:00',
+    });
+
+    // Seeded payload (built from request data) is still persisted, so creation never
+    // fails just because the read-back was unavailable; the short link backfills on sync.
+    expect(bookingHandler.createAltegioBooking).toHaveBeenCalledWith(
+      expect.objectContaining({
+        booking: expect.objectContaining({ crmRecordId: String(bookRecordResponse[0].record_id) }),
+      }),
+    );
+    expect(res.short_link).toBeNull();
   });
 
   it('rejects booking when the user has no phone', async () => {

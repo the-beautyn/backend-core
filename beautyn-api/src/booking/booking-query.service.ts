@@ -104,6 +104,9 @@ export class BookingQueryService {
     const direction: Prisma.SortOrder = params.sort === 'datetime_asc' ? 'asc' : 'desc';
     const where = this.buildClientScopeWhere(params, new Date());
 
+    // All buckets (incl. cancelled) are returned ordered by appointment datetime.
+    // The Cancelled tab is re-ordered by cancelledAt client-side; cancelled_at is
+    // still exposed in the DTO so the app has the value to sort by.
     const items = await this.prisma.booking.findMany({
       where,
       include: this.include,
@@ -295,6 +298,7 @@ export class BookingQueryService {
       short_link: booking.shortLink ?? null,
       created_at: booking.createdAt.toISOString(),
       updated_at: booking.updatedAt.toISOString(),
+      cancelled_at: booking.cancelledAt ? booking.cancelledAt.toISOString() : null,
       provider_specific: {
         easyweek,
         altegio,

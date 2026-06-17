@@ -160,7 +160,7 @@ export class BookingSyncService {
       this.log.info('Cancelling Altegio bookings missing from CRM list', { salonId, lane, count: purgedFutureIds.length });
       await this.prisma.booking.updateMany({
         where: { id: { in: purgedFutureIds } },
-        data: { status: 'deleted' },
+        data: { status: 'deleted', cancelledAt: now },
       });
     }
 
