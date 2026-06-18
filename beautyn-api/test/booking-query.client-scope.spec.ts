@@ -41,6 +41,34 @@ describe('BookingQueryService.listForClient scope translation', () => {
     });
   });
 
+  it('honors the from/to window for a bucketed status (created + window)', async () => {
+    // The My Bookings tabs combine a bucket status with from/to. The bucket branches must apply
+    // the window too (not only the legacy default branch), so a booking outside [from, to] is
+    // excluded and cursor paging operates over the right set.
+    const from = new Date('2025-06-01T00:00:00Z');
+    const to = new Date('2025-06-30T23:59:59Z');
+    const where = await whereFor('created', { from, to });
+
+    // The window is applied as a top-level datetime constraint...
+    expect(where.datetime).toEqual({ gte: from, lte: to });
+    // ...alongside (ANDed with) the bucket's own status + upcoming/not-attended clauses.
+    expect(where.userId).toBe(userId);
+    expect(where.status).toEqual({ notIn: CANCELLED });
+    expect(where.AND).toHaveLength(2);
+    expect(where.AND[0].OR[0].endDatetime.gte).toBeInstanceOf(Date);
+  });
+
+  it('applies the window to the cancelled bucket too', async () => {
+    const from = new Date('2025-06-01T00:00:00Z');
+    const where = await whereFor('canceled', { from });
+    expect(where).toEqual({ userId, datetime: { gte: from }, status: { in: CANCELLED } });
+  });
+
+  it('omits the datetime window for a bucketed status when no from/to is given', async () => {
+    const where = await whereFor('created');
+    expect(where.datetime).toBeUndefined();
+  });
+
   it('completed → past: not cancelled, end/start has passed OR attended', async () => {
     const where = await whereFor('completed');
     expect(where.status).toEqual({ notIn: CANCELLED });

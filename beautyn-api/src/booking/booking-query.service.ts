@@ -161,34 +161,43 @@ export class BookingQueryService {
       { endDatetime: { gte: now } },
       { AND: [{ endDatetime: null }, { datetime: { gte: now } }] },
     ];
+    // The optional from/to window applies to EVERY bucket, not just the legacy default branch —
+    // the My Bookings tabs send status + from/to together, so a bucketed query must honor the
+    // window (and so cursor paging operates over the right set). This top-level `datetime`
+    // constraint is ANDed with each bucket's own AND/OR; those reference datetime only inside
+    // nested objects, so there's no key collision.
+    const dateRange: Prisma.BookingWhereInput =
+      params.from || params.to
+        ? {
+            datetime: {
+              ...(params.from ? { gte: params.from } : {}),
+              ...(params.to ? { lte: params.to } : {}),
+            },
+          }
+        : {};
 
     switch (params.status) {
       case 'created':
         return {
           ...base,
+          ...dateRange,
           status: notCancelled,
           AND: [{ OR: endInFuture }, notAttended],
         };
       case 'completed':
         return {
           ...base,
+          ...dateRange,
           status: notCancelled,
           OR: [...endInPast, attended],
         };
       case 'canceled':
-        return { ...base, status: { in: BookingQueryService.CANCELLED_STATUSES } };
+        return { ...base, ...dateRange, status: { in: BookingQueryService.CANCELLED_STATUSES } };
       default:
         return {
           ...base,
+          ...dateRange,
           ...(params.status ? { status: params.status } : {}),
-          ...(params.from || params.to
-            ? {
-                datetime: {
-                  ...(params.from ? { gte: params.from } : {}),
-                  ...(params.to ? { lte: params.to } : {}),
-                },
-              }
-            : {}),
         };
     }
   }
