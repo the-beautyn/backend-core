@@ -5,7 +5,7 @@ async function main() {
   const { REDIS_URL } = process.env as Record<string, string | undefined>;
   if (!REDIS_URL) throw new Error('REDIS_URL is required');
 
-  const connection = { url: REDIS_URL } as any;
+  const connection = { url: REDIS_URL, family: 0 } as any;
   const queue = new Queue(SYNC_QUEUE, { connection });
   const events = new QueueEvents(SYNC_QUEUE, { connection });
 

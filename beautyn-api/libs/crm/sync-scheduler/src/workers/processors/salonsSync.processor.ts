@@ -48,7 +48,7 @@ export function startSalonsSyncWorker() {
         log.info('Salon sync completed', { salonId, provider, jobId: job.id });
       });
     },
-    { connection: { url: REDIS_URL }, concurrency: Math.max(1, Number.parseInt(process.env.CRM_WORKER_CONCURRENCY ?? '') || 1) },
+    { connection: { url: REDIS_URL, family: 0 }, concurrency: Math.max(1, Number.parseInt(process.env.CRM_WORKER_CONCURRENCY ?? '') || 1) },
   );
 
   worker.on('completed', (job: any) => log.info('Salon job completed', { jobId: job.id }));

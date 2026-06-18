@@ -15,7 +15,7 @@ async function makeQueue(name: string): Promise<BullQueueLike> {
   const limiterMax = Number.parseInt(process.env.CRM_SYNC_RATE_MAX ?? '') || undefined;
   const limiterDuration = Number.parseInt(process.env.CRM_SYNC_RATE_DURATION_MS ?? '') || undefined;
   const limiter = limiterMax && limiterDuration ? { max: limiterMax, duration: limiterDuration } : undefined;
-  return new Queue(name, { connection: { url: REDIS_URL }, ...(limiter ? { limiter } : {}) });
+  return new Queue(name, { connection: { url: REDIS_URL, family: 0 }, ...(limiter ? { limiter } : {}) });
 }
 
 @Injectable()

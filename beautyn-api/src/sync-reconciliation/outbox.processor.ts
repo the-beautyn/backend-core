@@ -81,7 +81,7 @@ export function startOutboxWorker(container: { repo: OutboxRepository; mapper: M
       //   log.warn('Intent deferred', { intentId: row.id, attempts, nextRunAt, error: String(e?.message ?? e) });
       // }
     });
-  }, { connection: { url: REDIS_URL }, concurrency: 2 });
+  }, { connection: { url: REDIS_URL, family: 0 }, concurrency: 2 });
 
   return worker;
 }
