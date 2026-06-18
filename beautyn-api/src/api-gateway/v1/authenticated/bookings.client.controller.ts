@@ -1,7 +1,8 @@
-import { Controller, Get, NotFoundException, Param, ParseUUIDPipe, Query, Req, UseGuards } from '@nestjs/common';
+import { Controller, Get, NotFoundException, Param, ParseUUIDPipe, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Request } from 'express';
 import { BookingQueryService } from '../../../booking/booking-query.service';
+import { BookingSyncService } from '../../../booking/booking-sync.service';
 import { BookingDto, BookingListResponseDto, BookingListResponseDtoClass, BookingResponseDto } from '../../../booking/dto/booking.response.dto';
 import { JwtAuthGuard } from '../../../shared/guards/jwt-auth.guard';
 import { ClientRolesGuard } from '../../../shared/guards/roles.guard';
@@ -12,7 +13,10 @@ import { envelopeRef } from '../../../shared/utils/swagger-envelope.util';
 @UseGuards(JwtAuthGuard, ClientRolesGuard)
 @Controller('api/v1/bookings')
 export class ClientBookingsController {
-  constructor(private readonly bookings: BookingQueryService) {}
+  constructor(
+    private readonly bookings: BookingQueryService,
+    private readonly bookingSync: BookingSyncService,
+  ) {}
 
   @Get()
   @ApiOperation({ summary: 'List current client bookings' })
@@ -53,6 +57,29 @@ export class ClientBookingsController {
       throw new NotFoundException('Booking not found');
     }
     return booking;
+  }
+
+  // Reconcile a single booking with its CRM (called when the client closes the CRM "Make Change"
+  // web page) and return the refreshed booking — the same shape GET /:id returns.
+  @Post(':id/refresh')
+  @ApiOperation({ summary: 'Refresh a booking from its CRM and return the reconciled state' })
+  @ApiOkResponse({ description: 'Booking', ...envelopeRef(BookingResponseDto) })
+  async refresh(
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Req() req?: Request & { user?: { id?: string } },
+  ): Promise<BookingDto> {
+    const userId = req?.user?.id as string;
+    // Ownership check before touching the CRM: getForClient is scoped to userId.
+    const owned = await this.bookings.getForClient(id, userId);
+    if (!owned) {
+      throw new NotFoundException('Booking not found');
+    }
+    await this.bookingSync.refreshSingle(id);
+    const refreshed = await this.bookings.getForClient(id, userId);
+    if (!refreshed) {
+      throw new NotFoundException('Booking not found');
+    }
+    return refreshed;
   }
 
   private toDate(value?: string): Date | null {

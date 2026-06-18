@@ -36,6 +36,41 @@ export class BookingSyncService {
     return [];
   }
 
+  // Reconcile a SINGLE booking against its CRM (used after the client returns from the CRM web
+  // page — Altegio cancel/reschedule keep the same record id, EasyWeek cancel keeps its uuid).
+  // Pulls just that record and runs it through the same upsert+version handler as the bulk sync.
+  // The row exists by construction (we loaded it), so the handlers' NotFound path never trips here.
+  async refreshSingle(bookingId: string): Promise<BookingDto | null> {
+    const booking = await this.prisma.booking.findUnique({
+      where: { id: bookingId },
+      select: { id: true, salonId: true, crmType: true, crmRecordId: true },
+    });
+    if (!booking) {
+      throw new NotFoundException('Booking not found');
+    }
+    if (!booking.crmRecordId) {
+      // No CRM record to reconcile against — return the current state unchanged.
+      return this.bookingQuery.getByIds([booking.id]).then((rows) => rows[0] ?? null);
+    }
+
+    if (booking.crmType === CrmType.ALTEGIO) {
+      const page = await this.crm.pullAltegioBookings(booking.salonId, [booking.crmRecordId]);
+      const records = this.prepareAltegioPayload(page?.items ?? []);
+      for (const record of records) {
+        await this.bookingHandler.handleAltegioBooking({ booking: record });
+      }
+    } else if (booking.crmType === CrmType.EASYWEEK) {
+      const details = await this.crm.fetchEasyweekBookingDetails({
+        salonId: booking.salonId,
+        bookingUuid: booking.crmRecordId,
+      });
+      await this.bookingHandler.handleEasyweekBooking({ booking: details });
+    }
+
+    const rows = await this.bookingQuery.getByIds([booking.id]);
+    return rows[0] ?? null;
+  }
+
   // EasyWeek has no list-by-range endpoint, so we pull each known booking by id (~1 req/s each).
   // Fast lane bounds that cost: only active bookings inside the next horizon window, soonest-first,
   // capped — so an unbounded book of business can't overrun the 2-min tick. Slow lane pulls all.
