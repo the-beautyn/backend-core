@@ -11,7 +11,6 @@ import {
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { PrismaService } from '../../shared/database/prisma.service';
-import { AltegioBookTimesResponse } from '@crm/provider-core';
 import type { AltegioBooking } from '@crm/provider-core/altegio/bookings';
 import { CrmType, CrmError, ErrorKind } from '@crm/shared';
 import { CrmIntegrationService } from '../../crm-integration/core/crm-integration.service';
@@ -79,6 +78,7 @@ export class AltegioBookingService {
       this.crmIntegration.bookServices(ctx.salonId, ctx.provider, {
         serviceIds: serviceIdsForFilter,
         staffId: staffId ?? undefined,
+        datetime: query.datetime,
       }),
     );
     const allowedIds = new Set<string>((allowed.services ?? []).map((s) => String(s.id)));
@@ -213,59 +213,99 @@ export class AltegioBookingService {
     const ctx = await this.requireAltegioSalon(salonId);
     const [services, worker, user] = await Promise.all([
       this.resolveServicesByIds(salonId, dto.serviceIds ?? []),
-      this.resolveWorkerById(salonId, dto.workerId),
+      // No worker → "any team member"; Altegio expects staff_id 0 in that case.
+      dto.workerId ? this.resolveWorkerById(salonId, dto.workerId) : Promise.resolve(null),
       this.users.findContactInfo(userId),
     ]);
-    const crmStaffId = this.requireCrmId(worker.crmWorkerId, 'worker');
+    const crmStaffId = worker ? this.requireCrmId(worker.crmWorkerId, 'worker') : null;
     const crmServiceIds = services.map((s) => this.requireCrmId(s.crmServiceId, 'service'));
+    // Altegio stores seance length in seconds; Service.duration is also seconds.
+    const totalDurationSec = services.reduce((sum, s) => sum + (s.duration ?? 0), 0);
 
-    const datePart = dto.datetime.slice(0, 10);
-    const slotLengthSec = await this.pickSlotLength(ctx, crmStaffId, datePart, crmServiceIds, dto.datetime);
+    // book_record requires a fullname + a valid phone; fail fast with a clear error.
+    const fullname = [user.name, user.second_name].filter(Boolean).join(' ').trim();
+    const phone = user.phone?.trim();
+    if (!fullname) throw new BadRequestException('Client name is required to book');
+    if (!phone) throw new BadRequestException('Client phone is required to book');
 
-    this.log.info('client info', { phone: user.phone ?? undefined, name: [user.name, user.second_name].filter(Boolean).join(' ').trim() || undefined, email: user.email ?? undefined });
     const payload = {
-      staff_id: crmStaffId,
-      services: crmServiceIds.map((id) => ({ id })),
-      client: { phone: user.phone ?? undefined, name: [user.name, user.second_name].filter(Boolean).join(' ').trim() || undefined, email: user.email ?? undefined },
-      datetime: dto.datetime,
-      seance_length: slotLengthSec,
+      fullname,
+      phone,
+      email: user.email ?? undefined,
       comment: dto.comment,
-      save_if_busy: false,
-      attendance: dto.attendance ?? 1,
+      type: 'mobile',
+      appointments: [
+        // staff_id 0 = any available team member (Altegio online-booking contract).
+        { id: 1, staff_id: crmStaffId ?? 0, services: crmServiceIds, datetime: dto.datetime },
+      ],
     };
 
-    const record = await this.callCrm(() => this.crmIntegration.createRecord(ctx.salonId, ctx.provider, payload));
-    const recordData: any = (record as any)?.data ?? record ?? {};
-    const clientData = recordData?.client ?? (record as any)?.client ?? payload?.client ?? null;
-    const staffData = recordData?.staff ?? (record as any)?.staff ?? null;
+    const result = await this.callCrm(() => this.crmIntegration.createRecord(ctx.salonId, ctx.provider, payload));
+    // book_record returns `[{ id, record_id, record_hash }]` (envelope already stripped to `data`).
+    const created: any = Array.isArray(result) ? result[0] : ((result as any)?.data?.[0] ?? null);
+    const recordId = created?.record_id ?? null;
+    if (!recordId) throw new BadGatewayException('Altegio did not return a record id');
 
-    const bookingPayload: AltegioBooking = {
-      crmRecordId: recordData?.id ? String(recordData.id) : null,
-      companyId: recordData?.company_id ? String(recordData.company_id) : ctx.externalSalonId ? String(ctx.externalSalonId) : null,
-      staffId: recordData?.staff_id ? String(recordData.staff_id) : String(crmStaffId),
-      clientId: recordData?.client?.id ? String(recordData.client.id) : null,
-      datetime: recordData?.datetime ?? dto.datetime,
-      date: recordData?.date ?? null,
-      comment: recordData?.comment ?? dto.comment ?? null,
-      attendance: recordData?.attendance ?? null,
-      confirmed: recordData?.confirmed ?? null,
-      visitAttendance: recordData?.visit_attendance ?? null,
-      length: recordData?.length ?? null,
-      seanceLength: recordData?.seance_length ?? slotLengthSec ?? null,
-      isDeleted: recordData?.deleted ?? recordData?.is_deleted ?? null,
-      staff: recordData?.staff ?? staffData ?? null,
-      client: recordData?.client ?? clientData ?? null,
-      services: recordData?.services ?? payload?.services ?? null,
-      documents: recordData?.documents ?? null,
-      goodsTransactions: recordData?.goods_transactions ?? null,
-      raw: recordData ?? payload,
+    // Seed a booking from the client's selections so the card has price/duration/
+    // services even if the immediate CRM read below is unavailable.
+    let bookingPayload: AltegioBooking = {
+      crmRecordId: String(recordId),
+      companyId: ctx.externalSalonId ? String(ctx.externalSalonId) : null,
+      // null when "any team member" — the real staff is filled in on booking sync.
+      staffId: crmStaffId ? String(crmStaffId) : null,
+      clientId: null,
+      datetime: dto.datetime,
+      date: null,
+      comment: dto.comment ?? null,
+      attendance: null,
+      confirmed: null,
+      visitAttendance: null,
+      length: null,
+      // Seed seance length + service titles/costs from the services the client
+      // just selected so the booking card shows price/duration/services and an
+      // end time immediately. A later CRM sync reconciles with Altegio's data.
+      seanceLength: totalDurationSec > 0 ? totalDurationSec : null,
+      isDeleted: null,
+      staff: null,
+      client: { name: fullname, phone, email: user.email ?? undefined },
+      services: services.map((s) => ({
+        id: this.requireCrmId(s.crmServiceId, 'service'),
+        title: s.name,
+        // Service.price is stored in cents, but booking-handler.mapAltegioServices
+        // normalizes Altegio's wire format (major currency units) to cents with a ×100.
+        // Emit major units here so the seeded cost isn't converted twice — otherwise the
+        // pre-sync booking card shows 100× the price until a CRM sync rewrites it.
+        cost: s.price / 100,
+        cost_to_pay: s.price / 100,
+      })),
+      documents: null,
+      goodsTransactions: null,
+      raw: { request: payload, response: created },
     };
-    const created = await this.bookingHandler.createAltegioBooking({ salonId, booking: bookingPayload, userId });
+
+    // Mirror the EasyWeek confirm flow: read the record straight back from Altegio
+    // so the persisted booking carries the CRM's own data — notably `short_link`,
+    // plus the real staff/services — from the first save instead of waiting for a
+    // background sync. Best-effort: if Altegio can't return the record yet (eventual
+    // consistency / rate limit) we keep the seeded payload; a later sync reconciles it.
+    try {
+      const page = await this.crmIntegration.pullAltegioBookings(ctx.salonId, [String(recordId)]);
+      const fetched = page?.items?.[0];
+      if (fetched) bookingPayload = fetched;
+    } catch (e) {
+      this.log.warn('Altegio post-create record read failed; using seeded booking', {
+        salonId,
+        recordId: String(recordId),
+        error: String((e as any)?.message ?? e),
+      });
+    }
+
+    const createdBooking = await this.bookingHandler.createAltegioBooking({ salonId, booking: bookingPayload, userId });
 
     return {
-      booking_id: created.booking.id,
-      crm_record_id: Number(recordData?.id ?? 0),
-      short_link: recordData?.short_link ?? null,
+      booking_id: createdBooking.booking.id,
+      crm_record_id: Number(recordId),
+      short_link: createdBooking.booking.shortLink ?? null,
       status: 'created',
     };
   }
@@ -286,7 +326,7 @@ export class AltegioBookingService {
     };
   }
 
-  private async resolveServicesByIds(salonId: string, serviceIds: string[]): Promise<Array<{ id: string; crmServiceId: string | null; name: string }>> {
+  private async resolveServicesByIds(salonId: string, serviceIds: string[]): Promise<Array<{ id: string; crmServiceId: string | null; name: string; price: number; duration: number }>> {
     if (!serviceIds.length) return [];
     const services = await this.prisma.service.findMany({ where: { salonId, id: { in: serviceIds } } });
     if (services.length !== serviceIds.length) {
@@ -337,15 +377,6 @@ export class AltegioBookingService {
     const copy = new Date(d.getTime());
     copy.setDate(copy.getDate() + days);
     return copy;
-  }
-
-  private async pickSlotLength(ctx: SalonContext, staffId: number, date: string, serviceIds: number[], targetDatetime: string): Promise<number | null> {
-    const res = await this.callCrm<AltegioBookTimesResponse>(() =>
-      this.crmIntegration.bookTimes(ctx.salonId, ctx.provider, { staffId, date, serviceIds }),
-    );
-    const timeList = Array.isArray((res as any)?.times) ? (res as any).times : Array.isArray(res) ? (res as any) : [];
-    const slot = timeList.find((t: any) => t?.datetime === targetDatetime);
-    return slot?.sum_length ?? slot?.seance_length ?? null;
   }
 
   private async callCrm<T>(fn: () => Promise<T>): Promise<T> {

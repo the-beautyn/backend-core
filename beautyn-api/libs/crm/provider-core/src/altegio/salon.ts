@@ -19,7 +19,8 @@ export async function pullSalon(ctx: AltegioContext): Promise<SalonData> {
       lat: c.coordinate_lat ?? undefined,
       lon: c.coordinate_lon ?? undefined,
     },
-    workingSchedule: c.schedule ?? undefined,
+    workingSchedule:
+      typeof c.schedule === 'string' ? c.schedule.replace(/\r?\n/g, ' • ').trim() || undefined : undefined,
     timezone: c.timezone_name ?? undefined,
   };
 }

@@ -35,7 +35,7 @@ export class BookingsInternalController {
   @UseGuards(InternalApiKeyGuard)
   @HttpCode(HttpStatus.OK)
   async rebase(@Body() dto: BookingsRebaseDto): Promise<BookingDto[]>  {
-    const bookings = await this.bookingSync.rebaseFromCrm(dto.salon_id);
+    const bookings = await this.bookingSync.rebaseFromCrm(dto.salon_id, dto.lane);
     return bookings;
   }
 }

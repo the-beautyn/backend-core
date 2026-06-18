@@ -59,10 +59,6 @@ export class SalonDto {
 
   @ApiProperty({ required: false })
   @Expose()
-  open_hours_json?: unknown;
-
-  @ApiProperty({ required: false })
-  @Expose()
   working_schedule?: string;
 
   @ApiProperty({ required: false, nullable: true })
@@ -72,6 +68,20 @@ export class SalonDto {
   @ApiProperty({ required: false })
   @Expose()
   cover_image_url?: string;
+
+  @ApiProperty({
+    required: false,
+    description: 'External booking widget URL (e.g. EasyWeek). Null for providers booked in-app.',
+  })
+  @Expose()
+  booking_url?: string;
+
+  @ApiProperty({
+    required: false,
+    description: 'IANA timezone identifier of the salon (e.g. "Europe/Kyiv"). Null when unknown.',
+  })
+  @Expose()
+  timezone?: string;
 
   @ApiProperty({ required: false, type: ServiceDto, isArray: true })
   @Expose()
@@ -88,4 +98,13 @@ export class SalonDto {
   @ApiProperty({ required: false, type: String, isArray: true })
   @Expose()
   images?: string[];
+
+  @ApiProperty({
+    required: false,
+    description:
+      'True when the authenticated user has this salon in their saved list. ' +
+      'False for anonymous requests or unsaved salons.',
+  })
+  @Expose()
+  is_saved?: boolean;
 }

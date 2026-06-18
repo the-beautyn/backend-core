@@ -13,7 +13,7 @@ import { CrmType } from '@crm/shared';
 import { createChildLogger } from '@shared/logger';
 import { CrmError, ErrorKind } from '@crm/shared';
 import { EasyWeekBooking } from './easyweek/bookings';
-import { AltegioBooking } from './altegio/bookings';
+import { AltegioBooking, ListRecordsParams } from './altegio/bookings';
 
 export class AltegioProvider implements ICrmProvider {
   private log = createChildLogger('provider.altegio');
@@ -48,18 +48,27 @@ export class AltegioProvider implements ICrmProvider {
   }
 
   // ---- HTTP helpers ----
-  private headers(): Record<string, string> {
-    if (!this.accessToken || !this.userToken) {
+  private headers(auth: 'partner' | 'dual' = 'dual'): Record<string, string> {
+    if (!this.accessToken) {
       throw new CrmError('Provider not initialized (missing tokens)', { kind: ErrorKind.INTERNAL, retryable: false });
     }
+    if (auth === 'dual' && !this.userToken) {
+      throw new CrmError('Provider not initialized (missing tokens)', { kind: ErrorKind.INTERNAL, retryable: false });
+    }
+    // Online-booking endpoints (book_*) authenticate with the partner Bearer token
+    // only; management endpoints need the dual `Bearer …, User …` header.
+    const authorization =
+      auth === 'partner'
+        ? `Bearer ${this.accessToken}`
+        : `Bearer ${this.accessToken}, User ${this.userToken}`;
     return {
       'Accept': 'application/vnd.api.v2+json',
-      'Authorization': `Bearer ${this.accessToken}, User ${this.userToken}`,
+      'Authorization': authorization,
       'Content-Type': 'application/json',
     };
   }
 
-  private async http<T>(method: string, path: string, opts?: { query?: Record<string, any>; body?: any }): Promise<T> {
+  private async http<T>(method: string, path: string, opts?: { query?: Record<string, any>; body?: any; auth?: 'partner' | 'dual' }): Promise<T> {
     const url = new URL(path, this.baseUrl);
     if (opts?.query) {
       for (const [k, v] of Object.entries(opts.query)) {
@@ -75,13 +84,13 @@ export class AltegioProvider implements ICrmProvider {
       }
     }
     const startedAt = Date.now();
-    const headers = this.headers();
+    const headers = this.headers(opts?.auth);
     this.log.http?.('CRM Altegio → request', {
       method,
       url: url.toString(),
       path: url.pathname,
       query: Object.fromEntries(url.searchParams.entries()),
-      headers: "Bearer: 'bearer', User: 'user'" ,
+      headers: opts?.auth === 'partner' ? "Bearer: 'bearer'" : "Bearer: 'bearer', User: 'user'",
       bodySize: opts?.body ? JSON.stringify(opts.body).length : 0,
     });
     const res = await fetch(url, {
@@ -131,6 +140,10 @@ export class AltegioProvider implements ICrmProvider {
 
   async pullAltegioBookings(bookingIds: string[]): Promise<Page<AltegioBooking>> {
     return BookingsBlock.pullBookings(this.ctx(), bookingIds);
+  }
+
+  async listAltegioRecords(params: ListRecordsParams): Promise<Page<AltegioBooking>> {
+    return BookingsBlock.listRecords(this.ctx(), params);
   }
 
   async pullEasyWeekBookings(bookingIds: string[]): Promise<Page<EasyWeekBooking>> {
@@ -186,7 +199,7 @@ export class AltegioProvider implements ICrmProvider {
   }
 
   // ---- Booking flow (Altegio-specific) ----
-  async getBookServices(args?: { serviceIds?: number[]; staffId?: number }) {
+  async getBookServices(args?: { serviceIds?: number[]; staffId?: number; datetime?: string }) {
     return BookingFlow.getBookServices(this.ctx(), args);
   }
 

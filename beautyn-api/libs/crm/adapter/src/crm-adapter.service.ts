@@ -3,7 +3,7 @@ import { CrmType, CrmError, ErrorKind } from '@crm/shared';
 import { CapabilityRegistryService } from '@crm/capability-registry';
 import { SyncSchedulerService } from '@crm/sync-scheduler';
 import { ProviderFactory, CategoryData, CategoryCreateInput, CategoryUpdateInput, ServiceData, ServiceCreateInput, ServiceUpdateInput, WorkerData, WorkerCreateInput, WorkerUpdateInput, SalonData, Page, BookingData, AltegioProvider, AltegioCreateRecordPayload, EasyWeekProvider, EasyWeekBooking } from '@crm/provider-core';
-import type { AltegioBooking } from '@crm/provider-core/altegio/bookings';
+import type { AltegioBooking, ListRecordsParams } from '@crm/provider-core/altegio/bookings';
 import { executeWithRetry, CircuitBreaker } from '@crm/retry-handler';
 import { createChildLogger } from '@shared/logger';
 
@@ -29,7 +29,7 @@ export class CrmAdapterService {
   async bookServices(
     salonId: string,
     provider: CrmType,
-    args?: { serviceIds?: number[]; staffId?: number },
+    args?: { serviceIds?: number[]; staffId?: number; datetime?: string },
   ) {
     this.caps.assert(provider, 'supportsBookingServicesPull');
     return this.runOp('book.services', salonId, provider, async () => {
@@ -112,6 +112,19 @@ export class CrmAdapterService {
       const p = this.providers.make(provider);
       await p.init({ salonId, provider });
       return p.pullAltegioBookings(bookingIds);
+    });
+  }
+
+  async listAltegioRecords(
+    salonId: string,
+    params: ListRecordsParams
+  ): Promise<Page<AltegioBooking>> {
+    const provider = CrmType.ALTEGIO;
+    this.caps.assert(provider, 'supportsBookingSync');
+    return this.runOp('booking.list', salonId, provider, async () => {
+      const p = this.providers.make(provider);
+      await p.init({ salonId, provider });
+      return p.listAltegioRecords(params);
     });
   }
 

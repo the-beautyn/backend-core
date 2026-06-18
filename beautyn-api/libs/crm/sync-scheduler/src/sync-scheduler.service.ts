@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { SyncJob, CronDiffJob, CronDiffJobWithSchedule, SYNC_QUEUE, CATEGORIES_QUEUE, SERVICES_QUEUE, WORKERS_QUEUE, CRON_DIFF_QUEUE, BOOKINGS_QUEUE, SALONS_QUEUE, JOB_SYNC, JOB_CRON_DIFF } from './types';
+import { SyncJob, CronDiffJob, CronDiffJobWithSchedule, Lane, SYNC_QUEUE, CATEGORIES_QUEUE, SERVICES_QUEUE, WORKERS_QUEUE, CRON_DIFF_QUEUE, BOOKINGS_QUEUE, SALONS_QUEUE, JOB_SYNC, JOB_CRON_DIFF, JOB_SYNC_DISPATCH } from './types';
 
 type BullQueueLike = {
   add: (name: string, data: unknown, opts?: any) => Promise<{ id: string | number } & any>;
@@ -41,14 +41,57 @@ export class SyncSchedulerService {
               : type === 'salon'
                 ? SALONS_QUEUE
               : SYNC_QUEUE;
-    const id = `${JOB_SYNC}:${type}:${job.provider}:${job.salonId}`;
+    // Lane (when present) is part of the jobId so fast/slow are distinct jobs: same-lane re-ticks
+    // dedup while one is still running (overlap protection), but fast never dedups against slow.
+    const lanePart = job.lane ? `${job.lane}:` : '';
+    const id = `${JOB_SYNC}:${type}:${lanePart}${job.provider}:${job.salonId}`;
+    // Lower priority number = served first. Fast jumps ahead of queued slow jobs.
+    const priority = job.lane === 'fast' ? 1 : job.lane === 'slow' ? 5 : undefined;
     const res = await (await this.getQueue(queueName)).add(JOB_SYNC, job, {
       jobId: id,
       attempts: 5,
       removeOnComplete: true,
       removeOnFail: false,
+      ...(priority ? { priority } : {}),
     });
     return res.id as string;
+  }
+
+  // Register the two repeatable sync-dispatch ticks (fast / slow) on the cron-diff queue.
+  // Idempotent: removes any prior dispatch repeatables first so interval changes take effect.
+  // Each tick fans out to per-salon sync jobs via the internal /sync/dispatch endpoint.
+  async registerSyncLaneSchedules(): Promise<void> {
+    const queue = await this.getQueue(CRON_DIFF_QUEUE);
+    const fastEvery = Number.parseInt(process.env.BOOKINGS_FASTLANE_EVERY_MS ?? '') || 120000; // 2 min
+    const slowEvery = Number.parseInt(process.env.BOOKINGS_SLOWLANE_EVERY_MS ?? '') || 5400000; // 90 min
+    const lanes: Array<{ lane: Lane; every: number }> = [
+      { lane: 'fast', every: fastEvery },
+      { lane: 'slow', every: slowEvery },
+    ];
+
+    try {
+      const list = await (queue.getRepeatableJobs?.() ?? Promise.resolve([]));
+      for (const r of list) {
+        if (r.name === JOB_SYNC_DISPATCH && queue.removeRepeatableByKey) {
+          await queue.removeRepeatableByKey(r.key);
+        }
+      }
+    } catch {
+      // best-effort cleanup; ignore removal errors
+    }
+
+    for (const { lane, every } of lanes) {
+      await queue.add(
+        JOB_SYNC_DISPATCH,
+        { lane },
+        {
+          jobId: `${JOB_SYNC_DISPATCH}:${lane}`,
+          repeat: { every },
+          removeOnComplete: true,
+          removeOnFail: false,
+        },
+      );
+    }
   }
 
   async scheduleCronDiff(job: CronDiffJobWithSchedule): Promise<void> {
@@ -76,7 +119,7 @@ export class SyncSchedulerService {
       job,
       {
         jobId: id,
-        repeat: { pattern: job.cron ?? (process.env.CRM_SYNC_DEFAULT_CRON ?? '0 2 * * *'), tz: job.tz },
+        repeat: { pattern: job.cron ?? '0 2 * * *', tz: job.tz },
         removeOnComplete: true,
         removeOnFail: false,
       },

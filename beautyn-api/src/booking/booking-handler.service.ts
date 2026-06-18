@@ -26,6 +26,10 @@ type NormalizedEasyweek = {
 
 @Injectable()
 export class BookingHandlerService {
+  // EasyWeek cancels to 'canceled'; Altegio soft-deletes to 'deleted'. Both are
+  // the cancelled state for cancelledAt stamping. Mirrors BookingQueryService.
+  private static readonly CANCELLED_STATUSES = ['canceled', 'deleted'];
+
   constructor(private readonly prisma: PrismaService) {}
 
   async createEasyweekBooking(params: {
@@ -77,6 +81,7 @@ export class BookingHandlerService {
           salonId: params.salonId,
           userId: params.userId ?? null,
           status,
+          cancelledAt: this.resolveCancelledAt(null, null, status),
           datetime: start,
           endDatetime: end ?? null,
           crmType: CrmType.EASYWEEK,
@@ -166,6 +171,7 @@ export class BookingHandlerService {
         data: {
           userId: existing.userId ?? null,
           status,
+          cancelledAt: this.resolveCancelledAt(existing.status, existing.cancelledAt, status),
           datetime: start,
           endDatetime: end ?? null,
           crmCompanyId: normalized.locationUuid ?? null,
@@ -235,6 +241,7 @@ export class BookingHandlerService {
           salonId: params.salonId,
           userId: params.userId ?? null,
           status,
+          cancelledAt: this.resolveCancelledAt(null, null, status),
           datetime: start,
           endDatetime: end,
           crmType: CrmType.ALTEGIO,
@@ -319,6 +326,7 @@ export class BookingHandlerService {
         data: {
           userId: existing.userId ?? null,
           status,
+          cancelledAt: this.resolveCancelledAt(existing.status, existing.cancelledAt, status),
           datetime: start,
           endDatetime: end,
           crmCompanyId: params.booking?.companyId ?? null,
@@ -793,12 +801,14 @@ export class BookingHandlerService {
     const mapped = services.map((s: any) => ({
       externalId: s?.id ? String(s.id) : s?.externalId ?? null,
       title: s?.title ?? null,
-      cost: this.toNumber(s?.cost),
-      costToPay: this.toNumber(s?.cost_to_pay ?? s?.costToPay),
-      manualCost: this.toNumber(s?.manual_cost ?? s?.manualCost),
-      costPerUnit: this.toNumber(s?.cost_per_unit ?? s?.costPerUnit),
+      // Monetary fields → cents (see toCents). `discount` is a percentage and
+      // `amount` is a quantity, so both stay as-is.
+      cost: this.toCents(s?.cost),
+      costToPay: this.toCents(s?.cost_to_pay ?? s?.costToPay),
+      manualCost: this.toCents(s?.manual_cost ?? s?.manualCost),
+      costPerUnit: this.toCents(s?.cost_per_unit ?? s?.costPerUnit),
       discount: this.toNumber(s?.discount),
-      firstCost: this.toNumber(s?.first_cost ?? s?.firstCost),
+      firstCost: this.toCents(s?.first_cost ?? s?.firstCost),
       amount: this.toNumber(s?.amount),
     }));
     return this.sortByKey(mapped, (s) => `${s.externalId ?? ''}|${s.title ?? ''}`);
@@ -931,6 +941,17 @@ export class BookingHandlerService {
     return { added, removed, changed };
   }
 
+  // Stamp the moment a booking transitions into a cancelled state, so the Cancelled
+  // tab can be ordered by when it was cancelled (not the appointment date). Preserve
+  // the original stamp across later re-syncs of an already-cancelled booking, clear it
+  // if the booking is reactivated, and backfill legacy rows that predate the field.
+  private resolveCancelledAt(prevStatus: string | null, prevCancelledAt: Date | null, nextStatus: string): Date | null {
+    if (!BookingHandlerService.CANCELLED_STATUSES.includes(nextStatus)) return null;
+    const wasCancelled = prevStatus != null && BookingHandlerService.CANCELLED_STATUSES.includes(prevStatus);
+    if (wasCancelled) return prevCancelledAt ?? new Date();
+    return new Date();
+  }
+
   private toDate(value?: string | number | null): Date | null {
     if (!value && value !== 0) return null;
     const ts = Date.parse(String(value));
@@ -941,6 +962,15 @@ export class BookingHandlerService {
     if (value === null || value === undefined) return null;
     const num = Number(value);
     return Number.isFinite(num) ? num : null;
+  }
+
+  // Altegio returns monetary values in major currency units (e.g. ₴700), but the
+  // canonical internal unit is cents — the services sync converts Altegio prices
+  // with `* 100` (services.service.ts). Convert booking costs the same way so a
+  // synced booking matches app-created bookings and `total_price` stays in cents.
+  private toCents(value: any): number | null {
+    const num = this.toNumber(value);
+    return num === null ? null : Math.round(num * 100);
   }
 
   private sortByKey<T>(items: T[], keyFn: (item: T) => string): T[] {

@@ -47,26 +47,32 @@ export type AltegioBookTimesResponse = {
 };
 
 export type AltegioCreateRecordPayload = {
-  staff_id: number;
-  services: Array<{ id: number }>;
-  client?: { phone?: string | null; name?: string | null; email?: string | null };
-  datetime: string;
-  seance_length?: number | null;
-  comment?: string | null;
-  save_if_busy?: boolean;
-  attendance?: number;
+  fullname: string;
+  phone: string;
+  email?: string;
+  comment?: string;
+  type?: string;
+  notify_by_sms?: number;
+  notify_by_email?: number;
+  api_id?: number;
+  code?: number;
+  appointments: Array<{ id: number; staff_id: number; services?: number[]; datetime: string }>;
 };
 
-export type AltegioCreateRecordResponse = any; // Altegio returns full record payload; narrowed downstream
+export type AltegioCreatedRecord = { id: number; record_id: number; record_hash: string };
+
+// `http()` strips the `{ success, data, meta }` envelope down to `data`.
+export type AltegioCreateRecordResponse = AltegioCreatedRecord[];
 
 export async function getBookServices(
   ctx: AltegioContext,
-  args?: { serviceIds?: number[]; staffId?: number },
+  args?: { serviceIds?: number[]; staffId?: number; datetime?: string },
 ): Promise<AltegioBookServicesResponse> {
   const externalSalonId = ctx.requireExternalSalonId();
   const query: Record<string, any> = {};
   if (args?.serviceIds?.length) query['service_ids[]'] = args.serviceIds;
   if (args?.staffId !== undefined) query.staff_id = args.staffId;
+  if (args?.datetime) query.datetime = args.datetime;
   return ctx.http<AltegioBookServicesResponse>('GET', `/api/v1/book_services/${externalSalonId}`, { query });
 }
 
@@ -108,6 +114,7 @@ export async function getBookTimes(
 
 export async function createRecord(ctx: AltegioContext, payload: AltegioCreateRecordPayload): Promise<AltegioCreateRecordResponse> {
   const externalSalonId = ctx.requireExternalSalonId();
-  ctx.log.info('Creating Altegio record', { payload });
-  return ctx.http<AltegioCreateRecordResponse>('POST', `/api/v1/records/${externalSalonId}`, { body: payload });
+  ctx.log.info('Creating Altegio online booking', { payload });
+  // Online-booking create needs only the partner Bearer token (no User token).
+  return ctx.http<AltegioCreateRecordResponse>('POST', `/api/v1/book_record/${externalSalonId}`, { body: payload, auth: 'partner' });
 }

@@ -13,7 +13,7 @@ export class BookableServiceDto {
   id!: string;
 
   @ApiProperty({ required: false, nullable: true })
-  categoryId!: string | null;
+  category_id!: string | null;
 
   @ApiProperty()
   name!: string;
@@ -22,10 +22,10 @@ export class BookableServiceDto {
   price!: number;
 
   @ApiProperty({ required: false, nullable: true })
-  durationSec!: number | null;
+  duration_sec!: number | null;
 
   @ApiProperty()
-  isAvailable!: boolean;
+  is_available!: boolean;
 }
 
 export class BookableServicesResponseDto {

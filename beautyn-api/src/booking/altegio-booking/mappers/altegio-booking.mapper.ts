@@ -37,11 +37,11 @@ export function mapBookableServices(
     }
     return {
       id: s.id,
-      categoryId: s.categoryId ?? null,
+      category_id: s.categoryId ?? null,
       name: s.name,
       price: s.price,
-      durationSec: s.duration ?? null,
-      isAvailable: s.crmServiceId ? allowedExternalServiceIds.has(String(s.crmServiceId)) : false,
+      duration_sec: s.duration ?? null,
+      is_available: s.crmServiceId ? allowedExternalServiceIds.has(String(s.crmServiceId)) : false,
     };
   });
 
@@ -72,8 +72,8 @@ export function mapTimeSlots(rawSlots: Array<{ time: string; datetime: string; s
   const slots: TimeSlotDto[] = rawSlots.map((slot) => ({
     time: slot.time,
     datetime: slot.datetime,
-    seanceLengthSec: slot.seance_length ?? 0,
-    sumLengthSec: slot.sum_length ?? 0,
+    seance_length_sec: slot.seance_length ?? 0,
+    sum_length_sec: slot.sum_length ?? 0,
   }));
   return { slots };
 }

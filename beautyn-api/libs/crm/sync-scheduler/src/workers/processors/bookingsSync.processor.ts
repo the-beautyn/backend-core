@@ -17,8 +17,8 @@ export function startBookingsSyncWorker() {
     async (job: any) => {
     const data: SyncJob = job.data;
     return runWithRequestContext({ requestId: data.requestId ?? `job-${job.id}` }, async () => {
-      const { salonId, provider } = data;
-      log.info('Bookings sync started', { salonId, provider, jobId: job.id });
+      const { salonId, provider, lane } = data;
+      log.info('Bookings sync started', { salonId, provider, lane, jobId: job.id });
 
       const base = process.env.INTERNAL_API_BASE_URL?.trim();
       const key = process.env.INTERNAL_API_KEY?.trim();
@@ -32,7 +32,7 @@ export function startBookingsSyncWorker() {
           fetch(`${base}/api/v1/internal/bookings/rebase`, {
             method: 'POST',
             headers: { 'content-type': 'application/json', 'x-internal-key': key },
-            body: JSON.stringify({ salon_id: salonId }),
+            body: JSON.stringify({ salon_id: salonId, ...(lane ? { lane } : {}) }),
           } as any),
         );
         const body = await res.json().catch(() => ({} as any));

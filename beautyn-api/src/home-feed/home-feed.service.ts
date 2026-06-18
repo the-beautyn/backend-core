@@ -12,6 +12,7 @@ import { HomeFeedResponseDto } from './dto/home-feed-response.dto';
 import { HomeFeedSectionDto } from './dto/home-feed-section.dto';
 import { HomeFeedSectionFiltersDto } from './dto/home-feed-section-filters.dto';
 import { mapBookingToNextBooking, mapSearchRowToCard } from './mappers/home-feed.mapper';
+import { BookingQueryService } from '../booking/booking-query.service';
 import { HomeFeedSection } from '@prisma/client';
 
 @Injectable()
@@ -22,6 +23,7 @@ export class HomeFeedService {
     private readonly appCategoriesService: AppCategoriesService,
     private readonly savedSalonsService: SavedSalonsService,
     private readonly searchQueryBuilder: SearchQueryBuilderService,
+    private readonly bookingQueryService: BookingQueryService,
   ) {}
 
   async getHomeFeed(params: {
@@ -77,16 +79,18 @@ export class HomeFeedService {
         status: { notIn: ['canceled', 'completed', 'deleted'] },
       },
       orderBy: { datetime: 'asc' },
-      include: {
-        salon: {
-          select: { name: true, coverImageUrl: true, addressLine: true },
-        },
-      },
+      select: { id: true },
     });
 
     if (!booking) return null;
 
-    return mapBookingToNextBooking(booking, (booking as any).salon);
+    // Resolve the full booking (price / duration / services computed from the
+    // provider payload) so the card matches the bookings list, then trim it down
+    // to the next-booking shape.
+    const full = await this.bookingQueryService.getForClient(booking.id, userId);
+    if (!full) return null;
+
+    return mapBookingToNextBooking(full);
   }
 
   private async buildSection(

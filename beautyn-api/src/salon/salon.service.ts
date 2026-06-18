@@ -1,8 +1,10 @@
-import { ForbiddenException, Injectable } from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { CrmSalonChangeStatus, Prisma, Salon as SalonModel, SalonImage as SalonImageModel } from '@prisma/client';
 import { PrismaService } from '../shared/database/prisma.service';
 import { SalonDto } from './dto/salon.dto';
 import { SalonListQuery } from './dto/salon-list.query';
+import { SalonShareDto } from './dto/salon-share.dto';
 import { SalonImagesSyncDto } from './dto/salon-images-sync.dto';
 import { SalonMapper } from './mappers/salon.mapper';
 import { ServicesRepository } from '../services/repositories/services.repo';
@@ -11,6 +13,7 @@ import { WorkersRepository } from '../workers/repositories/workers.repository';
 import { WorkerMapper } from '../workers/mappers/worker.mapper';
 import { toCategoryResponse } from '../categories/mappers/category.mapper';
 import { CrmSalonDiffService } from '../crm-salon-changes/crm-salon-diff.service';
+import { SavedSalonsService } from '../saved-salons/saved-salons.service';
 import { SalonInternalSyncDto } from './dto/salon-internal-sync.dto';
 import type { SalonData } from '@crm/provider-core';
 
@@ -28,14 +31,49 @@ export class SalonService {
     private readonly servicesRepo: ServicesRepository,
     private readonly workersRepo: WorkersRepository,
     private readonly crmSalonDiff: CrmSalonDiffService,
+    private readonly savedSalons: SavedSalonsService,
+    private readonly config: ConfigService,
   ) {}
 
-  async findById(id: string, include?: SalonIncludeOptions): Promise<SalonDto | null> {
+  async findById(
+    id: string,
+    include?: SalonIncludeOptions,
+    userId?: string | null,
+  ): Promise<SalonDto | null> {
     const salon = await this.prisma.salon.findFirst({ where: { id, deletedAt: null } });
     if (!salon) return null;
     const dto = SalonMapper.toDto(salon);
     await this.applyIncludes(dto, include);
+    if (userId) {
+      const saved = await this.savedSalons.isSavedBatch(userId, [id]);
+      dto.is_saved = saved.has(id);
+    } else {
+      dto.is_saved = false;
+    }
     return dto;
+  }
+
+  async getShare(id: string): Promise<SalonShareDto> {
+    const salon = await this.prisma.salon.findFirst({
+      where: { id, deletedAt: null },
+      select: { id: true, name: true, addressLine: true, city: true, coverImageUrl: true },
+    });
+    if (!salon) {
+      throw new NotFoundException('Salon not found');
+    }
+    const appUrl = (this.config.get<string>('APP_URL') ?? '').replace(/\/+$/, '');
+    if (!appUrl) {
+      throw new Error('APP_URL is not configured');
+    }
+    const descriptionParts = [salon.addressLine, salon.city].filter(
+      (part): part is string => Boolean(part),
+    );
+    return {
+      url: `${appUrl}/salon/${salon.id}`,
+      title: salon.name ?? 'Beautyn',
+      description: descriptionParts.length ? descriptionParts.join(', ') : null,
+      image_url: salon.coverImageUrl ?? null,
+    };
   }
 
   async list(query: SalonListQuery): Promise<{ items: SalonDto[]; page: number; limit: number; total: number }> {
@@ -218,9 +256,11 @@ export class SalonService {
       longitude: input.location?.lon !== undefined ? new Prisma.Decimal(input.location?.lon) : undefined,
       phone: input.phone,
       email: input.email,
+      timezone: input.timezone,
       ratingAvg: null,
       ratingCount: null,
-      openHoursJson: input.workingSchedule as any,
+      workingSchedule: input.workingSchedule,
+      openHoursJson: Prisma.DbNull,
       imagesCount: input.imageUrls?.length ?? 0,
       coverImageUrl: input.mainImageUrl,
     };

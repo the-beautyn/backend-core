@@ -102,14 +102,29 @@ export type BookingProviderAltegioDto = {
   }>;
 };
 
+export type BookingSalonSummaryDto = {
+  id: string;
+  name: string | null;
+  address_line?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  cover_image_url?: string | null;
+  timezone?: string | null;
+};
+
 export type BookingDto = {
   id: string;
   salon_id: string;
+  salon?: BookingSalonSummaryDto | null;
   user_id: string | null;
   worker?: { id: string; first_name: string; last_name: string; photo_url?: string | null } | null;
   status: string;
   datetime: string;
   end_datetime?: string | null;
+  service_names?: string[];
+  total_price?: number | null;
+  currency?: string | null;
+  duration_minutes?: number | null;
   comment?: string | null;
   crm_type?: string | null;
   crm_record_id?: string | null;
@@ -120,6 +135,7 @@ export type BookingDto = {
   short_link?: string | null;
   created_at: string;
   updated_at: string;
+  cancelled_at?: string | null;
   provider_specific?: {
     easyweek?: BookingProviderEasyweekDto;
     altegio?: BookingProviderAltegioDto;
@@ -174,13 +190,29 @@ export class BookingProviderSpecificDto {
   altegio?: BookingProviderAltegioResponseDto;
 }
 
+export class BookingSalonSummaryResponseDto {
+  @ApiProperty() id!: string;
+  @ApiPropertyOptional() name?: string | null;
+  @ApiPropertyOptional() address_line?: string | null;
+  @ApiPropertyOptional() latitude?: number | null;
+  @ApiPropertyOptional() longitude?: number | null;
+  @ApiPropertyOptional() cover_image_url?: string | null;
+  @ApiPropertyOptional() timezone?: string | null;
+}
+
 export class BookingResponseDto {
   @ApiProperty() id!: string;
   @ApiProperty() salon_id!: string;
+  @ApiPropertyOptional({ type: () => BookingSalonSummaryResponseDto })
+  salon?: BookingSalonSummaryResponseDto | null;
   @ApiPropertyOptional() user_id?: string | null;
   @ApiProperty() status!: string;
   @ApiProperty() datetime!: string;
   @ApiPropertyOptional() end_datetime?: string | null;
+  @ApiPropertyOptional({ type: [String] }) service_names?: string[];
+  @ApiPropertyOptional() total_price?: number | null;
+  @ApiPropertyOptional() currency?: string | null;
+  @ApiPropertyOptional() duration_minutes?: number | null;
   @ApiPropertyOptional() comment?: string | null;
   @ApiPropertyOptional() crm_type?: string | null;
   @ApiPropertyOptional() crm_record_id?: string | null;
@@ -191,6 +223,7 @@ export class BookingResponseDto {
   @ApiPropertyOptional() short_link?: string | null;
   @ApiProperty() created_at!: string;
   @ApiProperty() updated_at!: string;
+  @ApiPropertyOptional() cancelled_at?: string | null;
   @ApiPropertyOptional({ type: () => BookingProviderSpecificDto })
   provider_specific?: BookingProviderSpecificDto;
   @ApiPropertyOptional({ type: [BookingHistoryEntryDto] })

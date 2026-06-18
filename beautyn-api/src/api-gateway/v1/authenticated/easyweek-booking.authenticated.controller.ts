@@ -23,6 +23,6 @@ export class EasyweekBookingAuthenticatedController {
     @Body() dto: ConfirmEasyweekBookingDto,
     @Req() req: Request & { user?: { id?: string } },
   ) {
-    return this.bookings.confirmEasyweekBooking(dto.salonId, dto.bookingUuid, req.user?.id);
+    return this.bookings.confirmEasyweekBooking(dto.salon_id, dto.booking_uuid, req.user?.id);
   }
 }

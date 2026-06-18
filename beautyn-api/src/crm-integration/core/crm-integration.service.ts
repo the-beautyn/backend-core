@@ -21,7 +21,7 @@ import {
   SalonData,
   BookingData,
 } from '@crm/provider-core';
-import { SyncSchedulerService } from '@crm/sync-scheduler';
+import { SyncSchedulerService, Lane } from '@crm/sync-scheduler';
 import { EasyweekBookingDtoNormalized } from './dto/easyweek-booking.dto';
 
 @Injectable()
@@ -97,27 +97,35 @@ export class CrmIntegrationService {
     authToken,
     workspaceSlug,
     externalSalonIds,
+    widgetUrl,
   }: {
     userId: string;
     authToken: string;
     workspaceSlug: string;
     externalSalonIds: string[];
+    widgetUrl?: string;
   }): Promise<{ salonIds: string[] }> {
+    // Use the owner-provided widget URL, or derive it from the workspace slug
+    // (URL-encoded defensively in case the slug carries unsafe characters).
+    const bookingUrl = widgetUrl?.trim() || `https://booking.easyweek.com.ua/${encodeURIComponent(workspaceSlug)}`;
     const salonIds: string[] = [];
     for (const externalSalonId of externalSalonIds) {
       const ext = String(externalSalonId);
       const existing = await this.prisma.salon.findFirst({
         where: { provider: CrmType.EASYWEEK, externalSalonId: ext },
-        select: { id: true, ownerUserId: true },
+        select: { id: true, ownerUserId: true, bookingUrl: true },
       });
       if (existing) {
         if (existing.ownerUserId && existing.ownerUserId !== userId) {
           throw new BadRequestException('EasyWeek salon already linked to another user');
         }
-        if (!existing.ownerUserId) {
+        if (!existing.ownerUserId || !existing.bookingUrl) {
           await this.prisma.salon.update({
             where: { id: existing.id },
-            data: { ownerUserId: userId },
+            data: {
+              ...(existing.ownerUserId ? {} : { ownerUserId: userId }),
+              ...(existing.bookingUrl ? {} : { bookingUrl }),
+            },
           });
         }
         salonIds.push(existing.id);
@@ -125,7 +133,7 @@ export class CrmIntegrationService {
       }
 
       const salon = await this.prisma.salon.create({
-        data: { ownerUserId: userId, externalSalonId: ext, provider: CrmType.EASYWEEK },
+        data: { ownerUserId: userId, externalSalonId: ext, provider: CrmType.EASYWEEK, bookingUrl },
         select: { id: true },
       });
       // Persist non-secret identifiers
@@ -169,7 +177,7 @@ export class CrmIntegrationService {
   }
 
   // --- Booking flow passthrough ---
-  async bookServices(salonId: string, provider: CrmType, args?: { serviceIds?: number[]; staffId?: number }) {
+  async bookServices(salonId: string, provider: CrmType, args?: { serviceIds?: number[]; staffId?: number; datetime?: string }) {
     return this.adapter.bookServices(salonId, provider, args);
   }
 
@@ -249,8 +257,60 @@ export class CrmIntegrationService {
     return { jobId };
   }
 
+  // Fan a dispatch tick out to per-salon jobs across all active CRM-linked salons. Best-effort: a
+  // single salon failing to enqueue does not abort the rest. Draft salons (no externalSalonId) are
+  // skipped. The SLOW lane also refreshes the catalog (categories/services/workers/salon) — those
+  // run on their own queues/workers, isolated from the fast bookings lane. Fast = bookings-only.
+  async dispatchLane(lane: Lane): Promise<{ enqueued: number; catalog: number; total: number }> {
+    const salons = await this.prisma.salon.findMany({
+      where: { deletedAt: null, provider: { not: null }, externalSalonId: { not: null } },
+      select: { id: true, provider: true },
+    });
+    const includeCatalog = lane === 'slow';
+    let enqueued = 0;
+    let catalog = 0;
+    for (const s of salons) {
+      if (!s.provider) continue;
+      const provider = s.provider as CrmType;
+      try {
+        await this.scheduler.scheduleSync({ salonId: s.id, provider, lane }, { type: 'bookings' });
+        enqueued += 1;
+      } catch (e) {
+        this.log.warn('Failed to enqueue bookings lane job', {
+          salonId: s.id,
+          lane,
+          error: String((e as any)?.message ?? e),
+        });
+      }
+      if (includeCatalog) {
+        try {
+          // Own queues (crm-categories/services/workers/salons) — no lane/priority needed.
+          await this.scheduler.scheduleSync({ salonId: s.id, provider }, { type: 'categories' });
+          await this.scheduler.scheduleSync({ salonId: s.id, provider }, { type: 'services' });
+          await this.scheduler.scheduleSync({ salonId: s.id, provider }, { type: 'workers' });
+          await this.scheduler.scheduleSync({ salonId: s.id, provider }, { type: 'salon' });
+          catalog += 1;
+        } catch (e) {
+          this.log.warn('Failed to enqueue catalog sync jobs', {
+            salonId: s.id,
+            error: String((e as any)?.message ?? e),
+          });
+        }
+      }
+    }
+    this.log.info('Sync lane fan-out', { lane, enqueued, catalog, total: salons.length });
+    return { enqueued, catalog, total: salons.length };
+  }
+
   async pullAltegioBookings(salonId: string, bookingIds: string[]) {
     return this.adapter.pullAltegioBookings(salonId, bookingIds);
+  }
+
+  async listAltegioRecords(
+    salonId: string,
+    params: { startDate?: string; endDate?: string; withDeleted?: boolean; count?: number },
+  ) {
+    return this.adapter.listAltegioRecords(salonId, params);
   }
 
   async pullEasyweekBookings(salonId: string, bookingIds: string[]) {

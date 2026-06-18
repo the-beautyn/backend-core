@@ -8,10 +8,10 @@ export class TimeSlotDto {
   datetime!: string;
 
   @ApiProperty()
-  seanceLengthSec!: number;
+  seance_length_sec!: number;
 
   @ApiProperty()
-  sumLengthSec!: number;
+  sum_length_sec!: number;
 }
 
 export class TimeSlotsResponseDto {

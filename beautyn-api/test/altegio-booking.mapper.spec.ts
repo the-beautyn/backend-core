@@ -12,9 +12,9 @@ describe('Altegio booking mapper', () => {
     );
 
     expect(result.services).toEqual([
-      expect.objectContaining({ id: 's1', isAvailable: true }),
-      expect.objectContaining({ id: 's2', isAvailable: false }),
-      expect.objectContaining({ id: 's3', isAvailable: false }),
+      expect.objectContaining({ id: 's1', is_available: true }),
+      expect.objectContaining({ id: 's2', is_available: false }),
+      expect.objectContaining({ id: 's3', is_available: false }),
     ]);
     expect(result.categories).toHaveLength(2);
   });
@@ -36,8 +36,8 @@ describe('Altegio booking mapper', () => {
     expect(res.slots[0]).toEqual({
       time: '10:00',
       datetime: '2025-01-01T10:00:00+03:00',
-      seanceLengthSec: 3600,
-      sumLengthSec: 3900,
+      seance_length_sec: 3600,
+      sum_length_sec: 3900,
     });
   });
 });

@@ -17,10 +17,11 @@ export class SalonMapper {
       description: entity.description ?? undefined,
       rating_avg: entity.ratingAvg ? Number(entity.ratingAvg) : undefined,
       rating_count: entity.ratingCount ?? undefined,
-      open_hours_json: entity.openHoursJson ?? undefined,
       working_schedule: entity.workingSchedule ?? undefined,
       images_count: entity.imagesCount ?? undefined,
       cover_image_url: entity.coverImageUrl ?? undefined,
+      booking_url: entity.bookingUrl ?? undefined,
+      timezone: entity.timezone ?? undefined,
     };
   }
 
