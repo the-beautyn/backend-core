@@ -19,7 +19,7 @@ export class OutboxService {
   private async getQueue(): Promise<any> {
     if (!this.queue) {
       const { Queue } = await import('bullmq');
-      this.queue = new Queue('crm-outbox', { connection: { url: process.env.REDIS_URL } });
+      this.queue = new Queue('crm-outbox', { connection: { url: process.env.REDIS_URL, family: 0 } });
     }
     return this.queue;
   }
