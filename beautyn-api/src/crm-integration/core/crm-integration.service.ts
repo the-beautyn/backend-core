@@ -105,8 +105,9 @@ export class CrmIntegrationService {
     externalSalonIds: string[];
     widgetUrl?: string;
   }): Promise<{ salonIds: string[] }> {
-    // Use the owner-provided widget URL, or derive it from the workspace slug.
-    const bookingUrl = widgetUrl?.trim() || `https://booking.easyweek.com.ua/${workspaceSlug}`;
+    // Use the owner-provided widget URL, or derive it from the workspace slug
+    // (URL-encoded defensively in case the slug carries unsafe characters).
+    const bookingUrl = widgetUrl?.trim() || `https://booking.easyweek.com.ua/${encodeURIComponent(workspaceSlug)}`;
     const salonIds: string[] = [];
     for (const externalSalonId of externalSalonIds) {
       const ext = String(externalSalonId);

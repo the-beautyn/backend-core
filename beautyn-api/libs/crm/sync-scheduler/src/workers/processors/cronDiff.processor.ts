@@ -51,8 +51,9 @@ export function startCronDiffWorker(container: { providerFactory: ProviderFactor
   const worker = new Worker(
     CRON_DIFF_QUEUE,
     async (job: any) => {
-      // Sync-dispatch ticks are the active producer on this queue.
-      if (job.name === JOB_SYNC_DISPATCH || job.data?.lane) {
+      // Sync-dispatch ticks are the active producer on this queue. Route strictly by job name —
+      // a stray job carrying a `lane` on the wrong queue should DLQ/timeout, not be silently consumed.
+      if (job.name === JOB_SYNC_DISPATCH) {
         return handleSyncDispatch(job);
       }
 

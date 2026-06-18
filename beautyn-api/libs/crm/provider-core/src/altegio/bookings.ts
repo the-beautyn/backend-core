@@ -65,8 +65,10 @@ export async function listRecords(ctx: AltegioContext, params: ListRecordsParams
   // stripped by `http()`, so we can't read total_count — a partial page means we're done).
   const count = Math.min(Math.max(params.count ?? 200, 1), 200);
   const items: AltegioBooking[] = [];
+  const MAX_PAGES = 1000;
 
-  for (let page = 1; page <= 1000; page += 1) {
+  let exhausted = false;
+  for (let page = 1; page <= MAX_PAGES; page += 1) {
     const query: Record<string, any> = { page, count };
     if (params.startDate) query.start_date = params.startDate;
     if (params.endDate) query.end_date = params.endDate;
@@ -77,8 +79,16 @@ export async function listRecords(ctx: AltegioContext, params: ListRecordsParams
     for (const record of records) {
       items.push(mapRecord(record));
     }
-    if (records.length < count) break;
+    if (records.length < count) {
+      exhausted = true;
+      break;
+    }
     await wait(300);
+  }
+
+  // We stopped before a short page came back → we likely truncated the salon's records.
+  if (!exhausted) {
+    ctx.log.warn('listRecords: hit page ceiling', { salonId: externalSalonId, maxPages: MAX_PAGES, fetched: items.length });
   }
 
   return { items, fetched: items.length, total: items.length };
