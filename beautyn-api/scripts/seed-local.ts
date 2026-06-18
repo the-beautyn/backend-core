@@ -1,5 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { Prisma, PrismaClient } from '@prisma/client';
+import { encryptBundle, decryptBundle } from '@crm/token-storage/crypto.helper';
+import type { TokenBundle } from '@crm/shared';
 import { APP_CATEGORIES, HOME_FEED_SECTIONS, SALON_NAMES, SEARCH_SEED_PREFIX } from './search-seed-constants';
 
 const prisma = new PrismaClient();
@@ -8,6 +10,10 @@ const verbose = process.argv.includes('--verbose');
 const SALON_COUNT = 200;
 const BASE_LAT = 50.4501;
 const BASE_LNG = 30.5234;
+
+// Owners whose real CRM-connected salons act as anchors: seeded salons are
+// randomly assigned to one of these so they belong to a real CRM owner/brand.
+const CRM_OWNER_EMAILS = ['altegio@example.com', 'easyweek@example.com'];
 
 const SUPABASE_URL = process.env.SUPABASE_URL || 'http://127.0.0.1:54321';
 
@@ -23,85 +29,20 @@ const CATEGORY_IMAGES = [
   `${SUPABASE_URL}/storage/v1/object/public/dump/59a4aba3-02a9-477a-ab6a-809aef4058a3.png`,
 ];
 
-const WORKER_FIRST_NAMES = [
-  'Olena', 'Iryna', 'Kateryna', 'Anna', 'Sofiia', 'Mariia', 'Yuliia', 'Nataliia',
-  'Oksana', 'Tetiana', 'Dmytro', 'Andrii', 'Serhii', 'Maksym', 'Oleksandr', 'Viktoriia',
-];
-
-const WORKER_LAST_NAMES = [
-  'Shevchenko', 'Kovalenko', 'Bondarenko', 'Tkachenko', 'Melnyk', 'Boyko', 'Kravchuk',
-  'Polishchuk', 'Marchenko', 'Romaniuk', 'Lysenko', 'Savchenko',
-];
-
-const POSITION_BY_SLUG: Record<string, string> = {
-  nails: 'Nail Master',
-  hair: 'Hair Stylist',
-  face: 'Cosmetologist',
-  brow: 'Brow & Lash Artist',
-  makeup: 'Makeup Artist',
-  epilation: 'Epilation Specialist',
-  spa: 'Massage Therapist',
-  injectables: 'Aesthetic Doctor',
-  trichology: 'Trichologist',
-  mens: 'Barber',
-};
-
-// Templates use UAH and minutes; converted to cents and seconds at insert time.
-type ServiceTemplate = { name: string; duration: number; minUah: number; maxUah: number };
-
-const SERVICE_TEMPLATES: Record<string, ServiceTemplate[]> = {
-  nails: [
-    { name: 'Класичний манікюр', duration: 60, minUah: 250, maxUah: 400 },
-    { name: 'Манікюр з покриттям гель‑лак', duration: 90, minUah: 350, maxUah: 600 },
-    { name: 'Педикюр з покриттям', duration: 90, minUah: 450, maxUah: 700 },
-    { name: 'Нарощування нігтів', duration: 120, minUah: 600, maxUah: 1000 },
-  ],
-  hair: [
-    { name: 'Жіноча стрижка', duration: 60, minUah: 300, maxUah: 700 },
-    { name: 'Чоловіча стрижка', duration: 45, minUah: 200, maxUah: 400 },
-    { name: 'Фарбування волосся', duration: 150, minUah: 800, maxUah: 2500 },
-    { name: 'Укладка волосся', duration: 45, minUah: 250, maxUah: 500 },
-  ],
-  face: [
-    { name: 'Чистка обличчя', duration: 90, minUah: 600, maxUah: 1200 },
-    { name: 'Хімічний пілінг', duration: 60, minUah: 700, maxUah: 1500 },
-    { name: 'Догляд за шкірою обличчя', duration: 75, minUah: 800, maxUah: 1600 },
-  ],
-  brow: [
-    { name: 'Корекція та фарбування брів', duration: 45, minUah: 200, maxUah: 400 },
-    { name: 'Ламінування брів', duration: 60, minUah: 400, maxUah: 700 },
-    { name: 'Нарощування вій', duration: 120, minUah: 500, maxUah: 900 },
-  ],
-  makeup: [
-    { name: 'Денний макіяж', duration: 60, minUah: 500, maxUah: 900 },
-    { name: 'Вечірній макіяж', duration: 90, minUah: 800, maxUah: 1500 },
-    { name: 'Весільний макіяж', duration: 120, minUah: 1500, maxUah: 3000 },
-  ],
-  epilation: [
-    { name: 'Лазерна епіляція (зона)', duration: 30, minUah: 300, maxUah: 800 },
-    { name: 'Воскова депіляція ніг', duration: 45, minUah: 350, maxUah: 600 },
-    { name: 'Шугаринг зони бікіні', duration: 45, minUah: 400, maxUah: 700 },
-  ],
-  spa: [
-    { name: 'Класичний масаж спини', duration: 60, minUah: 400, maxUah: 800 },
-    { name: 'Релакс‑масаж усього тіла', duration: 90, minUah: 700, maxUah: 1300 },
-    { name: 'Лімфодренажний масаж', duration: 60, minUah: 600, maxUah: 1000 },
-  ],
-  injectables: [
-    { name: 'Біоревіталізація', duration: 60, minUah: 1500, maxUah: 3500 },
-    { name: 'Контурна пластика губ', duration: 60, minUah: 4000, maxUah: 7000 },
-    { name: 'Ботокс (зона)', duration: 45, minUah: 2000, maxUah: 4500 },
-  ],
-  trichology: [
-    { name: 'Консультація трихолога', duration: 45, minUah: 400, maxUah: 800 },
-    { name: 'Мезотерапія шкіри голови', duration: 60, minUah: 800, maxUah: 1600 },
-    { name: 'Лікування випадіння волосся', duration: 75, minUah: 1000, maxUah: 2500 },
-  ],
-  mens: [
-    { name: 'Чоловіча стрижка', duration: 45, minUah: 200, maxUah: 450 },
-    { name: 'Оформлення бороди', duration: 30, minUah: 150, maxUah: 350 },
-    { name: 'Стрижка + борода', duration: 75, minUah: 350, maxUah: 700 },
-  ],
+// Curated mapping from a real CRM category name (lowercased) to an app-category
+// slug. The CRM category names are English and don't auto-match the Ukrainian
+// app-category taxonomy, so we map them explicitly to keep cloned seed salons
+// searchable. Names with no sensible app-category (e.g. "Test1 Category") are
+// omitted on purpose — their cloned categories stay unmapped.
+const CRM_CATEGORY_TO_APP_SLUG: Record<string, string> = {
+  'facial care': 'face',
+  'hair care': 'hair',
+  'nails care': 'nails',
+  manicure: 'nails',
+  pedicure: 'nails',
+  brows: 'brow',
+  eyelashes: 'brow',
+  'trichology & aesthetics': 'trichology',
 };
 
 function randomOffset(radiusKm = 5): { lat: number; lng: number } {
@@ -133,23 +74,6 @@ function shuffle<T>(arr: T[]): T[] {
 function randomGalleryImages(): string[] {
   const count = Math.floor(Math.random() * 4); // 0, 1, 2 or 3
   return shuffle(SALON_IMAGES).slice(0, count);
-}
-
-function slugFromCrmCategoryId(crmCategoryId: string): string {
-  return crmCategoryId.split('-')[0];
-}
-
-function randomWorkerSchedule() {
-  // Sunday off, Mon–Sat 09:00–19:00. weekday: 0=Sun..6=Sat (matches salon open hours).
-  const days = Array.from({ length: 7 }).map((_, weekday) => {
-    const isDayOff = weekday === 0;
-    return {
-      weekday,
-      isDayOff,
-      intervals: isDayOff ? [] : [{ start: '09:00', end: '19:00' }],
-    };
-  });
-  return { timezone: 'Europe/Kyiv', days };
 }
 
 // Generates a weekday/weekend split so consecutive days share hours and the
@@ -344,58 +268,351 @@ async function backfillSalonSchedules(): Promise<void> {
   console.log(`  Backfilled one-line workingSchedule for ${stale.length} salons`);
 }
 
-async function seedCategoryMappings(slugToId: Record<string, string>): Promise<void> {
-  console.log('Seeding category mappings...');
+// A clone-ready snapshot of the real CRM salon's catalog (categories, services,
+// workers and the links between them), copied verbatim onto every seed salon of
+// this provider.
+type CrmCatalogCategory = {
+  id: string;
+  crmCategoryId: string;
+  name: string;
+  color: string | null;
+  sortOrder: number | null;
+};
+type CrmCatalogWorker = {
+  id: string;
+  crmWorkerId: string | null;
+  firstName: string;
+  lastName: string;
+  position: string | null;
+  role: string | null;
+  description: string | null;
+  photoUrl: string | null;
+  workingSchedule: Prisma.JsonValue;
+  isActive: boolean;
+};
+type CrmCatalogService = {
+  id: string;
+  crmServiceId: string;
+  categoryId: string | null;
+  name: string;
+  description: string | null;
+  duration: number;
+  price: number;
+  currency: string;
+  sortOrder: number | null;
+  isActive: boolean;
+};
+type CrmCatalogLink = { serviceId: string; workerId: string | null; remoteWorkerId: string | null };
 
-  const salons = await prisma.salon.findMany({
-    where: { name: { startsWith: SEARCH_SEED_PREFIX } },
-    select: { id: true },
+// Anchor a seed salon to a real CRM salon: which provider it's linked to, the
+// owner/brand that owns it, the Account Registry payload + decrypted CRM token
+// needed to make live booking calls resolve to the real company, the EasyWeek
+// widget URL, and the real catalog we replicate onto each seed salon.
+type CrmAnchor = {
+  email: string;
+  provider: string;
+  ownerUserId: string;
+  brandId: string | null;
+  accountData: Prisma.JsonValue;
+  token: TokenBundle;
+  bookingUrl: string | null;
+  timezone: string | null;
+  categories: CrmCatalogCategory[];
+  workers: CrmCatalogWorker[];
+  services: CrmCatalogService[];
+  links: CrmCatalogLink[];
+};
+
+// Replaces a seed ("dump") salon's entire inner catalog with a verbatim clone of
+// the real CRM salon's categories, services, workers and their links, so the
+// salon's detail/booking pages show real, bookable data identical to that CRM.
+// Worker email/phone are dropped (they're globally unique and the real ones are
+// null anyway). Cloned categories are mapped to app-categories via the curated
+// CRM_CATEGORY_TO_APP_SLUG table so the salon stays searchable.
+async function replicateCrmCatalog(
+  dumpSalonId: string,
+  anchor: CrmAnchor,
+  slugToId: Record<string, string>,
+): Promise<void> {
+  // Wipe the dump salon's own inner data in FK-safe order: workers (cascades its
+  // worker links), then services (they reference categories), then categories
+  // (cascades their app-category mappings).
+  await prisma.worker.deleteMany({ where: { salonId: dumpSalonId } });
+  await prisma.service.deleteMany({ where: { salonId: dumpSalonId } });
+  await prisma.category.deleteMany({ where: { salonId: dumpSalonId } });
+
+  // Clone categories with fresh ids, tracking old→new for service re-linking.
+  const categoryIdMap = new Map<string, string>();
+  const categoryRows: Prisma.CategoryCreateManyInput[] = anchor.categories.map((c) => {
+    const id = randomUUID();
+    categoryIdMap.set(c.id, id);
+    return {
+      id,
+      salonId: dumpSalonId,
+      crmCategoryId: c.crmCategoryId,
+      name: c.name,
+      color: c.color,
+      sortOrder: c.sortOrder,
+      serviceIds: [],
+    };
   });
+  if (categoryRows.length) await prisma.category.createMany({ data: categoryRows });
 
-  // Check if mappings already exist
-  if (salons.length > 0) {
-    const existingMappings = await prisma.category.count({
-      where: { salonId: salons[0].id },
+  // Clone services with fresh ids, re-pointing categoryId at the cloned category.
+  const serviceIdMap = new Map<string, string>();
+  const serviceRows: Prisma.ServiceCreateManyInput[] = anchor.services.map((s) => {
+    const id = randomUUID();
+    serviceIdMap.set(s.id, id);
+    return {
+      id,
+      salonId: dumpSalonId,
+      crmServiceId: s.crmServiceId,
+      categoryId: s.categoryId ? categoryIdMap.get(s.categoryId) ?? null : null,
+      name: s.name,
+      description: s.description,
+      duration: s.duration,
+      price: s.price,
+      currency: s.currency,
+      sortOrder: s.sortOrder,
+      isActive: s.isActive,
+    };
+  });
+  if (serviceRows.length) await prisma.service.createMany({ data: serviceRows });
+
+  // Refill each cloned category's denormalized serviceIds array.
+  const serviceIdsByCategory = new Map<string, string[]>();
+  for (const s of anchor.services) {
+    const newCatId = s.categoryId ? categoryIdMap.get(s.categoryId) : undefined;
+    const newSvcId = serviceIdMap.get(s.id);
+    if (!newCatId || !newSvcId) continue;
+    const arr = serviceIdsByCategory.get(newCatId) ?? [];
+    arr.push(newSvcId);
+    serviceIdsByCategory.set(newCatId, arr);
+  }
+  for (const [categoryId, serviceIds] of serviceIdsByCategory) {
+    await prisma.category.update({ where: { id: categoryId }, data: { serviceIds } });
+  }
+
+  // Clone workers with fresh ids, tracking old→new for the link rebuild.
+  const workerIdMap = new Map<string, string>();
+  const workerRows: Prisma.WorkerCreateManyInput[] = anchor.workers.map((w) => {
+    const id = randomUUID();
+    workerIdMap.set(w.id, id);
+    return {
+      id,
+      salonId: dumpSalonId,
+      crmWorkerId: w.crmWorkerId,
+      firstName: w.firstName,
+      lastName: w.lastName,
+      position: w.position,
+      role: w.role,
+      description: w.description,
+      photoUrl: w.photoUrl,
+      workingSchedule: w.workingSchedule === null ? Prisma.DbNull : (w.workingSchedule as Prisma.InputJsonValue),
+      isActive: w.isActive,
+    };
+  });
+  if (workerRows.length) await prisma.worker.createMany({ data: workerRows });
+
+  // Rebuild worker↔service links against the cloned ids.
+  const linkRows: Prisma.WorkerServiceCreateManyInput[] = [];
+  for (const l of anchor.links) {
+    const serviceId = serviceIdMap.get(l.serviceId);
+    if (!serviceId) continue;
+    linkRows.push({
+      serviceId,
+      workerId: l.workerId ? workerIdMap.get(l.workerId) ?? null : null,
+      remoteWorkerId: l.remoteWorkerId,
     });
-    if (existingMappings > 0) {
-      console.log('  Category mappings already exist — skipping');
-      return;
+  }
+  if (linkRows.length) await prisma.workerService.createMany({ data: linkRows, skipDuplicates: true });
+
+  // Map cloned categories to app-categories (curated, since CRM names don't
+  // auto-match the taxonomy) so the salon appears in category search & home-feed.
+  const mappingRows: Prisma.SalonCategoryMappingCreateManyInput[] = [];
+  for (const c of anchor.categories) {
+    const slug = CRM_CATEGORY_TO_APP_SLUG[c.name.trim().toLowerCase()];
+    const appCategoryId = slug ? slugToId[slug] : undefined;
+    const salonCategoryId = categoryIdMap.get(c.id);
+    if (!appCategoryId || !salonCategoryId) continue;
+    mappingRows.push({ salonCategoryId, appCategoryId, autoMatched: true });
+  }
+  if (mappingRows.length) await prisma.salonCategoryMapping.createMany({ data: mappingRows, skipDuplicates: true });
+}
+
+// Randomly connects each seed salon to one of the CRM owners' salons: it sets the
+// salon's CRM identity, clones that CRM salon's whole inner catalog onto it (so
+// all seed salons of a provider share identical categories/services/workers), and
+// derives the salon's price range from the cloned services.
+//
+// CRM identity = its own Account Registry row (same externalSalonId/locationId)
+// plus a CrmCredential. The credential token is AAD-bound to `${salonId}:${provider}`,
+// so we decrypt the real token and re-encrypt it under the seed salon's own id
+// rather than copying ciphertext. The salon's own externalSalonId is left null on
+// purpose — the adapter reads the id from the registry, and a null keeps these
+// fixtures out of background CRM sync (which filters on a non-null externalSalonId).
+//
+// Consequence: all seed salons of a provider impersonate the SAME real CRM
+// company, so their booking workers/slots reflect that one company.
+//
+// Idempotent: re-running keeps each salon's existing provider assignment and
+// re-asserts the catalog clone, registry and credential.
+async function seedCrmLinks(slugToId: Record<string, string>): Promise<void> {
+  console.log('Connecting seed salons to CRM companies...');
+
+  const anchorByProvider = new Map<string, CrmAnchor>();
+  for (const email of CRM_OWNER_EMAILS) {
+    const owner = await prisma.users.findUnique({ where: { email }, select: { id: true } });
+    if (!owner) {
+      console.warn(`  Owner ${email} not found — skipping`);
+      continue;
     }
+    // The real CRM salon is the one carrying an externalSalonId — seed salons we
+    // link below deliberately leave it null, so this filter excludes them and
+    // keeps the anchor lookup stable across re-runs.
+    const crmSalon = await prisma.salon.findFirst({
+      where: { ownerUserId: owner.id, provider: { not: null }, externalSalonId: { not: null } },
+      select: { id: true, provider: true, ownerUserId: true, brandId: true, bookingUrl: true, timezone: true },
+    });
+    if (!crmSalon?.provider || !crmSalon.ownerUserId) {
+      console.warn(`  No CRM-linked salon for ${email} — skipping`);
+      continue;
+    }
+    const provider = crmSalon.provider;
+
+    const account = await prisma.crmAccount.findUnique({
+      where: { salonId_provider: { salonId: crmSalon.id, provider } },
+      select: { data: true },
+    });
+    const cred = await prisma.crmCredential.findUnique({
+      where: { salonId_provider: { salonId: crmSalon.id, provider } },
+      select: { cipherText: true, iv: true, authTag: true },
+    });
+    if (!account || !cred) {
+      console.warn(`  ${email} salon missing Account Registry/credentials — skipping`);
+      continue;
+    }
+
+    const token = decryptBundle(
+      { cipherText: cred.cipherText, iv: cred.iv, authTag: cred.authTag },
+      crmSalon.id,
+      provider,
+    );
+
+    // Snapshot the anchor salon's full catalog once; it gets cloned onto every
+    // seed salon of this provider so their pages show real categories/staff/services.
+    const [categories, workers, services, links] = await Promise.all([
+      prisma.category.findMany({
+        where: { salonId: crmSalon.id },
+        select: { id: true, crmCategoryId: true, name: true, color: true, sortOrder: true },
+      }),
+      prisma.worker.findMany({
+        where: { salonId: crmSalon.id },
+        select: {
+          id: true, crmWorkerId: true, firstName: true, lastName: true, position: true,
+          role: true, description: true, photoUrl: true, workingSchedule: true, isActive: true,
+        },
+      }),
+      prisma.service.findMany({
+        where: { salonId: crmSalon.id },
+        select: {
+          id: true, crmServiceId: true, categoryId: true, name: true, description: true,
+          duration: true, price: true, currency: true, sortOrder: true, isActive: true,
+        },
+      }),
+      prisma.workerService.findMany({
+        where: { service: { salonId: crmSalon.id } },
+        select: { serviceId: true, workerId: true, remoteWorkerId: true },
+      }),
+    ]);
+
+    anchorByProvider.set(provider, {
+      email,
+      provider,
+      ownerUserId: crmSalon.ownerUserId,
+      brandId: crmSalon.brandId,
+      accountData: account.data,
+      token,
+      bookingUrl: crmSalon.bookingUrl,
+      timezone: crmSalon.timezone,
+      categories,
+      workers,
+      services,
+      links,
+    });
   }
 
-  let mappingCount = 0;
-  for (let s = 0; s < salons.length; s++) {
-    const salon = salons[s];
-    const categoryCount = 2 + Math.floor(Math.random() * 3);
-    const shuffled = APP_CATEGORIES.slice().sort(() => Math.random() - 0.5);
-    const picked = shuffled.slice(0, categoryCount);
-
-    for (const cat of picked) {
-      const appCategoryId = slugToId[cat.slug];
-      if (!appCategoryId) continue;
-
-      const category = await prisma.category.create({
-        data: {
-          salonId: salon.id,
-          crmCategoryId: `${cat.slug}-${Math.random().toString(36).slice(2, 8)}`,
-          name: cat.name,
-          color: null,
-          sortOrder: null,
-          serviceIds: [],
-        },
-      });
-      await prisma.salonCategoryMapping.create({
-        data: {
-          salonCategoryId: category.id,
-          appCategoryId,
-          autoMatched: true,
-        },
-      });
-      mappingCount++;
-      if (verbose) console.log(`    [salon ${s + 1}/${salons.length}] mapped "${cat.name}" (total: ${mappingCount})`);
-    }
+  const anchors = [...anchorByProvider.values()];
+  if (anchors.length === 0) {
+    console.log('  No fully-connected CRM anchor salons found — nothing to link');
+    return;
   }
-  console.log(`  ${mappingCount} category mappings created for ${salons.length} salons`);
+
+  const seedSalons = await prisma.salon.findMany({
+    where: { name: { startsWith: SEARCH_SEED_PREFIX } },
+    select: { id: true, provider: true },
+  });
+  if (seedSalons.length === 0) {
+    console.log('  No seed salons found — run the salons step first');
+    return;
+  }
+
+  const tally: Record<string, number> = {};
+  for (const salon of seedSalons) {
+    // Keep an existing provider assignment; otherwise pick one at random.
+    const anchor = (salon.provider && anchorByProvider.get(salon.provider)) || pickRandom(anchors);
+
+    // Price range reflects the cloned catalog (same for all salons of a provider).
+    const prices = anchor.services.map((s) => s.price).filter((p) => p > 0);
+    const minPriceCents = prices.length ? Math.min(...prices) : null;
+    const maxPriceCents = prices.length ? Math.max(...prices) : null;
+
+    await prisma.salon.update({
+      where: { id: salon.id },
+      // bookingUrl is what EasyWeek salons open on "Book"; copying the anchor's
+      // makes the seed EasyWeek widget resolve (no-op/null for Altegio).
+      // timezone drives client-side time formatting of booking slots — without it
+      // the app falls back to the device's local zone, not the salon's.
+      data: {
+        provider: anchor.provider,
+        ownerUserId: anchor.ownerUserId,
+        brandId: anchor.brandId,
+        bookingUrl: anchor.bookingUrl,
+        timezone: anchor.timezone ?? 'Europe/Kyiv',
+        minPriceCents,
+        maxPriceCents,
+      },
+    });
+
+    // Replace this salon's own generated catalog with a clone of the real CRM
+    // salon's categories/services/workers so its pages show real, bookable data.
+    await replicateCrmCatalog(salon.id, anchor, slugToId);
+
+    // Mirror the real salon's Account Registry entry (externalSalonId / locationId).
+    await prisma.crmAccount.upsert({
+      where: { salonId_provider: { salonId: salon.id, provider: anchor.provider } },
+      create: { salonId: salon.id, provider: anchor.provider, data: anchor.accountData as Prisma.InputJsonValue },
+      update: { data: anchor.accountData as Prisma.InputJsonValue },
+    });
+
+    // Re-encrypt the real CRM token under this salon's id (AAD = salonId:provider).
+    const enc = encryptBundle(anchor.token, salon.id, anchor.provider);
+    const credData = {
+      cipherText: Buffer.from(enc.cipherText),
+      iv: Buffer.from(enc.iv),
+      authTag: Buffer.from(enc.authTag),
+    };
+    await prisma.crmCredential.upsert({
+      where: { salonId_provider: { salonId: salon.id, provider: anchor.provider } },
+      create: { salonId: salon.id, provider: anchor.provider, ...credData },
+      update: credData,
+    });
+
+    tally[anchor.email] = (tally[anchor.email] ?? 0) + 1;
+  }
+
+  const summary = anchors.map((a) => `${tally[a.email] ?? 0}→${a.email}`).join(', ');
+  console.log(`  Connected ${seedSalons.length} seed salons to CRM companies (${summary})`);
 }
 
 async function seedHomeFeedSections(slugToId: Record<string, string>): Promise<void> {
@@ -446,121 +663,11 @@ async function seedHomeFeedSections(slugToId: Record<string, string>): Promise<v
   console.log(`  ${HOME_FEED_SECTIONS.length} home feed sections upserted`);
 }
 
-let workerSeq = 0;
-
-async function seedWorkersAndServices(): Promise<void> {
-  console.log('Seeding workers and services...');
-
-  const salons = await prisma.salon.findMany({
-    where: { name: { startsWith: SEARCH_SEED_PREFIX } },
-    select: {
-      id: true,
-      categories: { select: { id: true, crmCategoryId: true } },
-    },
-  });
-
-  if (salons.length === 0) {
-    console.log('  No seed salons found — skipping');
-    return;
-  }
-
-  const existingServices = await prisma.service.count({ where: { salonId: salons[0].id } });
-  if (existingServices > 0) {
-    console.log('  Services already exist — skipping');
-    return;
-  }
-
-  let workerCount = 0;
-  let serviceCount = 0;
-  let linkCount = 0;
-
-  for (let s = 0; s < salons.length; s++) {
-    const salon = salons[s];
-    const salonSlugs = salon.categories.map((c) => slugFromCrmCategoryId(c.crmCategoryId));
-
-    // 1) Workers — 3..5 per salon, positioned by the salon's categories.
-    const numWorkers = 3 + Math.floor(Math.random() * 3);
-    const workers: { id: string; slug: string }[] = [];
-    for (let w = 0; w < numWorkers; w++) {
-      workerSeq++;
-      const slug = salonSlugs.length ? salonSlugs[w % salonSlugs.length] : 'nails';
-      const firstName = pickRandom(WORKER_FIRST_NAMES);
-      const lastName = pickRandom(WORKER_LAST_NAMES);
-      const worker = await prisma.worker.create({
-        data: {
-          salonId: salon.id,
-          crmWorkerId: `seed-w-${workerSeq}`,
-          firstName,
-          lastName,
-          position: POSITION_BY_SLUG[slug] ?? 'Beauty Specialist',
-          photoUrl: `https://placehold.co/200x200/efe8d8/5a483a?text=${firstName[0]}${lastName[0]}`,
-          email: `seed.w${workerSeq}@beautyn.local`,
-          phone: `+38050${String(workerSeq).padStart(7, '0')}`,
-          workingSchedule: randomWorkerSchedule() as any,
-          isActive: true,
-        },
-      });
-      workers.push({ id: worker.id, slug });
-      workerCount++;
-    }
-
-    // 2) Services per salon category, linked to matching workers.
-    for (const cat of salon.categories) {
-      const slug = slugFromCrmCategoryId(cat.crmCategoryId);
-      const templates = SERVICE_TEMPLATES[slug] ?? SERVICE_TEMPLATES.nails;
-      const numServices = 2 + Math.floor(Math.random() * Math.min(3, templates.length));
-      const picked = shuffle(templates).slice(0, numServices);
-      const createdServiceIds: string[] = [];
-
-      for (let i = 0; i < picked.length; i++) {
-        const tpl = picked[i];
-        const priceUah = tpl.minUah + Math.floor(Math.random() * (tpl.maxUah - tpl.minUah + 1));
-        const service = await prisma.service.create({
-          data: {
-            salonId: salon.id,
-            crmServiceId: `seed-svc-${cat.id.slice(0, 8)}-${i}`,
-            categoryId: cat.id,
-            name: tpl.name,
-            duration: tpl.duration * 60,
-            price: priceUah * 100,
-            currency: 'UAH',
-            sortOrder: i,
-            isActive: true,
-          },
-        });
-        createdServiceIds.push(service.id);
-        serviceCount++;
-
-        // Link 1..3 workers, preferring those matching the category slug.
-        const matching = workers.filter((wk) => wk.slug === slug);
-        const pool = matching.length ? matching : workers;
-        const numLinks = 1 + Math.floor(Math.random() * Math.min(3, pool.length));
-        for (const lw of shuffle(pool).slice(0, numLinks)) {
-          await prisma.workerService.create({
-            data: { serviceId: service.id, workerId: lw.id },
-          });
-          linkCount++;
-        }
-      }
-
-      await prisma.category.update({
-        where: { id: cat.id },
-        data: { serviceIds: createdServiceIds },
-      });
-    }
-
-    if (verbose) {
-      console.log(`    [salon ${s + 1}/${salons.length}] ${numWorkers} workers, services for ${salon.categories.length} categories`);
-    }
-  }
-
-  console.log(`  ${workerCount} workers, ${serviceCount} services, ${linkCount} worker-service links created`);
-}
-
-// Canonical run order — kept fixed so cross-step dependencies (mappings and
-// sections need app categories; mappings/workers need salons) always hold,
-// regardless of the order steps are passed on the CLI.
-const STEP_ORDER = ['app-categories', 'salons', 'mappings', 'workers', 'sections'] as const;
+// Canonical run order — kept fixed so cross-step dependencies always hold,
+// regardless of the order steps are passed on the CLI. crm-link owns all inner
+// data (categories/services/workers) by cloning the connected CRM salon; it needs
+// the salon shells (salons) and the app-categories (for category mapping) first.
+const STEP_ORDER = ['app-categories', 'salons', 'crm-link', 'sections'] as const;
 type StepName = (typeof STEP_ORDER)[number];
 
 // Reads requested steps from argv (e.g. `seed:local -- app-categories sections`).
@@ -593,8 +700,7 @@ async function main() {
 
   if (run.has('app-categories')) slugToId = await seedAppCategories();
   if (run.has('salons')) await seedSalons();
-  if (run.has('mappings')) await seedCategoryMappings(await getSlugToId());
-  if (run.has('workers')) await seedWorkersAndServices();
+  if (run.has('crm-link')) await seedCrmLinks(await getSlugToId());
   if (run.has('sections')) await seedHomeFeedSections(await getSlugToId());
 
   console.log('\n=== Done ===');
