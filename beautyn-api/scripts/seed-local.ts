@@ -323,29 +323,49 @@ type CrmAnchor = {
   links: CrmCatalogLink[];
 };
 
-// Replaces a seed ("dump") salon's entire inner catalog with a verbatim clone of
-// the real CRM salon's categories, services, workers and their links, so the
-// salon's detail/booking pages show real, bookable data identical to that CRM.
-// Worker email/phone are dropped (they're globally unique and the real ones are
-// null anyway). Cloned categories are mapped to app-categories via the curated
-// CRM_CATEGORY_TO_APP_SLUG table so the salon stays searchable.
-async function replicateCrmCatalog(
+// Builds (without touching the DB) the cloned inner-catalog rows for one seed
+// ("dump") salon: a verbatim copy of the real CRM salon's categories, services,
+// workers and their links, plus curated app-category mappings so the salon stays
+// searchable. Worker email/phone are dropped (they're globally unique and the
+// real ones are null anyway). Returning plain rows lets the caller batch-insert
+// every salon's catalog in a handful of createMany calls instead of per-salon
+// round-trips — a big win against a remote DB.
+type CatalogRows = {
+  categories: Prisma.CategoryCreateManyInput[];
+  services: Prisma.ServiceCreateManyInput[];
+  workers: Prisma.WorkerCreateManyInput[];
+  links: Prisma.WorkerServiceCreateManyInput[];
+  mappings: Prisma.SalonCategoryMappingCreateManyInput[];
+};
+
+function buildCatalogRows(
   dumpSalonId: string,
   anchor: CrmAnchor,
   slugToId: Record<string, string>,
-): Promise<void> {
-  // Wipe the dump salon's own inner data in FK-safe order: workers (cascades its
-  // worker links), then services (they reference categories), then categories
-  // (cascades their app-category mappings).
-  await prisma.worker.deleteMany({ where: { salonId: dumpSalonId } });
-  await prisma.service.deleteMany({ where: { salonId: dumpSalonId } });
-  await prisma.category.deleteMany({ where: { salonId: dumpSalonId } });
-
-  // Clone categories with fresh ids, tracking old→new for service re-linking.
+): CatalogRows {
+  // Pre-generate cloned ids so services/links/mappings can reference them without
+  // a DB round-trip, and so each category can carry its denormalized serviceIds.
   const categoryIdMap = new Map<string, string>();
-  const categoryRows: Prisma.CategoryCreateManyInput[] = anchor.categories.map((c) => {
+  for (const c of anchor.categories) categoryIdMap.set(c.id, randomUUID());
+
+  const serviceIdMap = new Map<string, string>();
+  const serviceIdsByCategory = new Map<string, string[]>();
+  for (const s of anchor.services) {
     const id = randomUUID();
-    categoryIdMap.set(c.id, id);
+    serviceIdMap.set(s.id, id);
+    const newCatId = s.categoryId ? categoryIdMap.get(s.categoryId) : undefined;
+    if (newCatId) {
+      const arr = serviceIdsByCategory.get(newCatId) ?? [];
+      arr.push(id);
+      serviceIdsByCategory.set(newCatId, arr);
+    }
+  }
+
+  const workerIdMap = new Map<string, string>();
+  for (const w of anchor.workers) workerIdMap.set(w.id, randomUUID());
+
+  const categories: Prisma.CategoryCreateManyInput[] = anchor.categories.map((c) => {
+    const id = categoryIdMap.get(c.id)!;
     return {
       id,
       salonId: dumpSalonId,
@@ -353,91 +373,73 @@ async function replicateCrmCatalog(
       name: c.name,
       color: c.color,
       sortOrder: c.sortOrder,
-      serviceIds: [],
+      serviceIds: serviceIdsByCategory.get(id) ?? [],
     };
   });
-  if (categoryRows.length) await prisma.category.createMany({ data: categoryRows });
 
-  // Clone services with fresh ids, re-pointing categoryId at the cloned category.
-  const serviceIdMap = new Map<string, string>();
-  const serviceRows: Prisma.ServiceCreateManyInput[] = anchor.services.map((s) => {
-    const id = randomUUID();
-    serviceIdMap.set(s.id, id);
-    return {
-      id,
-      salonId: dumpSalonId,
-      crmServiceId: s.crmServiceId,
-      categoryId: s.categoryId ? categoryIdMap.get(s.categoryId) ?? null : null,
-      name: s.name,
-      description: s.description,
-      duration: s.duration,
-      price: s.price,
-      currency: s.currency,
-      sortOrder: s.sortOrder,
-      isActive: s.isActive,
-    };
-  });
-  if (serviceRows.length) await prisma.service.createMany({ data: serviceRows });
+  const services: Prisma.ServiceCreateManyInput[] = anchor.services.map((s) => ({
+    id: serviceIdMap.get(s.id)!,
+    salonId: dumpSalonId,
+    crmServiceId: s.crmServiceId,
+    categoryId: s.categoryId ? categoryIdMap.get(s.categoryId) ?? null : null,
+    name: s.name,
+    description: s.description,
+    duration: s.duration,
+    price: s.price,
+    currency: s.currency,
+    sortOrder: s.sortOrder,
+    isActive: s.isActive,
+  }));
 
-  // Refill each cloned category's denormalized serviceIds array.
-  const serviceIdsByCategory = new Map<string, string[]>();
-  for (const s of anchor.services) {
-    const newCatId = s.categoryId ? categoryIdMap.get(s.categoryId) : undefined;
-    const newSvcId = serviceIdMap.get(s.id);
-    if (!newCatId || !newSvcId) continue;
-    const arr = serviceIdsByCategory.get(newCatId) ?? [];
-    arr.push(newSvcId);
-    serviceIdsByCategory.set(newCatId, arr);
-  }
-  for (const [categoryId, serviceIds] of serviceIdsByCategory) {
-    await prisma.category.update({ where: { id: categoryId }, data: { serviceIds } });
-  }
+  const workers: Prisma.WorkerCreateManyInput[] = anchor.workers.map((w) => ({
+    id: workerIdMap.get(w.id)!,
+    salonId: dumpSalonId,
+    crmWorkerId: w.crmWorkerId,
+    firstName: w.firstName,
+    lastName: w.lastName,
+    position: w.position,
+    role: w.role,
+    description: w.description,
+    photoUrl: w.photoUrl,
+    workingSchedule: w.workingSchedule === null ? Prisma.DbNull : (w.workingSchedule as Prisma.InputJsonValue),
+    isActive: w.isActive,
+  }));
 
-  // Clone workers with fresh ids, tracking old→new for the link rebuild.
-  const workerIdMap = new Map<string, string>();
-  const workerRows: Prisma.WorkerCreateManyInput[] = anchor.workers.map((w) => {
-    const id = randomUUID();
-    workerIdMap.set(w.id, id);
-    return {
-      id,
-      salonId: dumpSalonId,
-      crmWorkerId: w.crmWorkerId,
-      firstName: w.firstName,
-      lastName: w.lastName,
-      position: w.position,
-      role: w.role,
-      description: w.description,
-      photoUrl: w.photoUrl,
-      workingSchedule: w.workingSchedule === null ? Prisma.DbNull : (w.workingSchedule as Prisma.InputJsonValue),
-      isActive: w.isActive,
-    };
-  });
-  if (workerRows.length) await prisma.worker.createMany({ data: workerRows });
-
-  // Rebuild worker↔service links against the cloned ids.
-  const linkRows: Prisma.WorkerServiceCreateManyInput[] = [];
+  const links: Prisma.WorkerServiceCreateManyInput[] = [];
   for (const l of anchor.links) {
     const serviceId = serviceIdMap.get(l.serviceId);
     if (!serviceId) continue;
-    linkRows.push({
+    links.push({
       serviceId,
       workerId: l.workerId ? workerIdMap.get(l.workerId) ?? null : null,
       remoteWorkerId: l.remoteWorkerId,
     });
   }
-  if (linkRows.length) await prisma.workerService.createMany({ data: linkRows, skipDuplicates: true });
 
-  // Map cloned categories to app-categories (curated, since CRM names don't
-  // auto-match the taxonomy) so the salon appears in category search & home-feed.
-  const mappingRows: Prisma.SalonCategoryMappingCreateManyInput[] = [];
+  // Curated mapping (CRM names don't auto-match the taxonomy) so the salon
+  // appears in category search & home-feed.
+  const mappings: Prisma.SalonCategoryMappingCreateManyInput[] = [];
   for (const c of anchor.categories) {
     const slug = CRM_CATEGORY_TO_APP_SLUG[c.name.trim().toLowerCase()];
     const appCategoryId = slug ? slugToId[slug] : undefined;
     const salonCategoryId = categoryIdMap.get(c.id);
     if (!appCategoryId || !salonCategoryId) continue;
-    mappingRows.push({ salonCategoryId, appCategoryId, autoMatched: true });
+    mappings.push({ salonCategoryId, appCategoryId, autoMatched: true });
   }
-  if (mappingRows.length) await prisma.salonCategoryMapping.createMany({ data: mappingRows, skipDuplicates: true });
+
+  return { categories, services, workers, links, mappings };
+}
+
+// Inserts rows in chunks to stay well under Postgres' bind-parameter limit on
+// large createMany calls.
+async function insertChunked<T>(
+  rows: T[],
+  insert: (batch: T[]) => Promise<unknown>,
+  size = 1000,
+): Promise<void> {
+  for (let i = 0; i < rows.length; i += size) {
+    await insert(rows.slice(i, i + size));
+  }
 }
 
 // Randomly connects each seed salon to one of the CRM owners' salons: it sets the
@@ -557,62 +559,98 @@ async function seedCrmLinks(slugToId: Record<string, string>): Promise<void> {
     return;
   }
 
-  const tally: Record<string, number> = {};
-  for (const salon of seedSalons) {
-    // Keep an existing provider assignment; otherwise pick one at random.
-    const anchor = (salon.provider && anchorByProvider.get(salon.provider)) || pickRandom(anchors);
+  // Assign each seed salon to a CRM anchor — keep any existing provider so re-runs
+  // don't reshuffle; otherwise pick at random.
+  const assignments = seedSalons.map((salon) => ({
+    salonId: salon.id,
+    anchor: (salon.provider && anchorByProvider.get(salon.provider)) || pickRandom(anchors),
+  }));
+  const allSeedIds = seedSalons.map((s) => s.id);
 
-    // Price range reflects the cloned catalog (same for all salons of a provider).
+  // 1) Bulk-set CRM identity + price range per provider. Every salon of a provider
+  //    shares the same values, so this is just one updateMany per provider.
+  //    bookingUrl is what EasyWeek salons open on "Book"; timezone drives client-side
+  //    slot-time formatting (without it the app falls back to the device's zone).
+  for (const anchor of anchors) {
+    const ids = assignments.filter((a) => a.anchor.provider === anchor.provider).map((a) => a.salonId);
+    if (!ids.length) continue;
     const prices = anchor.services.map((s) => s.price).filter((p) => p > 0);
-    const minPriceCents = prices.length ? Math.min(...prices) : null;
-    const maxPriceCents = prices.length ? Math.max(...prices) : null;
-
-    await prisma.salon.update({
-      where: { id: salon.id },
-      // bookingUrl is what EasyWeek salons open on "Book"; copying the anchor's
-      // makes the seed EasyWeek widget resolve (no-op/null for Altegio).
-      // timezone drives client-side time formatting of booking slots — without it
-      // the app falls back to the device's local zone, not the salon's.
+    await prisma.salon.updateMany({
+      where: { id: { in: ids } },
       data: {
         provider: anchor.provider,
         ownerUserId: anchor.ownerUserId,
         brandId: anchor.brandId,
         bookingUrl: anchor.bookingUrl,
         timezone: anchor.timezone ?? 'Europe/Kyiv',
-        minPriceCents,
-        maxPriceCents,
+        minPriceCents: prices.length ? Math.min(...prices) : null,
+        maxPriceCents: prices.length ? Math.max(...prices) : null,
       },
     });
+  }
 
-    // Replace this salon's own generated catalog with a clone of the real CRM
-    // salon's categories/services/workers so its pages show real, bookable data.
-    await replicateCrmCatalog(salon.id, anchor, slugToId);
+  // 2) Wipe existing inner data + CRM identity for all seed salons in bulk
+  //    (FK-safe order: workers, then services, then categories).
+  await prisma.worker.deleteMany({ where: { salonId: { in: allSeedIds } } });
+  await prisma.service.deleteMany({ where: { salonId: { in: allSeedIds } } });
+  await prisma.category.deleteMany({ where: { salonId: { in: allSeedIds } } });
+  await prisma.crmAccount.deleteMany({ where: { salonId: { in: allSeedIds } } });
+  await prisma.crmCredential.deleteMany({ where: { salonId: { in: allSeedIds } } });
 
-    // Mirror the real salon's Account Registry entry (externalSalonId / locationId).
-    await prisma.crmAccount.upsert({
-      where: { salonId_provider: { salonId: salon.id, provider: anchor.provider } },
-      create: { salonId: salon.id, provider: anchor.provider, data: anchor.accountData as Prisma.InputJsonValue },
-      update: { data: anchor.accountData as Prisma.InputJsonValue },
-    });
+  // 3) Build every salon's cloned catalog + registry/credential rows in memory.
+  const catRows: Prisma.CategoryCreateManyInput[] = [];
+  const svcRows: Prisma.ServiceCreateManyInput[] = [];
+  const workerRows: Prisma.WorkerCreateManyInput[] = [];
+  const linkRows: Prisma.WorkerServiceCreateManyInput[] = [];
+  const mapRows: Prisma.SalonCategoryMappingCreateManyInput[] = [];
+  const accountRows: Prisma.CrmAccountCreateManyInput[] = [];
+  const credRows: Prisma.CrmCredentialCreateManyInput[] = [];
+  const tally: Record<string, number> = {};
 
+  for (const [i, { salonId, anchor }] of assignments.entries()) {
+    const rows = buildCatalogRows(salonId, anchor, slugToId);
+    catRows.push(...rows.categories);
+    svcRows.push(...rows.services);
+    workerRows.push(...rows.workers);
+    linkRows.push(...rows.links);
+    mapRows.push(...rows.mappings);
+
+    accountRows.push({ salonId, provider: anchor.provider, data: anchor.accountData as Prisma.InputJsonValue });
     // Re-encrypt the real CRM token under this salon's id (AAD = salonId:provider).
-    const enc = encryptBundle(anchor.token, salon.id, anchor.provider);
-    const credData = {
+    const enc = encryptBundle(anchor.token, salonId, anchor.provider);
+    credRows.push({
+      salonId,
+      provider: anchor.provider,
       cipherText: Buffer.from(enc.cipherText),
       iv: Buffer.from(enc.iv),
       authTag: Buffer.from(enc.authTag),
-    };
-    await prisma.crmCredential.upsert({
-      where: { salonId_provider: { salonId: salon.id, provider: anchor.provider } },
-      create: { salonId: salon.id, provider: anchor.provider, ...credData },
-      update: credData,
     });
 
     tally[anchor.email] = (tally[anchor.email] ?? 0) + 1;
+    if (verbose) {
+      console.log(
+        `    [${i + 1}/${assignments.length}] ${anchor.provider} → ${anchor.email}: ` +
+          `${rows.categories.length} cats (${rows.mappings.length} mapped), ${rows.services.length} svcs, ` +
+          `${rows.workers.length} workers, tz ${anchor.timezone ?? 'Europe/Kyiv'}`,
+      );
+    }
   }
 
+  // 4) Batch-insert everything in a handful of createMany calls (chunked).
+  await insertChunked(catRows, (b) => prisma.category.createMany({ data: b }));
+  await insertChunked(svcRows, (b) => prisma.service.createMany({ data: b }));
+  await insertChunked(workerRows, (b) => prisma.worker.createMany({ data: b }));
+  await insertChunked(linkRows, (b) => prisma.workerService.createMany({ data: b, skipDuplicates: true }));
+  await insertChunked(mapRows, (b) => prisma.salonCategoryMapping.createMany({ data: b, skipDuplicates: true }));
+  await insertChunked(accountRows, (b) => prisma.crmAccount.createMany({ data: b }));
+  await insertChunked(credRows, (b) => prisma.crmCredential.createMany({ data: b }));
+
   const summary = anchors.map((a) => `${tally[a.email] ?? 0}→${a.email}`).join(', ');
-  console.log(`  Connected ${seedSalons.length} seed salons to CRM companies (${summary})`);
+  console.log(
+    `  Connected ${seedSalons.length} seed salons to CRM companies (${summary}); ` +
+      `${catRows.length} categories, ${svcRows.length} services, ${workerRows.length} workers, ` +
+      `${linkRows.length} links, ${mapRows.length} mappings`,
+  );
 }
 
 async function seedHomeFeedSections(slugToId: Record<string, string>): Promise<void> {
