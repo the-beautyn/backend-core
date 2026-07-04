@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { Request } from 'express';
 import { SavedSalonsService } from '../saved-salons/saved-salons.service';
 import { SearchRequestDto } from './dto/search-request.dto';
-import { SearchResponseDto, SearchResultDto } from './dto/search-response.dto';
+import { SearchPinsResultDto, SearchResponseDto, SearchResultDto } from './dto/search-response.dto';
 import { GeoLocationService, ResolvedGeoContext } from './geo-location.service';
 import { SearchQueryBuilderService } from './search-query-builder.service';
 import { SortOptionEnum } from './enums/sort-option.enum';
@@ -49,6 +49,34 @@ export class SearchService {
 
     return response;
   }
+
+  // All matching pins for the map — same filters as `search`, but only
+  // coordinates, capped instead of paginated. Intended for viewport requests;
+  // center mode uses the base radius without the expand-until-enough loop.
+  async searchPins(req: Request, dto: SearchRequestDto): Promise<SearchPinsResultDto> {
+    const geoContext = this.geo.resolveGeoContext(req, dto);
+    const radiusKm =
+      geoContext.mode === 'center' || geoContext.mode === 'geoip'
+        ? this.geo.getBaseRadius(geoContext.locationType ?? dto.locationType)
+        : undefined;
+
+    const rows = await this.queryBuilder.runPins({
+      dto,
+      geoContext,
+      radiusKm,
+      limit: SearchService.PINS_LIMIT,
+    });
+
+    return {
+      items: rows.map((row) => ({
+        salon_id: row.id,
+        latitude: Number(row.latitude),
+        longitude: Number(row.longitude),
+      })),
+    };
+  }
+
+  private static readonly PINS_LIMIT = 500;
 
   private async runWithGeo(
     dto: SearchRequestDto,

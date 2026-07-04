@@ -2828,6 +2828,41 @@
           "response": []
         },
         {
+          "name": "search_pins",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/search/pins",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "search",
+                "pins"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"query\": \"\",\n    \"viewport\": {\n        \"neLat\": 50.4771,\n        \"neLng\": 30.5657,\n        \"swLat\": 50.4231,\n        \"swLng\": 30.4811\n    }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
           "name": "suggestions",
           "protocolProfileBehavior": {
             "disableBodyPruning": true

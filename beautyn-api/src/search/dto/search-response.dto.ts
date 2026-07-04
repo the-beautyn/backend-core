@@ -51,3 +51,19 @@ export class SearchResultDto {
     geo_source?: 'viewport' | 'center' | 'geoip' | 'none';
   };
 }
+
+export class SearchPinDto {
+  @ApiProperty()
+  salon_id!: string;
+
+  @ApiProperty()
+  latitude!: number;
+
+  @ApiProperty()
+  longitude!: number;
+}
+
+export class SearchPinsResultDto {
+  @ApiProperty({ type: [SearchPinDto] })
+  items!: SearchPinDto[];
+}

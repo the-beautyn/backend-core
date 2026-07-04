@@ -3,7 +3,7 @@ import { ApiBadRequestResponse, ApiOkResponse, ApiOperation, ApiTags } from '@ne
 import type { Request } from 'express';
 import { SearchService } from '../../../search/search.service';
 import { SearchRequestDto } from '../../../search/dto/search-request.dto';
-import { SearchResultDto } from '../../../search/dto/search-response.dto';
+import { SearchPinsResultDto, SearchResultDto } from '../../../search/dto/search-response.dto';
 import { OptionalJwtAuthGuard } from '../../../shared/guards/optional-jwt-auth.guard';
 import { envelopeErrorSchema, envelopeRef } from '../../../shared/utils/swagger-envelope.util';
 
@@ -26,5 +26,19 @@ export class SearchPublicController {
   ) {
     const userId = req.user?.id ?? null;
     return this.searchService.search(req, dto, userId);
+  }
+
+  @Post('pins')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(OptionalJwtAuthGuard)
+  @ApiOperation({
+    summary: 'All matching salon pins for a map viewport (same filters as search, coordinates only, capped at 500)',
+  })
+  @ApiOkResponse(envelopeRef(SearchPinsResultDto))
+  @ApiBadRequestResponse(
+    envelopeErrorSchema({ statusCode: 400, message: 'Bad Request', error: 'Bad Request' }),
+  )
+  async searchPins(@Req() req: Request, @Body() dto: SearchRequestDto) {
+    return this.searchService.searchPins(req, dto);
   }
 }

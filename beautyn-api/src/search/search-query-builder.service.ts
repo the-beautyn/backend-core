@@ -40,95 +40,10 @@ export class SearchQueryBuilderService {
     sortBy?: SortOptionEnum;
     extraFilters?: Prisma.Sql[];
   }): Promise<SearchQueryResult> {
-    const { dto, geoContext, radiusKm, page, limit } = params;
+    const { page, limit } = params;
     const offset = (page - 1) * limit;
     const withClauses: Prisma.Sql[] = [];
-    const joins: Prisma.Sql[] = [];
-    const filters: Prisma.Sql[] = [Prisma.sql`s.deleted_at IS NULL`];
-
-    const distanceExpr = this.buildDistanceExpression(geoContext);
-    if (distanceExpr && (geoContext.mode === 'center' || geoContext.mode === 'geoip')) {
-      filters.push(Prisma.sql`s.latitude IS NOT NULL AND s.longitude IS NOT NULL`);
-      // Apply a coarse bounding box first to reduce rows before expensive trig distance calc
-      if (params.radiusKm !== undefined) {
-        const bbox = this.computeBoundingBox(geoContext.centerLat, geoContext.centerLng, params.radiusKm);
-        filters.push(Prisma.sql`s.latitude BETWEEN ${bbox.minLat} AND ${bbox.maxLat}`);
-        if (!bbox.wrapsLongitude) {
-          filters.push(Prisma.sql`s.longitude BETWEEN ${bbox.minLng} AND ${bbox.maxLng}`);
-        } else {
-          filters.push(
-            Prisma.sql`(s.longitude >= ${bbox.minLng} OR s.longitude <= ${bbox.maxLng})`,
-          );
-        }
-      }
-      if (radiusKm !== undefined) {
-        filters.push(Prisma.sql`${distanceExpr} <= ${radiusKm}`);
-      }
-    }
-
-    if (geoContext.mode === 'viewport') {
-      const radiusForBBox = this.estimateViewportRadiusKm(geoContext.viewport);
-      const bbox = this.computeBoundingBox(geoContext.centerLat, geoContext.centerLng, radiusForBBox);
-      filters.push(Prisma.sql`s.latitude BETWEEN ${bbox.minLat} AND ${bbox.maxLat}`);
-      if (!bbox.wrapsLongitude) {
-        filters.push(Prisma.sql`s.longitude BETWEEN ${bbox.minLng} AND ${bbox.maxLng}`);
-      } else {
-        filters.push(Prisma.sql`(s.longitude >= ${bbox.minLng} OR s.longitude <= ${bbox.maxLng})`);
-      }
-      filters.push(
-        Prisma.sql`s.latitude BETWEEN ${geoContext.viewport.swLat} AND ${geoContext.viewport.neLat}`,
-      );
-      filters.push(
-        Prisma.sql`s.longitude BETWEEN ${geoContext.viewport.swLng} AND ${geoContext.viewport.neLng}`,
-      );
-    }
-
-    if (dto.query) {
-      const like = `%${dto.query}%`;
-      filters.push(
-        Prisma.sql`(s.name ILIKE ${like} OR s.city ILIKE ${like} OR s.address_line ILIKE ${like})`,
-      );
-    }
-
-    if (dto.priceMin !== undefined) {
-      filters.push(
-        Prisma.sql`s.min_price_cents IS NOT NULL AND s.min_price_cents >= ${dto.priceMin * 100}`,
-      );
-    }
-    if (dto.priceMax !== undefined) {
-      filters.push(
-        Prisma.sql`s.max_price_cents IS NOT NULL AND s.max_price_cents <= ${dto.priceMax * 100}`,
-      );
-    }
-
-    const hasCategoryFilter = Boolean(dto.appCategoryIds?.length);
-    if (hasCategoryFilter) {
-      joins.push(
-        Prisma.sql`JOIN categories c ON c.salon_id = s.id`,
-      );
-      joins.push(
-        Prisma.sql`JOIN salon_category_mappings scm ON scm.salon_category_id = c.id AND scm.app_category_id IS NOT NULL`,
-      );
-      const ids = (dto.appCategoryIds ?? [])
-        .map((id) => id?.trim())
-        .filter((id): id is string => Boolean(id));
-      if (ids.length) {
-        const uuidArray = Prisma.sql`ARRAY[${Prisma.join(
-          ids.map((id) => Prisma.sql`${id}`),
-          ', ',
-        )}]::uuid[]`;
-        filters.push(Prisma.sql`scm.app_category_id = ANY(${uuidArray})`);
-      }
-    }
-
-    const openHoursFilter = this.buildOpenHoursFilter(dto.date, dto.time);
-    if (openHoursFilter) {
-      filters.push(openHoursFilter);
-    }
-
-    if (params.extraFilters?.length) {
-      filters.push(...params.extraFilters);
-    }
+    const { filters, joins, hasCategoryFilter, distanceExpr } = this.buildFilterParts(params);
 
     const whereSql = filters.length ? Prisma.sql`WHERE ${Prisma.join(filters, ' AND ')}` : Prisma.sql``;
     const joinsSql = joins.length ? Prisma.sql`${Prisma.join(joins, ' ')}` : Prisma.sql``;
@@ -216,6 +131,132 @@ export class SearchQueryBuilderService {
     const total = rows[0]?.total_count ? Number(rows[0].total_count) : 0;
 
     return { items: rows, total };
+  }
+
+  // Lightweight map-pins variant of `runSearch`: same filters, but selects
+  // only id + coordinates, without pagination, sorting, or a total count.
+  async runPins(params: {
+    dto: SearchRequestDto;
+    geoContext: ResolvedGeoContext;
+    radiusKm?: number;
+    limit: number;
+  }): Promise<RawSearchRow[]> {
+    const { filters, joins } = this.buildFilterParts(params);
+    filters.push(Prisma.sql`s.latitude IS NOT NULL AND s.longitude IS NOT NULL`);
+
+    const whereSql = Prisma.sql`WHERE ${Prisma.join(filters, ' AND ')}`;
+    const joinsSql = joins.length ? Prisma.sql`${Prisma.join(joins, ' ')}` : Prisma.sql``;
+
+    // DISTINCT dedupes rows multiplied by the category joins (id is unique otherwise).
+    return this.prisma.$queryRaw<RawSearchRow[]>(Prisma.sql`
+      SELECT DISTINCT s.id, s.latitude, s.longitude
+      FROM salons s
+      ${joinsSql}
+      ${whereSql}
+      LIMIT ${params.limit}
+    `);
+  }
+
+  // The WHERE/JOIN assembly shared by `runSearch` and `runPins`, so both
+  // endpoints always agree on which salons match a request.
+  private buildFilterParts(params: {
+    dto: SearchRequestDto;
+    geoContext: ResolvedGeoContext;
+    radiusKm?: number;
+    extraFilters?: Prisma.Sql[];
+  }): {
+    filters: Prisma.Sql[];
+    joins: Prisma.Sql[];
+    hasCategoryFilter: boolean;
+    distanceExpr: Prisma.Sql | null;
+  } {
+    const { dto, geoContext, radiusKm } = params;
+    const joins: Prisma.Sql[] = [];
+    const filters: Prisma.Sql[] = [Prisma.sql`s.deleted_at IS NULL`];
+
+    const distanceExpr = this.buildDistanceExpression(geoContext);
+    if (distanceExpr && (geoContext.mode === 'center' || geoContext.mode === 'geoip')) {
+      filters.push(Prisma.sql`s.latitude IS NOT NULL AND s.longitude IS NOT NULL`);
+      // Apply a coarse bounding box first to reduce rows before expensive trig distance calc
+      if (radiusKm !== undefined) {
+        const bbox = this.computeBoundingBox(geoContext.centerLat, geoContext.centerLng, radiusKm);
+        filters.push(Prisma.sql`s.latitude BETWEEN ${bbox.minLat} AND ${bbox.maxLat}`);
+        if (!bbox.wrapsLongitude) {
+          filters.push(Prisma.sql`s.longitude BETWEEN ${bbox.minLng} AND ${bbox.maxLng}`);
+        } else {
+          filters.push(
+            Prisma.sql`(s.longitude >= ${bbox.minLng} OR s.longitude <= ${bbox.maxLng})`,
+          );
+        }
+        filters.push(Prisma.sql`${distanceExpr} <= ${radiusKm}`);
+      }
+    }
+
+    if (geoContext.mode === 'viewport') {
+      const radiusForBBox = this.estimateViewportRadiusKm(geoContext.viewport);
+      const bbox = this.computeBoundingBox(geoContext.centerLat, geoContext.centerLng, radiusForBBox);
+      filters.push(Prisma.sql`s.latitude BETWEEN ${bbox.minLat} AND ${bbox.maxLat}`);
+      if (!bbox.wrapsLongitude) {
+        filters.push(Prisma.sql`s.longitude BETWEEN ${bbox.minLng} AND ${bbox.maxLng}`);
+      } else {
+        filters.push(Prisma.sql`(s.longitude >= ${bbox.minLng} OR s.longitude <= ${bbox.maxLng})`);
+      }
+      filters.push(
+        Prisma.sql`s.latitude BETWEEN ${geoContext.viewport.swLat} AND ${geoContext.viewport.neLat}`,
+      );
+      filters.push(
+        Prisma.sql`s.longitude BETWEEN ${geoContext.viewport.swLng} AND ${geoContext.viewport.neLng}`,
+      );
+    }
+
+    if (dto.query) {
+      const like = `%${dto.query}%`;
+      filters.push(
+        Prisma.sql`(s.name ILIKE ${like} OR s.city ILIKE ${like} OR s.address_line ILIKE ${like})`,
+      );
+    }
+
+    if (dto.priceMin !== undefined) {
+      filters.push(
+        Prisma.sql`s.min_price_cents IS NOT NULL AND s.min_price_cents >= ${dto.priceMin * 100}`,
+      );
+    }
+    if (dto.priceMax !== undefined) {
+      filters.push(
+        Prisma.sql`s.max_price_cents IS NOT NULL AND s.max_price_cents <= ${dto.priceMax * 100}`,
+      );
+    }
+
+    const hasCategoryFilter = Boolean(dto.appCategoryIds?.length);
+    if (hasCategoryFilter) {
+      joins.push(
+        Prisma.sql`JOIN categories c ON c.salon_id = s.id`,
+      );
+      joins.push(
+        Prisma.sql`JOIN salon_category_mappings scm ON scm.salon_category_id = c.id AND scm.app_category_id IS NOT NULL`,
+      );
+      const ids = (dto.appCategoryIds ?? [])
+        .map((id) => id?.trim())
+        .filter((id): id is string => Boolean(id));
+      if (ids.length) {
+        const uuidArray = Prisma.sql`ARRAY[${Prisma.join(
+          ids.map((id) => Prisma.sql`${id}`),
+          ', ',
+        )}]::uuid[]`;
+        filters.push(Prisma.sql`scm.app_category_id = ANY(${uuidArray})`);
+      }
+    }
+
+    const openHoursFilter = this.buildOpenHoursFilter(dto.date, dto.time);
+    if (openHoursFilter) {
+      filters.push(openHoursFilter);
+    }
+
+    if (params.extraFilters?.length) {
+      filters.push(...params.extraFilters);
+    }
+
+    return { filters, joins, hasCategoryFilter, distanceExpr };
   }
 
   async findSuggestions(query: string, limit: number): Promise<RawSearchRow[]> {
