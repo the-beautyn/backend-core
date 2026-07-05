@@ -35,7 +35,7 @@ MVP keeps search **runtime-based** (no dedicated index):
     - by price (asc/desc),
     - by popularity.
 - Search history (visited salons) + clear history.
-- Suggestions for salons (history + name match).
+- Typeahead uses `POST /search` itself (query + center + `locationType`) — the dedicated suggestions endpoint was removed.
 
 ### Deferred (Future)
 
@@ -144,22 +144,11 @@ Those can be added later.
 
 ---
 
-### 3.1.4 SearchSuggestionDto
+### 3.1.4 SearchSuggestionDto (removed)
 
-```tsx
-export type SuggestionType = 'salon' | 'history';
-
-export class SearchSuggestionDto {
-  id: string;                // salonId (for 'salon' and 'history')
-  type: SuggestionType;      // 'history' = visited salon, 'salon' = generic match
-  label: string;             // salon name
-  subtitle?: string;         // e.g. "Kyiv · 4.8 ★"
-  logoUrl?: string;          // for suggestion row avatar
-}
-
-```
-
-For now, suggestions are always salons. In the future we can add `'service' | 'city'` types.
+The dedicated suggestions DTO/endpoint was removed — clients get typeahead
+results from `POST /search` (which also matches `address_line` and ranks by
+distance from the provided center).
 
 ---
 
@@ -225,25 +214,12 @@ Same as `SearchRequestDto` fields.
 
 ---
 
-### 3.2.2 `GET /search/suggestions` – Typeahead Suggestions
+### 3.2.2 `GET /search/suggestions` — REMOVED
 
-**Description**
-
-Return salon suggestions based on:
-
-- user’s visited salons (history), and
-- salons whose names/location match the query.
-
-**Auth**
-
-- Requires authenticated user (for history).
-- If unauthenticated, can still return generic salon suggestions (only `type: 'salon'`).
-
-**Query params**
-
-- `query?: string` – optional. Empty query → just recent history.
-
-**Response** – array of `SearchSuggestionDto`.
+Typeahead now goes through `POST /search` with `query` + `centerLat/centerLng`
+(+ optional `locationType`): a non-empty `query` bypasses the radius cut, so
+name matches anywhere are returned, ranked by distance from the center.
+History is served separately by `GET /search/history`.
 
 ---
 
@@ -426,13 +402,13 @@ Example values (configurable):
 ```tsx
 const DEFAULT_RADIUS_KM = 3;
 const MAX_RADIUS_KM = 15;
-const MIN_RESULTS = 10;
+const MIN_RESULTS = 5;
 
 const BASE_RADIUS_BY_LOCATION_TYPE: Record<LocationType, number> = {
   city: 7,
   neighborhood: 3,
   address: 2,
-  poi: 3,
+  poi: 0.5, // a POI is a precise venue — start at street level
   unknown: DEFAULT_RADIUS_KM,
 };
 
@@ -472,11 +448,16 @@ const BASE_RADIUS_BY_LOCATION_TYPE: Record<LocationType, number> = {
         
 3. **Auto-expansion**
     - If results `< MIN_RESULTS` and `radiusKm < MAX_RADIUS_KM`:
-        - Increase radius (e.g. `radiusKm *= 2`, but cap at `MAX_RADIUS_KM`).
+        - Increase radius (`radiusKm *= 2`, capped at `MAX_RADIUS_KM`).
         - Re-run query.
     - Repeat until we either:
         - have at least `MIN_RESULTS`, or
         - hit `MAX_RADIUS_KM`.
+    - **Text-query bypass**: when `query` is non-empty, the radius cut (and
+      the expansion loop) is skipped entirely — the user is looking for a
+      specific salon by name, which may be far away. The center still drives
+      the ranking (`ORDER BY distance`), so nearby matches come first and no
+      `effective_radius_km` is reported.
 4. **Return**
     - Return results for the final radius.
     - Optionally include `effectiveRadiusKm` in response meta.

@@ -186,8 +186,8 @@ scripts/                # Utility scripts
 
 ### Geolocation Search
 
-- Center-based (lat/long) or GeoIP-based salon discovery
-- Dynamic radius expansion (starts small, expands by 1.5x if too few results)
+- Viewport-based (map rectangle) or center-based (lat/long + `locationType`) salon discovery
+- Dynamic radius expansion in center mode (starts at the locationType base radius, doubles up to 15 km if too few results); a non-empty text query bypasses the radius and ranks globally by distance
 - Filters: distance, service type, rating, open status, price range
 - Sorting: distance, relevance, rating
 - Search history tracking
@@ -215,7 +215,7 @@ scripts/                # Utility scripts
   services/                GET/POST/PATCH/DELETE
   workers/                 GET/POST/PATCH/DELETE
   app-categories/          GET standardized categories
-  search/                  GET geolocation search
+  search/                  POST search, POST pins, GET/DELETE history
   onboarding/              GET progress, POST discover/finalize/pair/sync
   brand/                   POST create, GET my, GET :id, PATCH :id
   altegio-booking/         POST create booking, POST webhook

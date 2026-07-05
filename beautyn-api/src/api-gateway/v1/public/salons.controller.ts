@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Query, Req, UseGuards, NotFoundException } from '@nestjs/common';
+import { Controller, Get, Param, ParseBoolPipe, Query, Req, UseGuards, NotFoundException } from '@nestjs/common';
 import { ApiBadRequestResponse, ApiOkResponse, ApiOperation, ApiParam, ApiQuery, ApiTags } from '@nestjs/swagger';
 import type { Request } from 'express';
 import { SalonService } from '../../../salon/salon.service';
@@ -46,6 +46,14 @@ export class SalonsController {
     required: false,
     description: 'Comma-separated list: services, workers, categories, images',
   })
+  @ApiQuery({
+    name: 'isFromSearch',
+    required: false,
+    type: Boolean,
+    description:
+      'Set to true when the salon is opened from the search flow. Records a search-history ' +
+      'visit for the authenticated user; ignored for anonymous requests.',
+  })
   @ApiOkResponse(envelopeRef(SalonDto))
   @ApiBadRequestResponse(
     envelopeErrorSchema({ statusCode: 404, message: 'Not Found', error: 'Not Found' }),
@@ -54,10 +62,18 @@ export class SalonsController {
     @Param('id') id: string,
     @Req() req: Request & { user?: { id?: string } | null },
     @Query('include') include?: string,
+    @Query('isFromSearch', new ParseBoolPipe({ optional: true })) isFromSearch?: boolean,
   ) {
     const userId = req.user?.id ?? null;
     const salon = await this.salonService.findById(id, this.parseInclude(include), userId);
     if (!salon) throw new NotFoundException('Salon not found');
+    if (userId && isFromSearch) {
+      this.searchHistoryService
+        .addVisit(userId, id, null)
+        .catch((err) =>
+          this.log.warn('Failed to save search history visit', { err, userId, salonId: id }),
+        );
+    }
     return salon;
   }
 

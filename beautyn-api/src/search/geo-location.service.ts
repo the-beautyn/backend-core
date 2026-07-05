@@ -11,7 +11,7 @@ export const BASE_RADIUS_BY_LOCATION_TYPE: Record<LocationType, number> = {
   city: 7,
   neighborhood: 3,
   address: 2,
-  poi: 3,
+  poi: 0.5,
   unknown: DEFAULT_RADIUS_KM,
 };
 

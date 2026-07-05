@@ -85,6 +85,21 @@ export class SearchService {
     limit: number,
   ): Promise<{ result: Awaited<ReturnType<SearchQueryBuilderService['runSearch']>>; effectiveRadiusKm?: number }> {
     if (geoContext.mode === 'center' || geoContext.mode === 'geoip') {
+      // A text query bypasses the radius cut entirely: the user is looking for
+      // a specific salon by name, which may be far away. The center still
+      // drives the ranking (distance sort), so nearby matches come first —
+      // without the cut a match in another city just lands lower in the list.
+      if (dto.query?.trim()) {
+        const result = await this.queryBuilder.runSearch({
+          dto,
+          geoContext,
+          page,
+          limit,
+          sortBy: dto.sortBy ?? SortOptionEnum.DISTANCE,
+        });
+        return { result };
+      }
+
       const minResults = this.geo.getMinResults();
       const maxRadius = this.geo.getMaxRadius();
       // Explicitly passing undefined to getBaseRadius if both geoContext.locationType and dto.locationType are undefined.

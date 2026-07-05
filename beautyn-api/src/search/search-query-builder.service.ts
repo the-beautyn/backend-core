@@ -259,25 +259,6 @@ export class SearchQueryBuilderService {
     return { filters, joins, hasCategoryFilter, distanceExpr };
   }
 
-  async findSuggestions(query: string, limit: number): Promise<RawSearchRow[]> {
-    const like = `%${query}%`;
-    const rows = await this.prisma.$queryRaw<RawSearchRow[]>(Prisma.sql`
-      SELECT
-        s.id,
-        s.name,
-        s.city,
-        s.cover_image_url,
-        s.rating_avg,
-        s.rating_count
-      FROM salons s
-      WHERE s.deleted_at IS NULL
-        AND (s.name ILIKE ${like} OR s.city ILIKE ${like})
-      ORDER BY s.name ASC
-      LIMIT ${limit}
-    `);
-    return rows;
-  }
-
   private buildDistanceExpression(geoContext: ResolvedGeoContext): Prisma.Sql | null {
     if (geoContext.mode === 'center' || geoContext.mode === 'geoip' || geoContext.mode === 'viewport') {
       const centerLat = geoContext.centerLat;

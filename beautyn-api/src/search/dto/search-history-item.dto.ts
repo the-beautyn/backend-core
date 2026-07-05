@@ -16,6 +16,12 @@ export class SearchHistoryItemDto {
   @ApiPropertyOptional()
   logo_url?: string;
 
+  @ApiPropertyOptional({ description: 'Salon latitude — lets clients zoom the map to the salon' })
+  latitude?: number;
+
+  @ApiPropertyOptional({ description: 'Salon longitude — lets clients zoom the map to the salon' })
+  longitude?: number;
+
   @ApiProperty({ description: 'ISO timestamp of the last visit' })
   last_searched_at!: string;
 }

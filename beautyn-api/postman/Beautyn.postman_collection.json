@@ -2863,47 +2863,6 @@
           "response": []
         },
         {
-          "name": "suggestions",
-          "protocolProfileBehavior": {
-            "disableBodyPruning": true
-          },
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{accessToken}}",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/search/suggestions?query=Al",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "search",
-                "suggestions"
-              ],
-              "query": [
-                {
-                  "key": "query",
-                  "value": "Al",
-                  "type": "text"
-                }
-              ]
-            }
-          },
-          "response": []
-        },
-        {
           "name": "history",
           "protocolProfileBehavior": {
             "disableBodyPruning": true
@@ -3037,14 +2996,14 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/api/v1/salon/{{salonId}}?isFromSearch=true",
+              "raw": "{{baseUrl}}/api/v1/salons/{{salonId}}?isFromSearch=true",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
                 "api",
                 "v1",
-                "salon",
+                "salons",
                 "{{salonId}}"
               ],
               "query": [

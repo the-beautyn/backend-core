@@ -17,32 +17,17 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { Request } from 'express';
-import { SearchSuggestionsService } from '../../../search/search-suggestions.service';
-import { SearchSuggestionDto } from '../../../search/dto/search-suggestion.dto';
 import { SearchHistoryService } from '../../../search/search-history.service';
 import { SearchHistoryItemDto } from '../../../search/dto/search-history-item.dto';
 import { JwtAuthGuard } from '../../../shared/guards/jwt-auth.guard';
 import { envelopeArrayRef } from '../../../shared/utils/swagger-envelope.util';
-import { createChildLogger } from '@shared/logger';
 
 @ApiTags('Search')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
 @Controller('api/v1/search')
 export class SearchAuthenticatedController {
-  private readonly log = createChildLogger('search.authenticated.controller');
-  constructor(
-    private readonly suggestionsService: SearchSuggestionsService,
-    private readonly historyService: SearchHistoryService,
-  ) {}
-
-  @Get('suggestions')
-  @ApiOperation({ summary: 'Suggest salons based on history and name match' })
-  @ApiOkResponse(envelopeArrayRef(SearchSuggestionDto))
-  async suggestions(@Req() req: Request & { user: { id: string } }, @Query('query') query?: string) {
-    const userId = req.user?.id ?? null;
-    return this.suggestionsService.getSuggestions(userId, query);
-  }
+  constructor(private readonly historyService: SearchHistoryService) {}
 
   @Get('history')
   @ApiOperation({ summary: 'Get visited salons history' })
