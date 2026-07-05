@@ -2863,6 +2863,26 @@
           "response": []
         },
         {
+          "name": "filter_options",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/search/filter-options",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "search",
+                "filter-options"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
           "name": "history",
           "protocolProfileBehavior": {
             "disableBodyPruning": true

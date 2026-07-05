@@ -1,7 +1,8 @@
-import { Controller, Post, Body, Req, HttpCode, HttpStatus, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Req, HttpCode, HttpStatus, UseGuards } from '@nestjs/common';
 import { ApiBadRequestResponse, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Request } from 'express';
 import { SearchService } from '../../../search/search.service';
+import { FilterOptionsResultDto } from '../../../search/dto/filter-options.dto';
 import { SearchRequestDto } from '../../../search/dto/search-request.dto';
 import { SearchPinsResultDto, SearchResultDto } from '../../../search/dto/search-response.dto';
 import { OptionalJwtAuthGuard } from '../../../shared/guards/optional-jwt-auth.guard';
@@ -40,5 +41,14 @@ export class SearchPublicController {
   )
   async searchPins(@Req() req: Request, @Body() dto: SearchRequestDto) {
     return this.searchService.searchPins(req, dto);
+  }
+
+  @Get('filter-options')
+  @ApiOperation({
+    summary: 'Static filter sheet data: sort options + global price-range bounds (min/max)',
+  })
+  @ApiOkResponse(envelopeRef(FilterOptionsResultDto))
+  async filterOptions() {
+    return this.searchService.filterOptions();
   }
 }

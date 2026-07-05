@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Request } from 'express';
 import { SavedSalonsService } from '../saved-salons/saved-salons.service';
+import { FilterOptionsResultDto } from './dto/filter-options.dto';
 import { SearchRequestDto } from './dto/search-request.dto';
 import { SearchPinsResultDto, SearchResponseDto, SearchResultDto } from './dto/search-response.dto';
 import { GeoLocationService, ResolvedGeoContext } from './geo-location.service';
@@ -73,6 +74,18 @@ export class SearchService {
         latitude: Number(row.latitude),
         longitude: Number(row.longitude),
       })),
+    };
+  }
+
+  // Static bounds for the sort/price filter sheet: the allowed sort keys
+  // plus the GLOBAL price range (the two-knob slider's track). Clients fetch
+  // this once — it doesn't depend on the search context.
+  async filterOptions(): Promise<FilterOptionsResultDto> {
+    const bounds = await this.queryBuilder.runPriceBounds();
+    return {
+      sort_options: Object.values(SortOptionEnum),
+      min_price: bounds.min,
+      max_price: bounds.max,
     };
   }
 

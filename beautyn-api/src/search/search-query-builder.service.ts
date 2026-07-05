@@ -157,6 +157,26 @@ export class SearchQueryBuilderService {
     `);
   }
 
+  // Global bounds for the filter sheet's price-range track: the cheapest and
+  // the priciest service anywhere. A knob resting on its own edge means that
+  // side of the range-overlap filter (see buildFilterParts) is omitted.
+  async runPriceBounds(): Promise<{ min: number | null; max: number | null }> {
+    const rows = await this.prisma.$queryRaw<
+      { min_cents: number | bigint | null; max_cents: number | bigint | null }[]
+    >(Prisma.sql`
+      SELECT MIN(s.min_price_cents) AS min_cents, MAX(s.max_price_cents) AS max_cents
+      FROM salons s
+      WHERE s.deleted_at IS NULL
+    `);
+
+    const minCents = rows[0]?.min_cents;
+    const maxCents = rows[0]?.max_cents;
+    return {
+      min: minCents === null || minCents === undefined ? null : Math.floor(Number(minCents) / 100),
+      max: maxCents === null || maxCents === undefined ? null : Math.ceil(Number(maxCents) / 100),
+    };
+  }
+
   // The WHERE/JOIN assembly shared by `runSearch` and `runPins`, so both
   // endpoints always agree on which salons match a request.
   private buildFilterParts(params: {
@@ -216,14 +236,18 @@ export class SearchQueryBuilderService {
       );
     }
 
+    // A salon matches a price bound when its own [min, max] price span
+    // overlaps it — i.e. it offers at least one service in the requested
+    // budget. So priceMax cuts on the salon's CHEAPEST service and priceMin
+    // on its most expensive one.
     if (dto.priceMin !== undefined) {
       filters.push(
-        Prisma.sql`s.min_price_cents IS NOT NULL AND s.min_price_cents >= ${dto.priceMin * 100}`,
+        Prisma.sql`s.max_price_cents IS NOT NULL AND s.max_price_cents >= ${dto.priceMin * 100}`,
       );
     }
     if (dto.priceMax !== undefined) {
       filters.push(
-        Prisma.sql`s.max_price_cents IS NOT NULL AND s.max_price_cents <= ${dto.priceMax * 100}`,
+        Prisma.sql`s.min_price_cents IS NOT NULL AND s.min_price_cents <= ${dto.priceMax * 100}`,
       );
     }
 

@@ -223,7 +223,37 @@ History is served separately by `GET /search/history`.
 
 ---
 
-### 3.2.3 `GET /search/history` – List Visited Salons
+### 3.2.3 `GET /search/filter-options` – Filter Sheet Bounds
+
+**Description**
+
+Static data for the client's sort/price filter sheet: the allowed `sortBy`
+values and the **global** price-range track — the cheapest and the priciest
+service anywhere. A knob resting on its own edge means that side of the
+range-overlap filter (see 4.4.2) is omitted. No parameters; clients fetch it
+once per session.
+
+**Auth**
+
+- Public (no auth required).
+
+**Response**
+
+```json
+{
+  "sort_options": ["distance", "rating_desc", "price_asc", "price_desc", "popular"],
+  "min_price": 100,
+  "max_price": 1150
+}
+```
+
+`min_price` = `FLOOR(MIN(min_price_cents) / 100)`, `max_price` =
+`CEIL(MAX(max_price_cents) / 100)` (main currency units); both `null` when no
+salon has price data.
+
+---
+
+### 3.2.4 `GET /search/history` – List Visited Salons
 
 **Description**
 
@@ -241,7 +271,7 @@ Return latest N visited salons for current user (search history).
 
 ---
 
-### 3.2.4 `DELETE /search/history` – Clear All History
+### 3.2.5 `DELETE /search/history` – Clear All History
 
 **Description**
 
@@ -257,7 +287,7 @@ Return latest N visited salons for current user (search history).
 
 ---
 
-### 3.2.5 `DELETE /search/history/:id` – Remove Single Entry
+### 3.2.6 `DELETE /search/history/:id` – Remove Single Entry
 
 **Description**
 
@@ -496,11 +526,13 @@ This logic is entirely **internal**; API doesn’t expose Geo-IP fields.
 ### 4.4.2 Price Filter
 
 - Uses aggregated price info per salon, e.g. `min_price_cents`, `max_price_cents`.
-- Filter logic:
+- Range-overlap semantics: a salon matches when it offers at least one service
+  inside the requested budget, so `priceMax` cuts on the salon's **cheapest**
+  service and `priceMin` on its most expensive one:
     
     ```tsx
-    if (priceMin != null) min_price_cents >= priceMin * 100;
-    if (priceMax != null) max_price_cents <= priceMax * 100;
+    if (priceMin != null) max_price_cents >= priceMin * 100;
+    if (priceMax != null) min_price_cents <= priceMax * 100;
     
     ```
     

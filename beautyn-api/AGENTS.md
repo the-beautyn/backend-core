@@ -188,8 +188,9 @@ scripts/                # Utility scripts
 
 - Viewport-based (map rectangle) or center-based (lat/long + `locationType`) salon discovery
 - Dynamic radius expansion in center mode (starts at the locationType base radius, doubles up to 15 km if too few results); a non-empty text query bypasses the radius and ranks globally by distance
-- Filters: distance, service type, rating, open status, price range
-- Sorting: distance, relevance, rating
+- Filters: distance, service type, rating, open status, price range (range-overlap on salon min/max prices)
+- Sorting: distance, rating, price (asc/desc), popularity
+- Static filter-sheet bounds via `GET /search/filter-options` (sort keys + global min/max price)
 - Search history tracking
 
 ### Onboarding
@@ -215,7 +216,7 @@ scripts/                # Utility scripts
   services/                GET/POST/PATCH/DELETE
   workers/                 GET/POST/PATCH/DELETE
   app-categories/          GET standardized categories
-  search/                  POST search, POST pins, GET/DELETE history
+  search/                  POST search, POST pins, GET filter-options, GET/DELETE history
   onboarding/              GET progress, POST discover/finalize/pair/sync
   brand/                   POST create, GET my, GET :id, PATCH :id
   altegio-booking/         POST create booking, POST webhook
