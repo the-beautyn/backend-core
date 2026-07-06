@@ -59,6 +59,7 @@ import { HomeFeedSalonCardDto } from './home-feed/dto/home-feed-salon-card.dto';
 import { HomeFeedNextBookingDto } from './home-feed/dto/home-feed-next-booking.dto';
 import { HomeFeedSectionResponseDto } from './home-feed/dto/home-feed-section-response.dto';
 import { HomeFeedSectionFiltersDto } from './home-feed/dto/home-feed-section-filters.dto';
+import { HomeFeedSectionSearchParamsDto } from './home-feed/dto/home-feed-section-search-params.dto';
 import { SavedSalonItemDto, SavedSalonListResponseDto } from './saved-salons/dto/saved-salon-response.dto';
 import { SavedSalonToggleResponseDto } from './saved-salons/dto/saved-salon-toggle-response.dto';
 import { BrandResponseDto } from './brand/dto/brand-response.dto';
@@ -163,6 +164,7 @@ async function bootstrap() {
       HomeFeedNextBookingDto,
       HomeFeedSectionResponseDto,
       HomeFeedSectionFiltersDto,
+      HomeFeedSectionSearchParamsDto,
       // Saved salons
       SavedSalonItemDto,
       SavedSalonListResponseDto,
