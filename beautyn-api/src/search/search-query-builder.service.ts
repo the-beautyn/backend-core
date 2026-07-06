@@ -274,6 +274,13 @@ export class SearchQueryBuilderService {
     const openHoursFilter = this.buildOpenHoursFilter(dto.date, dto.time);
     if (openHoursFilter) {
       filters.push(openHoursFilter);
+    } else if (dto.date) {
+      // Date without time — fall back to the weekday-only filter (salon
+      // open at any time on that day), same as the home feed.
+      const openOnDateFilter = this.buildOpenOnDateFilter(dto.date);
+      if (openOnDateFilter) {
+        filters.push(openOnDateFilter);
+      }
     }
 
     if (params.extraFilters?.length) {
