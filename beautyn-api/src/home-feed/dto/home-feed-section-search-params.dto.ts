@@ -2,10 +2,11 @@ import { ApiPropertyOptional } from '@nestjs/swagger';
 import { SortOptionEnum } from '../../search/enums/sort-option.enum';
 
 /**
- * The public-search-shaped parameters a client can replay on POST /search
- * to reproduce a home feed section. Derived from the section's stored
- * filters; page/limit/radius are omitted — the client owns pagination and
- * viewport.
+ * The public-search-shaped parameters of a home feed section. Keys follow
+ * the response convention (snake_case); the client maps them onto the
+ * camelCase SearchRequestDto fields when replaying the section as a
+ * POST /search. Derived from the section's stored filters; page/limit/radius
+ * are omitted — the client owns pagination and viewport.
  */
 export class HomeFeedSectionSearchParamsDto {
   @ApiPropertyOptional()

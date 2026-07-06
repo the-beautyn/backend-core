@@ -153,6 +153,7 @@ export class SearchQueryBuilderService {
       FROM salons s
       ${joinsSql}
       ${whereSql}
+      ORDER BY s.id ASC
       LIMIT ${params.limit}
     `);
   }
@@ -229,8 +230,9 @@ export class SearchQueryBuilderService {
       );
     }
 
-    if (dto.query) {
-      const like = `%${dto.query}%`;
+    const normalizedQuery = dto.query?.trim();
+    if (normalizedQuery) {
+      const like = `%${normalizedQuery}%`;
       filters.push(
         Prisma.sql`(s.name ILIKE ${like} OR s.city ILIKE ${like} OR s.address_line ILIKE ${like})`,
       );

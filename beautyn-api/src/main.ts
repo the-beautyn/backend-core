@@ -44,7 +44,8 @@ import { BookableWorkersResponseDto } from './booking/altegio-booking/dto/bookab
 import { BookableDatesResponseDto } from './booking/altegio-booking/dto/bookable-dates.response.dto';
 import { TimeSlotsResponseDto } from './booking/altegio-booking/dto/time-slots.response.dto';
 import { SearchHistoryItemDto } from './search/dto/search-history-item.dto';
-import { SearchResultDto } from './search/dto/search-response.dto';
+import { SearchPinDto, SearchPinsResultDto, SearchResultDto } from './search/dto/search-response.dto';
+import { FilterOptionsResultDto } from './search/dto/filter-options.dto';
 import { CategoriesSyncJobResponseDto, CategoriesSyncResultDto } from './categories/dto/categories-sync-result.dto';
 import { ServicesSyncJobResponseDto, ServicesSyncResultDto } from './services/dto/services-sync-result.dto';
 import { CrmServicePageDto } from './services/dto/services-crm-page.dto';
@@ -145,6 +146,9 @@ async function bootstrap() {
       // Search
       SearchHistoryItemDto,
       SearchResultDto,
+      SearchPinDto,
+      SearchPinsResultDto,
+      FilterOptionsResultDto,
       // Categories/Services sync
       CategoriesSyncJobResponseDto,
       CategoriesSyncResultDto,

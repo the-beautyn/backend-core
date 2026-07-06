@@ -1,8 +1,13 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { SortOptionEnum } from '../enums/sort-option.enum';
 
 export class FilterOptionsResultDto {
-  @ApiProperty({ type: [String], description: 'Allowed sortBy values for POST /search' })
-  sort_options!: string[];
+  @ApiProperty({
+    enum: SortOptionEnum,
+    isArray: true,
+    description: 'Allowed sortBy values for POST /search',
+  })
+  sort_options!: SortOptionEnum[];
 
   @ApiProperty({
     nullable: true,

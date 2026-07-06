@@ -149,8 +149,9 @@ export class HomeFeedService {
     });
 
     // The public-search projection of this section's filters, so the client
-    // can replay the section as a POST /search. radiusKm has no public
-    // field and openToday becomes a concrete date.
+    // can replay the section as a POST /search (mapping the snake_case keys
+    // onto SearchRequestDto fields). radiusKm has no public field and
+    // openToday becomes a concrete date.
     const searchParams: HomeFeedSectionSearchParamsDto = {};
     if (searchDto.query) searchParams.query = searchDto.query;
     if (searchDto.appCategoryIds) searchParams.app_category_ids = searchDto.appCategoryIds;
