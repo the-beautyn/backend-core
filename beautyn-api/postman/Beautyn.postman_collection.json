@@ -2828,26 +2828,18 @@
           "response": []
         },
         {
-          "name": "suggestions",
-          "protocolProfileBehavior": {
-            "disableBodyPruning": true
-          },
+          "name": "search_pins",
           "request": {
-            "method": "GET",
+            "method": "POST",
             "header": [
               {
                 "key": "Content-Type",
                 "value": "application/json",
                 "type": "text"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{accessToken}}",
-                "type": "text"
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/api/v1/search/suggestions?query=Al",
+              "raw": "{{baseUrl}}/api/v1/search/pins",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -2855,14 +2847,36 @@
                 "api",
                 "v1",
                 "search",
-                "suggestions"
-              ],
-              "query": [
-                {
-                  "key": "query",
-                  "value": "Al",
-                  "type": "text"
+                "pins"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"query\": \"\",\n    \"viewport\": {\n        \"neLat\": 50.4771,\n        \"neLng\": 30.5657,\n        \"swLat\": 50.4231,\n        \"swLng\": 30.4811\n    }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
                 }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "filter_options",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/search/filter-options",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "search",
+                "filter-options"
               ]
             }
           },
@@ -3002,14 +3016,14 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/api/v1/salon/{{salonId}}?isFromSearch=true",
+              "raw": "{{baseUrl}}/api/v1/salons/{{salonId}}?isFromSearch=true",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
                 "api",
                 "v1",
-                "salon",
+                "salons",
                 "{{salonId}}"
               ],
               "query": [

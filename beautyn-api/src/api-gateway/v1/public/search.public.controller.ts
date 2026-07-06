@@ -1,9 +1,10 @@
-import { Controller, Post, Body, Req, HttpCode, HttpStatus, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Req, HttpCode, HttpStatus, UseGuards } from '@nestjs/common';
 import { ApiBadRequestResponse, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Request } from 'express';
 import { SearchService } from '../../../search/search.service';
+import { FilterOptionsResultDto } from '../../../search/dto/filter-options.dto';
 import { SearchRequestDto } from '../../../search/dto/search-request.dto';
-import { SearchResultDto } from '../../../search/dto/search-response.dto';
+import { SearchPinsResultDto, SearchResultDto } from '../../../search/dto/search-response.dto';
 import { OptionalJwtAuthGuard } from '../../../shared/guards/optional-jwt-auth.guard';
 import { envelopeErrorSchema, envelopeRef } from '../../../shared/utils/swagger-envelope.util';
 
@@ -26,5 +27,28 @@ export class SearchPublicController {
   ) {
     const userId = req.user?.id ?? null;
     return this.searchService.search(req, dto, userId);
+  }
+
+  @Post('pins')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(OptionalJwtAuthGuard)
+  @ApiOperation({
+    summary: 'All matching salon pins for a map viewport (same filters as search, coordinates only, capped at 500)',
+  })
+  @ApiOkResponse(envelopeRef(SearchPinsResultDto))
+  @ApiBadRequestResponse(
+    envelopeErrorSchema({ statusCode: 400, message: 'Bad Request', error: 'Bad Request' }),
+  )
+  async searchPins(@Req() req: Request, @Body() dto: SearchRequestDto) {
+    return this.searchService.searchPins(req, dto);
+  }
+
+  @Get('filter-options')
+  @ApiOperation({
+    summary: 'Static filter sheet data: sort options + global price-range bounds (min/max)',
+  })
+  @ApiOkResponse(envelopeRef(FilterOptionsResultDto))
+  async filterOptions() {
+    return this.searchService.filterOptions();
   }
 }

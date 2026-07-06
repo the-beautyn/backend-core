@@ -27,6 +27,8 @@ export class SearchHistoryService {
       salon_name: row.salon?.name ?? '',
       city: row.salon?.city ?? '',
       logo_url: row.salon?.coverImageUrl ?? undefined,
+      latitude: row.salon?.latitude != null ? Number(row.salon.latitude) : undefined,
+      longitude: row.salon?.longitude != null ? Number(row.salon.longitude) : undefined,
       last_searched_at: row.updatedAt.toISOString(),
     }));
   }

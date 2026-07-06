@@ -344,6 +344,29 @@ describe('HomeFeed (e2e)', () => {
       expect(res.body.data.sections[0].items[0]).toHaveProperty('id');
       expect(res.body.data.sections[0].items[0]).toHaveProperty('name');
       expect(res.body.data.sections[0].items[0]).toHaveProperty('rating_avg');
+      expect(res.body.data.sections[0].search_params).toEqual({});
+    });
+
+    it('returns snake_case search_params for a filtered section', async () => {
+      homeFeedSections.push({
+        id: randomUUID(),
+        type: 'deals',
+        title: 'Budget',
+        emoji: '💰',
+        sortOrder: 0,
+        limit: 10,
+        isActive: true,
+        filters: { sortBy: 'popular', priceMax: 500 },
+      });
+
+      const res = await request(app.getHttpServer())
+        .get('/api/v1/home')
+        .expect(200);
+
+      expect(res.body.data.sections[0].search_params).toEqual({
+        sort_by: 'popular',
+        price_max: 500,
+      });
     });
 
     it('only includes active sections', async () => {

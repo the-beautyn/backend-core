@@ -11,6 +11,7 @@ import { SortOptionEnum } from '../search/enums/sort-option.enum';
 import { HomeFeedResponseDto } from './dto/home-feed-response.dto';
 import { HomeFeedSectionDto } from './dto/home-feed-section.dto';
 import { HomeFeedSectionFiltersDto } from './dto/home-feed-section-filters.dto';
+import { HomeFeedSectionSearchParamsDto } from './dto/home-feed-section-search-params.dto';
 import { mapBookingToNextBooking, mapSearchRowToCard } from './mappers/home-feed.mapper';
 import { BookingQueryService } from '../booking/booking-query.service';
 import { HomeFeedSection } from '@prisma/client';
@@ -128,9 +129,9 @@ export class HomeFeedService {
     }
 
     // Build extra filters
+    const today = filters.openToday ? new Date().toISOString().slice(0, 10) : undefined;
     const extraFilters: Prisma.Sql[] = [];
-    if (filters.openToday) {
-      const today = new Date().toISOString().slice(0, 10);
+    if (today) {
       const openFilter = this.searchQueryBuilder.buildOpenOnDateFilter(today);
       if (openFilter) {
         extraFilters.push(openFilter);
@@ -147,12 +148,25 @@ export class HomeFeedService {
       extraFilters: extraFilters.length > 0 ? extraFilters : undefined,
     });
 
+    // The public-search projection of this section's filters, so the client
+    // can replay the section as a POST /search (mapping the snake_case keys
+    // onto SearchRequestDto fields). radiusKm has no public field and
+    // openToday becomes a concrete date.
+    const searchParams: HomeFeedSectionSearchParamsDto = {};
+    if (searchDto.query) searchParams.query = searchDto.query;
+    if (searchDto.appCategoryIds) searchParams.app_category_ids = searchDto.appCategoryIds;
+    if (searchDto.sortBy) searchParams.sort_by = searchDto.sortBy;
+    if (searchDto.priceMin != null) searchParams.price_min = searchDto.priceMin;
+    if (searchDto.priceMax != null) searchParams.price_max = searchDto.priceMax;
+    if (today) searchParams.date = today;
+
     return {
       id: config.id,
       type: config.type,
       title: config.title,
       emoji: config.emoji,
       items: result.items.map((row) => mapSearchRowToCard(row)),
+      search_params: searchParams,
     };
   }
 }

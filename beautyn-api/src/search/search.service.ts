@@ -1,8 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { Request } from 'express';
 import { SavedSalonsService } from '../saved-salons/saved-salons.service';
+import { FilterOptionsResultDto } from './dto/filter-options.dto';
 import { SearchRequestDto } from './dto/search-request.dto';
-import { SearchResponseDto, SearchResultDto } from './dto/search-response.dto';
+import { SearchPinsResultDto, SearchResponseDto, SearchResultDto } from './dto/search-response.dto';
 import { GeoLocationService, ResolvedGeoContext } from './geo-location.service';
 import { SearchQueryBuilderService } from './search-query-builder.service';
 import { SortOptionEnum } from './enums/sort-option.enum';
@@ -50,6 +51,46 @@ export class SearchService {
     return response;
   }
 
+  // All matching pins for the map — same filters as `search`, but only
+  // coordinates, capped instead of paginated. Intended for viewport requests;
+  // center mode uses the base radius without the expand-until-enough loop.
+  async searchPins(req: Request, dto: SearchRequestDto): Promise<SearchPinsResultDto> {
+    const geoContext = this.geo.resolveGeoContext(req, dto);
+    const radiusKm =
+      geoContext.mode === 'center' || geoContext.mode === 'geoip'
+        ? this.geo.getBaseRadius(geoContext.locationType ?? dto.locationType)
+        : undefined;
+
+    const rows = await this.queryBuilder.runPins({
+      dto,
+      geoContext,
+      radiusKm,
+      limit: SearchService.PINS_LIMIT,
+    });
+
+    return {
+      items: rows.map((row) => ({
+        salon_id: row.id,
+        latitude: Number(row.latitude),
+        longitude: Number(row.longitude),
+      })),
+    };
+  }
+
+  // Static bounds for the sort/price filter sheet: the allowed sort keys
+  // plus the GLOBAL price range (the two-knob slider's track). Clients fetch
+  // this once — it doesn't depend on the search context.
+  async filterOptions(): Promise<FilterOptionsResultDto> {
+    const bounds = await this.queryBuilder.runPriceBounds();
+    return {
+      sort_options: Object.values(SortOptionEnum),
+      min_price: bounds.min,
+      max_price: bounds.max,
+    };
+  }
+
+  private static readonly PINS_LIMIT = 500;
+
   private async runWithGeo(
     dto: SearchRequestDto,
     geoContext: ResolvedGeoContext,
@@ -57,6 +98,21 @@ export class SearchService {
     limit: number,
   ): Promise<{ result: Awaited<ReturnType<SearchQueryBuilderService['runSearch']>>; effectiveRadiusKm?: number }> {
     if (geoContext.mode === 'center' || geoContext.mode === 'geoip') {
+      // A text query bypasses the radius cut entirely: the user is looking for
+      // a specific salon by name, which may be far away. The center still
+      // drives the ranking (distance sort), so nearby matches come first —
+      // without the cut a match in another city just lands lower in the list.
+      if (dto.query?.trim()) {
+        const result = await this.queryBuilder.runSearch({
+          dto,
+          geoContext,
+          page,
+          limit,
+          sortBy: dto.sortBy ?? SortOptionEnum.DISTANCE,
+        });
+        return { result };
+      }
+
       const minResults = this.geo.getMinResults();
       const maxRadius = this.geo.getMaxRadius();
       // Explicitly passing undefined to getBaseRadius if both geoContext.locationType and dto.locationType are undefined.

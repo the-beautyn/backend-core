@@ -5,7 +5,6 @@ import { SearchService } from './search.service';
 import { SearchQueryBuilderService } from './search-query-builder.service';
 import { GeoLocationService } from './geo-location.service';
 import { SearchHistoryService } from './search-history.service';
-import { SearchSuggestionsService } from './search-suggestions.service';
 
 @Module({
   imports: [SharedModule, SavedSalonsModule],
@@ -14,8 +13,7 @@ import { SearchSuggestionsService } from './search-suggestions.service';
     SearchQueryBuilderService,
     GeoLocationService,
     SearchHistoryService,
-    SearchSuggestionsService,
   ],
-  exports: [SearchService, SearchQueryBuilderService, SearchHistoryService, SearchSuggestionsService],
+  exports: [SearchService, SearchQueryBuilderService, SearchHistoryService],
 })
 export class SearchModule {}

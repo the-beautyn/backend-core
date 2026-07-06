@@ -44,8 +44,8 @@ import { BookableWorkersResponseDto } from './booking/altegio-booking/dto/bookab
 import { BookableDatesResponseDto } from './booking/altegio-booking/dto/bookable-dates.response.dto';
 import { TimeSlotsResponseDto } from './booking/altegio-booking/dto/time-slots.response.dto';
 import { SearchHistoryItemDto } from './search/dto/search-history-item.dto';
-import { SearchSuggestionDto } from './search/dto/search-suggestion.dto';
-import { SearchResultDto } from './search/dto/search-response.dto';
+import { SearchPinDto, SearchPinsResultDto, SearchResultDto } from './search/dto/search-response.dto';
+import { FilterOptionsResultDto } from './search/dto/filter-options.dto';
 import { CategoriesSyncJobResponseDto, CategoriesSyncResultDto } from './categories/dto/categories-sync-result.dto';
 import { ServicesSyncJobResponseDto, ServicesSyncResultDto } from './services/dto/services-sync-result.dto';
 import { CrmServicePageDto } from './services/dto/services-crm-page.dto';
@@ -60,6 +60,7 @@ import { HomeFeedSalonCardDto } from './home-feed/dto/home-feed-salon-card.dto';
 import { HomeFeedNextBookingDto } from './home-feed/dto/home-feed-next-booking.dto';
 import { HomeFeedSectionResponseDto } from './home-feed/dto/home-feed-section-response.dto';
 import { HomeFeedSectionFiltersDto } from './home-feed/dto/home-feed-section-filters.dto';
+import { HomeFeedSectionSearchParamsDto } from './home-feed/dto/home-feed-section-search-params.dto';
 import { SavedSalonItemDto, SavedSalonListResponseDto } from './saved-salons/dto/saved-salon-response.dto';
 import { SavedSalonToggleResponseDto } from './saved-salons/dto/saved-salon-toggle-response.dto';
 import { BrandResponseDto } from './brand/dto/brand-response.dto';
@@ -144,8 +145,10 @@ async function bootstrap() {
       TimeSlotsResponseDto,
       // Search
       SearchHistoryItemDto,
-      SearchSuggestionDto,
       SearchResultDto,
+      SearchPinDto,
+      SearchPinsResultDto,
+      FilterOptionsResultDto,
       // Categories/Services sync
       CategoriesSyncJobResponseDto,
       CategoriesSyncResultDto,
@@ -165,6 +168,7 @@ async function bootstrap() {
       HomeFeedNextBookingDto,
       HomeFeedSectionResponseDto,
       HomeFeedSectionFiltersDto,
+      HomeFeedSectionSearchParamsDto,
       // Saved salons
       SavedSalonItemDto,
       SavedSalonListResponseDto,

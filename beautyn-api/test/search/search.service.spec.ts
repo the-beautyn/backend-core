@@ -135,4 +135,36 @@ describe('SearchService', () => {
       expect(result.items).toEqual([]);
     });
   });
+
+  describe('filterOptions', () => {
+    const makeService = (bounds: { min: number | null; max: number | null }) => {
+      const queryBuilder = {
+        runPriceBounds: jest.fn().mockResolvedValue(bounds),
+      } as unknown as SearchQueryBuilderService;
+      const geo = {} as GeoLocationService;
+      return { service: new SearchService(geo, queryBuilder, makeSavedSalons()), queryBuilder };
+    };
+
+    it('returns all sort options and the global price bounds', async () => {
+      const { service, queryBuilder } = makeService({ min: 100, max: 1150 });
+
+      const result = await service.filterOptions();
+
+      // Literal list on purpose — comparing to Object.values(SortOptionEnum)
+      // would be tautological and pin nothing.
+      expect(result.sort_options).toEqual(['distance', 'rating_desc', 'price_asc', 'price_desc', 'popular']);
+      expect(result.min_price).toBe(100);
+      expect(result.max_price).toBe(1150);
+      expect(queryBuilder.runPriceBounds).toHaveBeenCalledWith();
+    });
+
+    it('passes through null bounds when no salon has price data', async () => {
+      const { service } = makeService({ min: null, max: null });
+
+      const result = await service.filterOptions();
+
+      expect(result.min_price).toBeNull();
+      expect(result.max_price).toBeNull();
+    });
+  });
 });

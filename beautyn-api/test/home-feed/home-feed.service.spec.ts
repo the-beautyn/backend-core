@@ -179,6 +179,7 @@ describe('HomeFeedService', () => {
           geoContext: { mode: 'none' },
         }),
       );
+      expect(result.sections[0].search_params).toEqual({ sort_by: 'popular' });
     });
 
     it('builds section with filters.appCategoryId', async () => {
@@ -188,13 +189,14 @@ describe('HomeFeedService', () => {
       ]);
       searchQueryBuilder.runSearch.mockResolvedValue({ items: [searchRow()], total: 1 });
 
-      await service.getHomeFeed({ userId: null });
+      const result = await service.getHomeFeed({ userId: null });
 
       expect(searchQueryBuilder.runSearch).toHaveBeenCalledWith(
         expect.objectContaining({
           dto: expect.objectContaining({ appCategoryIds: ['cat1'] }),
         }),
       );
+      expect(result.sections[0].search_params).toEqual({ app_category_ids: ['cat1'] });
     });
 
     it('builds section with distance sort and geo params', async () => {
@@ -217,6 +219,8 @@ describe('HomeFeedService', () => {
           sortBy: 'distance',
         }),
       );
+      // radiusKm is server-only — it must not leak into the public params
+      expect(result.sections[0].search_params).toEqual({ sort_by: 'distance' });
     });
 
     it('uses none geo context when no lat/lon provided for distance section', async () => {
@@ -244,7 +248,7 @@ describe('HomeFeedService', () => {
       searchQueryBuilder.buildOpenOnDateFilter.mockReturnValue(mockFilter);
       searchQueryBuilder.runSearch.mockResolvedValue({ items: [], total: 0 });
 
-      await service.getHomeFeed({ userId: null });
+      const result = await service.getHomeFeed({ userId: null });
 
       expect(searchQueryBuilder.buildOpenOnDateFilter).toHaveBeenCalled();
       expect(searchQueryBuilder.runSearch).toHaveBeenCalledWith(
@@ -252,6 +256,10 @@ describe('HomeFeedService', () => {
           extraFilters: [mockFilter],
         }),
       );
+      expect(result.sections[0].search_params).toEqual({
+        app_category_ids: ['cat1'],
+        date: new Date().toISOString().slice(0, 10),
+      });
     });
 
     it('builds section with price filters', async () => {
@@ -261,13 +269,14 @@ describe('HomeFeedService', () => {
       ]);
       searchQueryBuilder.runSearch.mockResolvedValue({ items: [], total: 0 });
 
-      await service.getHomeFeed({ userId: null });
+      const result = await service.getHomeFeed({ userId: null });
 
       expect(searchQueryBuilder.runSearch).toHaveBeenCalledWith(
         expect.objectContaining({
           dto: expect.objectContaining({ priceMax: 500, sortBy: 'price_asc' }),
         }),
       );
+      expect(result.sections[0].search_params).toEqual({ sort_by: 'price_asc', price_max: 500 });
     });
 
     it('handles section with no filters', async () => {
@@ -280,6 +289,7 @@ describe('HomeFeedService', () => {
       const result = await service.getHomeFeed({ userId: null });
 
       expect(result.sections[0].items).toHaveLength(1);
+      expect(result.sections[0].search_params).toEqual({});
     });
 
     it('handles multiple sections in correct order', async () => {

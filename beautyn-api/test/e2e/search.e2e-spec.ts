@@ -6,7 +6,6 @@ import {
 } from '@nestjs/common';
 import request from 'supertest';
 import { SearchService } from '../../src/search/search.service';
-import { SearchSuggestionsService } from '../../src/search/search-suggestions.service';
 import { SearchHistoryService } from '../../src/search/search-history.service';
 import { SearchQueryBuilderService } from '../../src/search/search-query-builder.service';
 import { GeoLocationService } from '../../src/search/geo-location.service';
@@ -57,16 +56,10 @@ describe('Search API (e2e)', () => {
 
   const mockQueryBuilder: Partial<SearchQueryBuilderService> = {
     runSearch: jest.fn().mockResolvedValue({ items: [searchRow], total: 1 }),
-    findSuggestions: jest.fn().mockResolvedValue([
-      {
-        id: 'salon-2',
-        name: 'Salon Two',
-        city: 'Odesa',
-        cover_image_url: 'logo-2.png',
-        rating_avg: 4.2,
-        rating_count: 12,
-      },
+    runPins: jest.fn().mockResolvedValue([
+      { id: 'salon-1', latitude: 50.45, longitude: 30.52 },
     ]),
+    runPriceBounds: jest.fn().mockResolvedValue({ min: 10, max: 900 }),
   };
 
   const mockHistory: Partial<SearchHistoryService> = {
@@ -105,7 +98,6 @@ describe('Search API (e2e)', () => {
       controllers: [SearchPublicController, SearchAuthenticatedController],
       providers: [
         SearchService,
-        SearchSuggestionsService,
         { provide: SearchQueryBuilderService, useValue: mockQueryBuilder },
         { provide: GeoLocationService, useValue: mockGeo },
         { provide: SearchHistoryService, useValue: mockHistory },
@@ -301,31 +293,33 @@ describe('Search API (e2e)', () => {
     });
   });
 
-  it('GET /api/v1/search/suggestions merges history and name matches', async () => {
+  it('POST /api/v1/search/pins returns coordinate-only pins', async () => {
     const res = await request(app.getHttpServer())
-      .get('/api/v1/search/suggestions?query=sal')
-      .set('Authorization', 'Bearer token')
+      .post('/api/v1/search/pins')
+      .send({ viewport: { neLat: 50.5, neLng: 30.6, swLat: 50.4, swLng: 30.5 } })
+      .expect(200);
+
+    expect(res.body).toEqual({
+      success: true,
+      data: {
+        items: [{ salon_id: 'salon-1', latitude: 50.45, longitude: 30.52 }],
+      },
+    });
+    expect(mockQueryBuilder.runPins).toHaveBeenCalledTimes(1);
+  });
+
+  it('GET /api/v1/search/filter-options returns sort options and price bounds', async () => {
+    const res = await request(app.getHttpServer())
+      .get('/api/v1/search/filter-options')
       .expect(200);
 
     expect(res.body.success).toBe(true);
-    expect(res.body.data).toEqual([
-      {
-        id: 'salon-1',
-        type: 'history',
-        label: 'Salon One',
-        subtitle: 'Kyiv',
-        logo_url: 'logo.png',
-      },
-      {
-        id: 'salon-2',
-        type: 'salon',
-        label: 'Salon Two',
-        subtitle: 'Odesa · 4.2 ★ · 12',
-        logo_url: 'logo-2.png',
-      },
-    ]);
-    expect(mockHistory.getHistory).toHaveBeenCalled();
-    expect(mockQueryBuilder.findSuggestions).toHaveBeenCalledWith('sal', expect.any(Number));
+    expect(res.body.data).toEqual({
+      sort_options: ['distance', 'rating_desc', 'price_asc', 'price_desc', 'popular'],
+      min_price: 10,
+      max_price: 900,
+    });
+    expect(mockQueryBuilder.runPriceBounds).toHaveBeenCalledTimes(1);
   });
 
   it('GET /api/v1/search/history requires auth and returns history', async () => {
