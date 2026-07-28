@@ -102,3 +102,6 @@ temp/
 /beautyn-api/supabase/dump*.sql
 # ad-hoc pg_dump exports
 /beautyn-api/*.dump.sql
+/beautyn-api/.claude/settings.json
+# agent worktrees and local claude state at repo root
+/.claude/
