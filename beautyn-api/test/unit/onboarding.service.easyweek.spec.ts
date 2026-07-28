@@ -5,6 +5,7 @@ import { EasyWeekDiscoveryClient } from '../../src/onboarding/clients/easyweek-d
 import { CrmIntegrationService } from '../../src/crm-integration/core/crm-integration.service';
 import { CrmSyncOrchestratorService } from '../../src/crm-integration/sync/crm-sync-orchestrator.service';
 import { BadRequestException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { SyncSchedulerService } from '@crm/sync-scheduler';
 
 describe('OnboardingService EasyWeek', () => {
@@ -22,6 +23,7 @@ describe('OnboardingService EasyWeek', () => {
         { provide: CrmIntegrationService, useValue: crm },
         { provide: CrmSyncOrchestratorService, useValue: {} },
         { provide: SyncSchedulerService, useValue: {} },
+        { provide: ConfigService, useValue: { get: jest.fn((_key: string, d?: string) => d) } },
       ],
     }).compile();
 

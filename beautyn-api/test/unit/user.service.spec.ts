@@ -20,7 +20,6 @@ const baseUser: Users = {
   authProvider: 'email',
   isPhoneVerified: false,
   isProfileCreated: false,
-  isOnboardingCompleted: false,
   subscriptionId: null,
   crmId: null,
   createdAt: new Date('2024-01-01T00:00:00.000Z'),
@@ -138,13 +137,6 @@ describe('UserService', () => {
     expect(computeProfileCreated(true, 'client', 'a', undefined)).toBe(false);
     expect(computeProfileCreated(true, 'owner', 'a', 'b', '+12345678901', true)).toBe(true);
     expect(computeProfileCreated(true, 'owner', 'a', 'b')).toBe(false);
-  });
-
-  it('setOnboardingCompleted flips flag', async () => {
-    repo.findById.mockResolvedValue(baseUser);
-    repo.updateById.mockResolvedValue({ ...baseUser, isOnboardingCompleted: true });
-    const result = await service.setOnboardingCompleted('u1');
-    expect(result.is_onboarding_completed).toBe(true);
   });
 
   it('setPhoneVerified throws ConflictException when phone already verified on another account', async () => {

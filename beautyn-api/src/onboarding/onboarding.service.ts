@@ -1,10 +1,12 @@
 import { BadRequestException, Injectable, Optional } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { randomInt, createHmac } from 'crypto';
 import { PrismaService } from '../shared/database/prisma.service';
 import { OnboardingProgressDto } from './dto/onboarding-progress.dto';
 import { SalonMapper } from '../salon/mappers/salon.mapper';
 import { SalonDto } from '../salon/dto/salon.dto';
 import { OnboardingMapper } from './mappers/onboarding.mapper';
+import { isSubscriptionStepEnabled } from './onboarding.flags';
 import { EasyWeekDiscoveryClient } from './clients/easyweek-discovery.client';
 import { CrmIntegrationService } from '../crm-integration/core/crm-integration.service';
 import { CrmSyncOrchestratorService } from '../crm-integration/sync/crm-sync-orchestrator.service';
@@ -19,6 +21,7 @@ export class OnboardingService {
     private readonly prisma: PrismaService,
     private readonly crmIntegration: CrmIntegrationService,
     private readonly syncOrchestrator: CrmSyncOrchestratorService,
+    private readonly config: ConfigService,
     @Optional() private readonly ew?: EasyWeekDiscoveryClient
   ) {}
 
@@ -27,7 +30,7 @@ export class OnboardingService {
     if (!step) {
       step = await this.prisma.onboardingStep.create({ data: { userId } });
     }
-    return OnboardingMapper.toProgressDto(step);
+    return OnboardingMapper.toProgressDto(step, isSubscriptionStepEnabled(this.config));
   }
 
   async discoverEasyWeekSalons(userId: string, authToken: string, workspaceSlug: string) {

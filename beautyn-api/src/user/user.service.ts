@@ -60,7 +60,6 @@ export class UserService {
       auth_provider: user.authProvider,
       is_phone_verified: user.isPhoneVerified,
       is_profile_created: user.isProfileCreated,
-      is_onboarding_completed: user.isOnboardingCompleted,
       created_at: user.createdAt,
       updated_at: user.updatedAt,
     };
@@ -148,17 +147,6 @@ export class UserService {
       second_name: user.secondName ?? null,
       phone: user.phone ?? null,
     };
-  }
-
-  async setOnboardingCompleted(id: string): Promise<UserResponseDto> {
-    const existing = await this.repo.findById(id);
-    if (!existing) {
-      throw new NotFoundException('User not found');
-    }
-    const updated = await this.repo.updateById(id, {
-      isOnboardingCompleted: true,
-    });
-    return this.toResponse(updated);
   }
 
   async setPhoneVerified(id: string, phone: string): Promise<void> {

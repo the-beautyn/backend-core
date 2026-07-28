@@ -100,4 +100,41 @@ describe('Onboarding (e2e)', () => {
       },
     });
   });
+
+  it('reports a legacy row stuck at SUBSCRIPTION as COMPLETED (BEA-53)', async () => {
+    await prisma.onboardingStep.upsert({
+      where: { userId },
+      create: {
+        userId,
+        crmConnected: true,
+        brandCreated: true,
+        subscriptionSet: false,
+        completed: false,
+        currentStep: 'SUBSCRIPTION',
+      },
+      update: {
+        crmConnected: true,
+        brandCreated: true,
+        subscriptionSet: false,
+        completed: false,
+        currentStep: 'SUBSCRIPTION',
+      },
+    });
+
+    const res = await request(app.getHttpServer())
+      .get('/api/v1/onboarding/progress')
+      .set('Authorization', 'Bearer valid')
+      .expect(200);
+
+    expect(res.body).toEqual({
+      success: true,
+      data: {
+        crm_connected: true,
+        brand_created: true,
+        subscription_set: false,
+        completed: true,
+        current_step: 'COMPLETED',
+      },
+    });
+  });
 });

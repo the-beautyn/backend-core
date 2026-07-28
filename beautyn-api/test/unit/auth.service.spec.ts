@@ -29,7 +29,6 @@ describe('AuthService', () => {
     authProvider: 'email' as const,
     isPhoneVerified: false,
     isProfileCreated: false,
-    isOnboardingCompleted: false,
     subscriptionId: null,
     crmId: null,
     createdAt: new Date(),

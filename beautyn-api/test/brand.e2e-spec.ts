@@ -269,7 +269,76 @@ describe('Brand (e2e)', () => {
       data: {
         crm_connected: true,
         brand_created: true,
-        current_step: 'SUBSCRIPTION',
+        completed: true,
+        current_step: 'COMPLETED',
+      },
+    });
+  });
+
+  it('creates brand and advances to SUBSCRIPTION when the subscription step is enabled', async () => {
+    process.env.ONBOARDING_SUBSCRIPTION_ENABLED = 'true';
+    try {
+      steps.push({
+        userId,
+        crmConnected: true,
+        brandCreated: false,
+        subscriptionSet: false,
+        completed: false,
+        currentStep: 'BRAND',
+      });
+
+      await request(app.getHttpServer())
+        .post('/api/v1/brand')
+        .set('Authorization', 'Bearer valid')
+        .send({ name: 'Acme' })
+        .expect(201);
+
+      const progressRes = await request(app.getHttpServer())
+        .get('/api/v1/onboarding/progress')
+        .set('Authorization', 'Bearer valid')
+        .expect(200);
+
+      expect(progressRes.body).toMatchObject({
+        success: true,
+        data: {
+          crm_connected: true,
+          brand_created: true,
+          completed: false,
+          current_step: 'SUBSCRIPTION',
+        },
+      });
+    } finally {
+      delete process.env.ONBOARDING_SUBSCRIPTION_ENABLED;
+    }
+  });
+
+  it('does not advance onboarding when current step is not BRAND', async () => {
+    steps.push({
+      userId,
+      crmConnected: false,
+      brandCreated: false,
+      subscriptionSet: false,
+      completed: false,
+      currentStep: 'CRM',
+    });
+
+    await request(app.getHttpServer())
+      .post('/api/v1/brand')
+      .set('Authorization', 'Bearer valid')
+      .send({ name: 'Acme' })
+      .expect(201);
+
+    const progressRes = await request(app.getHttpServer())
+      .get('/api/v1/onboarding/progress')
+      .set('Authorization', 'Bearer valid')
+      .expect(200);
+
+    expect(progressRes.body).toMatchObject({
+      success: true,
+      data: {
+        brand_created: false,
+        completed: false,
+        current_step: 'CRM',
       },
     });
   });

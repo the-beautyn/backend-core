@@ -1,12 +1,17 @@
 import { Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../shared/database/prisma.service';
 import { Brand, BrandMember, Salon } from '@prisma/client';
+import { isSubscriptionStepEnabled } from '../onboarding/onboarding.flags';
 
 type BrandWithCount = Brand & { _count: { salons: number } };
 
 @Injectable()
 export class BrandRepository {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly config: ConfigService
+  ) {}
 
   async findMembership(userId: string, brandId: string): Promise<BrandMember | null> {
     return this.prisma.brandMember.findFirst({ where: { userId, brandId } });
@@ -32,9 +37,12 @@ export class BrandRepository {
         where: { ownerUserId: userId, brandId: null },
         data: { brandId: brand.id },
       });
+      // BEA-53: while the Subscription step is hidden, brand creation completes onboarding
       await tx.onboardingStep.updateMany({
         where: { userId, currentStep: 'BRAND' },
-        data: { brandCreated: true, currentStep: 'SUBSCRIPTION' },
+        data: isSubscriptionStepEnabled(this.config)
+          ? { brandCreated: true, currentStep: 'SUBSCRIPTION' }
+          : { brandCreated: true, currentStep: 'COMPLETED', completed: true },
       });
       return brand;
     });
