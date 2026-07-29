@@ -80,17 +80,23 @@ async function bootstrap() {
   const configService = app.get(ConfigService);
 
   // CORS for browser clients (e.g. the owner web panel). Allowed origins come
-  // from CORS_ALLOWED_ORIGINS (comma-separated); when unset we fall back to the
-  // local Vite dev/preview origins so `npm run dev` works out of the box.
+  // from CORS_ALLOWED_ORIGINS (comma-separated). Outside production we fall back
+  // to the local Vite dev/preview origins so `npm run dev` works out of the box;
+  // in production we never allow localhost — CORS stays closed unless origins are
+  // explicitly configured, so credentialed cross-origin access can't be opened by
+  // an unset env var.
   const configuredOrigins = configService
     .get<string>('CORS_ALLOWED_ORIGINS')
     ?.split(',')
     .map((origin) => origin.trim())
     .filter(Boolean);
+  const isProduction = configService.get<string>('NODE_ENV') === 'production';
   app.enableCors({
     origin: configuredOrigins?.length
       ? configuredOrigins
-      : ['http://localhost:5173', 'http://localhost:4173'],
+      : isProduction
+        ? false
+        : ['http://localhost:5173', 'http://localhost:4173'],
     credentials: true,
   });
 
