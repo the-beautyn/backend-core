@@ -32,8 +32,7 @@ jobs:
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           claude_args: |
-            --allowed-tools "Read,Glob,Grep,Bash(gh pr diff:*),Bash(gh pr view:*),Bash(git diff:*),Bash(git log:*)"
-            --json-schema '{"type":"object","properties":{"review":{"type":"string","description":"Complete markdown review starting with <!-- claude-code-review --> comment"}},"required":["review"]}'
+            --allowed-tools "Read,Glob,Grep,Bash(gh pr diff:*),Bash(gh pr view:*),Bash(git diff:*),Bash(git log:*),Bash(gh pr comment:*),Bash(gh api:*)"
           prompt: |
             Review PR #${{ github.event.pull_request.number }} in ${{ github.repository }}.
             Base branch: ${{ github.event.pull_request.base.ref }}
@@ -50,16 +49,18 @@ jobs:
             Be concise. Only report real, actionable issues. Skip nitpicks and style suggestions.
             If the code looks good, say so briefly.
 
-            CRITICAL OUTPUT REQUIREMENTS:
-            Return a JSON object with a "review" field containing your complete markdown review.
-            The review markdown MUST start with EXACTLY this line (including the HTML comment):
+            Then publish your review as a SINGLE sticky PR comment. Build the comment body
+            so it begins with EXACTLY these two lines (including the HTML comment marker):
             <!-- claude-code-review -->
             ## Claude Code Review
 
-      - name: Post or update Claude review
-        uses: peter-evans/create-or-update-comment@v5
-        with:
-          comment-id: ${{ steps.find_claude_comment.outputs.comment-id }}
-          issue-number: ${{ github.event.pull_request.number }}
-          body: ${{ fromJSON(steps.claude-review.outputs.structured_output).review }}
-          edit-mode: replace
+            Write that body to a temporary file first (to preserve markdown and newlines),
+            then post it — maintaining only ONE such comment on the PR:
+            - Existing review comment id: "${{ steps.find_claude_comment.outputs.comment-id }}"
+            - If that id is non-empty, UPDATE the existing comment in place:
+                gh api --method PATCH \
+                  /repos/${{ github.repository }}/issues/comments/<id> \
+                  -F body=@<tmpfile>
+            - If it is empty, CREATE a new comment:
+                gh pr comment ${{ github.event.pull_request.number }} --body-file <tmpfile>
+            Post the comment yourself with these commands; do not rely on a later workflow step.
