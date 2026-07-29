@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { INestApplication, UnauthorizedException } from '@nestjs/common';
+import { INestApplication, UnauthorizedException, ValidationPipe } from '@nestjs/common';
 import request from 'supertest';
 import { AppModule } from '../../src/app.module';
 import { JwtAuthGuard } from '../../src/shared/guards/jwt-auth.guard';
@@ -27,7 +27,7 @@ describe('Onboarding EasyWeek (e2e)', () => {
 
     const mockEw = {
       listLocations: jest.fn().mockResolvedValue([
-        { uuid: '11111111-1111-1111-1111-111111111111', name: 'Salon 1' },
+        { uuid: '11111111-1111-4111-8111-111111111111', name: 'Salon 1' },
       ]),
     };
 
@@ -76,6 +76,15 @@ describe('Onboarding EasyWeek (e2e)', () => {
     app = moduleFixture.createNestApplication();
     const ti = app.get(TransformInterceptor);
     app.useGlobalInterceptors(ti);
+    // Mirror the production global pipe (main.ts) so DTO validation actually runs.
+    app.useGlobalPipes(
+      new ValidationPipe({
+        whitelist: true,
+        forbidNonWhitelisted: true,
+        transform: true,
+        transformOptions: { enableImplicitConversion: true },
+      }),
+    );
     await app.init();
   });
 
@@ -98,7 +107,7 @@ describe('Onboarding EasyWeek (e2e)', () => {
       .expect(200);
     expect(res.body).toEqual({
       success: true,
-      data: { salons: [{ uuid: '11111111-1111-1111-1111-111111111111', name: 'Salon 1' }] },
+      data: { salons: [{ uuid: '11111111-1111-4111-8111-111111111111', name: 'Salon 1' }] },
     });
   });
 
@@ -113,7 +122,7 @@ describe('Onboarding EasyWeek (e2e)', () => {
     const res = await request(app.getHttpServer())
       .post('/api/v1/onboarding/easyweek/connect')
       .set('Authorization', 'Bearer valid')
-      .send({ auth_token: 't', workspace_slug: 'ws', salons: [{ uuid: '11111111-1111-1111-1111-111111111111' }] })
+      .send({ auth_token: 't', workspace_slug: 'ws', salons: [{ uuid: '11111111-1111-4111-8111-111111111111' }] })
       .expect(202);
     expect(res.body).toEqual({ success: true });
   });
@@ -128,8 +137,8 @@ describe('Onboarding EasyWeek (e2e)', () => {
         auth_token: 't',
         workspace_slug: 'ws',
         salons: [
-          { uuid: '11111111-1111-1111-1111-111111111111', widget_url: 'https://booking.example.com/salon-1' },
-          { uuid: '22222222-2222-2222-2222-222222222222' },
+          { uuid: '11111111-1111-4111-8111-111111111111', widget_url: 'https://booking.example.com/salon-1' },
+          { uuid: '22222222-2222-4222-8222-222222222222' },
         ],
       })
       .expect(202);
@@ -144,7 +153,7 @@ describe('Onboarding EasyWeek (e2e)', () => {
     await request(app.getHttpServer())
       .post('/api/v1/onboarding/easyweek/connect')
       .set('Authorization', 'Bearer valid')
-      .send({ auth_token: 't', workspace_slug: 'ws', salon_uuids: ['11111111-1111-1111-1111-111111111111'] })
+      .send({ auth_token: 't', workspace_slug: 'ws', salon_uuids: ['11111111-1111-4111-8111-111111111111'] })
       .expect(400);
   });
 });
