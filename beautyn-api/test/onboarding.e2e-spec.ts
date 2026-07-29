@@ -10,8 +10,14 @@ describe('Onboarding (e2e)', () => {
   let app: INestApplication;
   let prisma: PrismaService;
   const userId = '123e4567-e89b-12d3-a456-426614174000';
+  let prevSubscriptionFlag: string | undefined;
 
   beforeAll(async () => {
+    // Pin the Subscription step OFF so these assertions don't depend on the
+    // host env. ConfigService reads env at module compile, so set before it.
+    prevSubscriptionFlag = process.env.ONBOARDING_SUBSCRIPTION_ENABLED;
+    delete process.env.ONBOARDING_SUBSCRIPTION_ENABLED;
+
     const mockJwtGuard = {
       canActivate: jest.fn().mockImplementation((context) => {
         const req = context.switchToHttp().getRequest();
@@ -70,6 +76,11 @@ describe('Onboarding (e2e)', () => {
 
   afterAll(async () => {
     await app.close();
+    if (prevSubscriptionFlag === undefined) {
+      delete process.env.ONBOARDING_SUBSCRIPTION_ENABLED;
+    } else {
+      process.env.ONBOARDING_SUBSCRIPTION_ENABLED = prevSubscriptionFlag;
+    }
   });
 
   it('GET /api/v1/onboarding/progress without JWT returns 401', () => {

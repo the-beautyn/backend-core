@@ -276,6 +276,7 @@ describe('Brand (e2e)', () => {
   });
 
   it('creates brand and advances to SUBSCRIPTION when the subscription step is enabled', async () => {
+    const prevSubscriptionFlag = process.env.ONBOARDING_SUBSCRIPTION_ENABLED;
     process.env.ONBOARDING_SUBSCRIPTION_ENABLED = 'true';
     try {
       steps.push({
@@ -308,7 +309,11 @@ describe('Brand (e2e)', () => {
         },
       });
     } finally {
-      delete process.env.ONBOARDING_SUBSCRIPTION_ENABLED;
+      if (prevSubscriptionFlag === undefined) {
+        delete process.env.ONBOARDING_SUBSCRIPTION_ENABLED;
+      } else {
+        process.env.ONBOARDING_SUBSCRIPTION_ENABLED = prevSubscriptionFlag;
+      }
     }
   });
 
