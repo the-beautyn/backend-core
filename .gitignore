@@ -70,6 +70,8 @@ temp/
 # 🕸️  Graphify (keep only what `graphify query` needs: graph.json,
 #     manifest.json, .graphify_labels.json, GRAPH_REPORT.md)
 ####################################
+# dated pre-update backups (graphify update snapshots the curated graph)
+/beautyn-api/graphify-out/[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]/
 # regenerable viz (graphify export html)
 /beautyn-api/graphify-out/graph.html
 # local extraction cache
