@@ -73,13 +73,13 @@ jobs:
           PR_ENV_NAME=$(echo "$RESPONSE" | jq -r \
             --arg pr "$PR_NUMBER" \
             '.data.environments.edges[]
-             | select(.node.name | test("(?i)(pr[^0-9]*" + $pr + ")"))
+             | select((.node.name | test("(?i)^pr-")) and (.node.name | test("-" + $pr + "$")))
              | .node.name' | head -n 1)
 
           PR_ENV_ID=$(echo "$RESPONSE" | jq -r \
             --arg pr "$PR_NUMBER" \
             '.data.environments.edges[]
-             | select(.node.name | test("(?i)(pr[^0-9]*" + $pr + ")"))
+             | select((.node.name | test("(?i)^pr-")) and (.node.name | test("-" + $pr + "$")))
              | .node.id' | head -n 1)
 
           # Fallback: match by PR branch name
@@ -421,7 +421,7 @@ jobs:
           PR_ENV_ID=$(echo "$RESPONSE" | jq -r \
             --arg pr "$PR_NUMBER" \
             '.data.environments.edges[]
-             | select(.node.name | test("(?i)(pr[^0-9]*" + $pr + ")"))
+             | select((.node.name | test("(?i)^pr-")) and (.node.name | test("-" + $pr + "$")))
              | .node.id' | head -n 1)
 
           # Fallback: branch name match
