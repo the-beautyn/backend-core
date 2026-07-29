@@ -20,6 +20,24 @@ export class CrmFieldDto {
   helper_text?: string;
 }
 
+export class CrmProviderLinksDto {
+  @ApiProperty({
+    example: 'https://my.easyweek.io',
+    description: 'Provider cabinet/marketplace page the owner opens to get credentials or install the app.',
+  })
+  external_url!: string;
+
+  @ApiProperty({ required: false, description: 'General connect instruction page.' })
+  instruction_url?: string;
+
+  @ApiProperty({
+    example: 'https://help.easyweek.io/uk/article/onlain-zapis-posylannia-ta-vidzhet',
+    required: false,
+    description: 'How to find the online-booking (widget) link for a salon.',
+  })
+  booking_instruction_url?: string;
+}
+
 export class CrmProviderDto {
   @ApiProperty({ example: 'EASYWEEK', enum: ['EASYWEEK', 'ALTEGIO'] })
   code!: 'EASYWEEK' | 'ALTEGIO';
@@ -35,6 +53,9 @@ export class CrmProviderDto {
 
   @ApiProperty({ type: [String], example: ['locations', 'serviceCatalog'] })
   capabilities!: string[];
+
+  @ApiProperty({ type: CrmProviderLinksDto })
+  links!: CrmProviderLinksDto;
 
   @ApiProperty({ required: false })
   docs_url?: string;

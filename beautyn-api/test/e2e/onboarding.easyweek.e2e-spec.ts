@@ -113,8 +113,38 @@ describe('Onboarding EasyWeek (e2e)', () => {
     const res = await request(app.getHttpServer())
       .post('/api/v1/onboarding/easyweek/connect')
       .set('Authorization', 'Bearer valid')
-      .send({ auth_token: 't', workspace_slug: 'ws', salon_uuids: ['11111111-1111-1111-1111-111111111111'] })
+      .send({ auth_token: 't', workspace_slug: 'ws', salons: [{ uuid: '11111111-1111-1111-1111-111111111111' }] })
       .expect(202);
     expect(res.body).toEqual({ success: true });
+  });
+
+  it('POST /api/v1/onboarding/easyweek/connect stores per-salon widget_url with derived fallback', async () => {
+    const prisma = app.get(PrismaService);
+    (prisma.salon.create as jest.Mock).mockClear();
+    await request(app.getHttpServer())
+      .post('/api/v1/onboarding/easyweek/connect')
+      .set('Authorization', 'Bearer valid')
+      .send({
+        auth_token: 't',
+        workspace_slug: 'ws',
+        salons: [
+          { uuid: '11111111-1111-1111-1111-111111111111', widget_url: 'https://booking.example.com/salon-1' },
+          { uuid: '22222222-2222-2222-2222-222222222222' },
+        ],
+      })
+      .expect(202);
+    const creates = (prisma.salon.create as jest.Mock).mock.calls.map(([arg]) => arg.data);
+    expect(creates).toEqual([
+      expect.objectContaining({ bookingUrl: 'https://booking.example.com/salon-1' }),
+      expect.objectContaining({ bookingUrl: 'https://booking.easyweek.com.ua/ws' }),
+    ]);
+  });
+
+  it('POST /api/v1/onboarding/easyweek/connect rejects legacy salon_uuids payload', async () => {
+    await request(app.getHttpServer())
+      .post('/api/v1/onboarding/easyweek/connect')
+      .set('Authorization', 'Bearer valid')
+      .send({ auth_token: 't', workspace_slug: 'ws', salon_uuids: ['11111111-1111-1111-1111-111111111111'] })
+      .expect(400);
   });
 });

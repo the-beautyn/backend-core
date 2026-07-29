@@ -96,20 +96,19 @@ export class CrmIntegrationService {
     userId,
     authToken,
     workspaceSlug,
-    externalSalonIds,
-    widgetUrl,
+    salons,
   }: {
     userId: string;
     authToken: string;
     workspaceSlug: string;
-    externalSalonIds: string[];
-    widgetUrl?: string;
+    salons: Array<{ uuid: string; widgetUrl?: string }>;
   }): Promise<{ salonIds: string[] }> {
-    // Use the owner-provided widget URL, or derive it from the workspace slug
+    // Fallback when a salon has no owner-provided widget URL: derive from the workspace slug
     // (URL-encoded defensively in case the slug carries unsafe characters).
-    const bookingUrl = widgetUrl?.trim() || `https://booking.easyweek.com.ua/${encodeURIComponent(workspaceSlug)}`;
+    const derivedBookingUrl = `https://booking.easyweek.com.ua/${encodeURIComponent(workspaceSlug)}`;
     const salonIds: string[] = [];
-    for (const externalSalonId of externalSalonIds) {
+    for (const { uuid: externalSalonId, widgetUrl } of salons) {
+      const bookingUrl = widgetUrl?.trim() || derivedBookingUrl;
       const ext = String(externalSalonId);
       const existing = await this.prisma.salon.findFirst({
         where: { provider: CrmType.EASYWEEK, externalSalonId: ext },

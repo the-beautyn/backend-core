@@ -18,6 +18,7 @@ import {
   ApiUnauthorizedResponse,
   ApiAcceptedResponse,
   ApiBadRequestResponse,
+  ApiParam,
 } from '@nestjs/swagger';
 import { Request } from 'express';
 import { JwtAuthGuard } from '../../../shared/guards/jwt-auth.guard';
@@ -68,7 +69,7 @@ export class OnboardingController {
 
   @Post('easyweek/connect')
   @HttpCode(HttpStatus.ACCEPTED)
-  @ApiOperation({ summary: 'Finalize EasyWeek link with selected salon' })
+  @ApiOperation({ summary: 'Finalize EasyWeek link with selected salons' })
   @ApiAcceptedResponse(envelopeRef(FinalizeEasyWeekResponseDto))
   async finalize(@Req() req: Request & { user: { id: string } }, @Body() dto: FinalizeEasyWeekDto) {
     const userId = req.user.id as string;
@@ -76,8 +77,7 @@ export class OnboardingController {
       userId,
       dto.auth_token,
       dto.workspace_slug,
-      dto.salon_uuids,
-      dto.widget_url,
+      dto.salons.map((s) => ({ uuid: s.uuid, widgetUrl: s.widget_url })),
     );
     return { success: true } as any;
   }
@@ -102,9 +102,14 @@ export class OnboardingController {
   @UseGuards(JwtAuthGuard)
   @ApiTags('Onboarding / CRMs')
   @ApiOperation({ summary: 'Get provider descriptor' })
+  @ApiParam({
+    name: 'code',
+    enum: ['EASYWEEK', 'ALTEGIO'],
+    description: 'Provider code, case-insensitive (easyweek and EASYWEEK both work).',
+  })
   @ApiOkResponse(envelopeRef(CrmProviderDto))
   @ApiBadRequestResponse(envelopeErrorSchema())
-  async getCrm(@Param('code') code: 'EASYWEEK' | 'ALTEGIO') {
+  async getCrm(@Param('code') code: string) {
     const d = this.crmRegistry.get(code);
     if (!d) throw new NotFoundException('Unknown provider');
     return { success: true, data: d };

@@ -9,15 +9,39 @@ export interface CrmField {
   placeholder?: string;
   helper_text?: string;
 }
+export interface CrmProviderLinks {
+  // Provider cabinet/marketplace page the owner opens to get credentials or install the app.
+  external_url: string;
+  instruction_url?: string;
+  booking_instruction_url?: string;
+}
 export interface CrmDescriptor {
   code: CrmCode;
   label: string;
   flow: CrmFlow;
   fields: CrmField[];
   capabilities: Array<'locations' | 'serviceCatalog' | 'workerRoster' | 'availabilityRealTime' | 'bookingWrite'>;
+  links: CrmProviderLinks;
   docs_url?: string;
   icon_url?: string;
 }
+function easyWeekLinks(): CrmProviderLinks {
+  return {
+    external_url: process.env.EASYWEEK_EXTERNAL_URL?.trim() || 'https://my.easyweek.io/settings/developers/api',
+    booking_instruction_url:
+      process.env.EASYWEEK_BOOKING_INSTRUCTION_URL?.trim() ||
+      'https://my.easyweek.io/online/website/overview',
+  };
+}
+
+function altegioLinks(): CrmProviderLinks {
+  const explicit = process.env.ALTEGIO_EXTERNAL_URL?.trim();
+  const appId = process.env.ALTEGIO_APPLICATION_ID?.trim();
+  return {
+    external_url: explicit || (appId ? `https://app.alteg.io/apps/${encodeURIComponent(appId)}` : 'https://app.alteg.io/apps'),
+  };
+}
+
 export class CrmProvidersRegistry {
   list(): CrmDescriptor[] {
     return [
@@ -30,6 +54,7 @@ export class CrmProvidersRegistry {
           { name: 'workspace_slug', label: 'Workspace Slug', type: 'text', required: true, placeholder: 'acme-studio' },
         ],
         capabilities: ['locations', 'serviceCatalog', 'workerRoster'],
+        links: easyWeekLinks(),
       },
       {
         code: 'ALTEGIO',
@@ -46,10 +71,12 @@ export class CrmProvidersRegistry {
           },
         ],
         capabilities: ['serviceCatalog', 'workerRoster'],
+        links: altegioLinks(),
       },
     ];
   }
-  get(code: CrmCode) {
-    return this.list().find((p) => p.code === code);
+  get(code: string) {
+    const normalized = code?.toUpperCase();
+    return this.list().find((p) => p.code === normalized);
   }
 }
