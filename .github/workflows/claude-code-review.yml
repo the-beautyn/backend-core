@@ -32,8 +32,7 @@ jobs:
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           claude_args: |
-            --allowed-tools "Read,Glob,Grep,Bash(gh pr diff:*),Bash(gh pr view:*),Bash(git diff:*),Bash(git log:*)"
-            --json-schema '{"type":"object","properties":{"review":{"type":"string","description":"Complete markdown review starting with <!-- claude-code-review --> comment"}},"required":["review"]}'
+            --allowed-tools "Read,Glob,Grep,Write,Bash(gh pr diff:*),Bash(gh pr view:*),Bash(git diff:*),Bash(git log:*)"
           prompt: |
             Review PR #${{ github.event.pull_request.number }} in ${{ github.repository }}.
             Base branch: ${{ github.event.pull_request.base.ref }}
@@ -50,16 +49,33 @@ jobs:
             Be concise. Only report real, actionable issues. Skip nitpicks and style suggestions.
             If the code looks good, say so briefly.
 
-            CRITICAL OUTPUT REQUIREMENTS:
-            Return a JSON object with a "review" field containing your complete markdown review.
-            The review markdown MUST start with EXACTLY this line (including the HTML comment):
+            OUTPUT REQUIREMENTS:
+            Write your COMPLETE markdown review to the file `claude-review.md` in the
+            repository root using the Write tool. Do not post any PR comment yourself —
+            a later workflow step publishes that file.
+            The file MUST start with EXACTLY these two lines (including the HTML comment):
             <!-- claude-code-review -->
             ## Claude Code Review
 
+      - name: Read review output
+        id: review_body
+        run: |
+          if [ -s claude-review.md ]; then
+            {
+              echo 'body<<CLAUDE_REVIEW_EOF'
+              cat claude-review.md
+              echo 'CLAUDE_REVIEW_EOF'
+            } >> "$GITHUB_OUTPUT"
+          else
+            echo "No claude-review.md produced; skipping comment."
+            echo 'skip=true' >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Post or update Claude review
+        if: steps.review_body.outputs.skip != 'true'
         uses: peter-evans/create-or-update-comment@v5
         with:
           comment-id: ${{ steps.find_claude_comment.outputs.comment-id }}
           issue-number: ${{ github.event.pull_request.number }}
-          body: ${{ fromJSON(steps.claude-review.outputs.structured_output).review }}
+          body: ${{ steps.review_body.outputs.body }}
           edit-mode: replace
