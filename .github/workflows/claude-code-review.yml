@@ -5,36 +5,32 @@ on:
     types: [opened, synchronize, ready_for_review, reopened]
 
 jobs:
-  claude-review:
+  # Job 1 generates the review. It has NO GitHub write credential:
+  # permissions are contents:read only, and we hand claude-code-action the
+  # read-only GITHUB_TOKEN (no OIDC app token). So even if untrusted PR content
+  # prompt-injects the agent — including tricks like rewriting .git/config to
+  # make a later `git diff` execute a payload — the payload has no token that
+  # can post/delete comments, close PRs, or otherwise write to GitHub. The
+  # review is handed to Job 2 as an artifact; Job 2 does the writing and never
+  # runs the agent or executes PR content.
+  generate-review:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      pull-requests: write
-      issues: write
-      id-token: write
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Find existing Claude review
-        uses: peter-evans/find-comment@v4
-        id: find_claude_comment
-        with:
-          issue-number: ${{ github.event.pull_request.number }}
-          body-includes: '<!-- claude-code-review -->'
-
-      # The review agent is read-only: it can read the diff and Write the review
-      # to a file, but has NO GitHub API access. Posting is done by the trusted
-      # peter-evans step below, so untrusted PR content can't steer the agent into
-      # arbitrary gh api calls (comment deletion, closing PRs, etc.).
       - name: Run Claude Code Review
         id: claude-review
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # Force the read-only, permissions-scoped GITHUB_TOKEN instead of an
+          # OIDC-exchanged app token, so this job holds no write capability.
+          github_token: ${{ secrets.GITHUB_TOKEN }}
           claude_args: |
             --allowed-tools "Read,Glob,Grep,Write,Bash(gh pr diff:*),Bash(gh pr view:*),Bash(git diff:*),Bash(git log:*)"
           prompt: |
@@ -55,25 +51,76 @@ jobs:
 
             Write your COMPLETE review as Markdown to the file
             ${{ runner.temp }}/claude-review.md using the Write tool. Do NOT attempt to
-            post a PR comment yourself — a later workflow step publishes that file.
+            post a PR comment yourself — a later job publishes that file.
             The file MUST begin with EXACTLY these two lines (including the HTML comment):
             <!-- claude-code-review -->
             ## Claude Code Review
 
-      - name: Read review output
+      - name: Upload review artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: claude-review
+          path: ${{ runner.temp }}/claude-review.md
+          if-no-files-found: warn
+          retention-days: 1
+
+  # Job 2 posts the review. It never runs the agent and never executes PR
+  # content — it only treats the review as a comment body (data, not code).
+  post-review:
+    needs: generate-review
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+    steps:
+      - name: Download review artifact
+        id: download
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: claude-review
+          path: review
+
+      - name: Find existing Claude review
+        uses: peter-evans/find-comment@v4
+        id: find_claude_comment
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          body-includes: '<!-- claude-code-review -->'
+
+      - name: Validate and load review
         id: review_body
         run: |
-          FILE="${{ runner.temp }}/claude-review.md"
-          if [ -s "$FILE" ]; then
-            {
-              echo 'body<<CLAUDE_REVIEW_EOF'
-              cat "$FILE"
-              echo 'CLAUDE_REVIEW_EOF'
-            } >> "$GITHUB_OUTPUT"
-          else
-            echo "No claude-review.md produced; skipping comment."
+          FILE="review/claude-review.md"
+          if [ ! -s "$FILE" ]; then
+            echo "No review artifact produced; skipping comment."
             echo 'skip=true' >> "$GITHUB_OUTPUT"
+            exit 0
           fi
+          # The review body is attacker-influenceable (agent-produced). Refuse to
+          # post unless it starts with the sticky marker, so a malformed/injected
+          # file can't replace the sticky comment with markerless content (which
+          # would make future runs create duplicates).
+          if [ "$(head -n 1 "$FILE")" != "<!-- claude-code-review -->" ]; then
+            echo "Review is missing the required marker on line 1; skipping."
+            echo 'skip=true' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # GitHub issue comments cap at 65536 chars; skip oversized bodies.
+          if [ "$(wc -c < "$FILE")" -gt 60000 ]; then
+            echo "Review exceeds size cap; skipping."
+            echo 'skip=true' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # Random, unguessable heredoc delimiter so the file contents cannot
+          # close the heredoc early and inject extra $GITHUB_OUTPUT keys.
+          DELIM="CLAUDE_REVIEW_$(openssl rand -hex 16)"
+          {
+            echo "body<<${DELIM}"
+            cat "$FILE"
+            echo "${DELIM}"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Post or update Claude review
         if: steps.review_body.outputs.skip != 'true'
