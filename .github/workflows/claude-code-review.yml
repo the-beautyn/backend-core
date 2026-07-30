@@ -5,14 +5,17 @@ on:
     types: [opened, synchronize, ready_for_review, reopened]
 
 jobs:
-  # Job 1 generates the review. It has NO GitHub write credential:
-  # permissions are contents:read only, and we hand claude-code-action the
-  # read-only GITHUB_TOKEN (no OIDC app token). So even if untrusted PR content
-  # prompt-injects the agent — including tricks like rewriting .git/config to
-  # make a later `git diff` execute a payload — the payload has no token that
-  # can post/delete comments, close PRs, or otherwise write to GitHub. The
-  # review is handed to Job 2 as an artifact; Job 2 does the writing and never
-  # runs the agent or executes PR content.
+  # Job 1 generates the review under least privilege:
+  #  - Permissions are read-only (contents + pull-requests) and we hand
+  #    claude-code-action the read-only GITHUB_TOKEN (no OIDC app token), so the
+  #    job holds NO credential that can write to GitHub.
+  #  - The agent has no `Bash(git …)` tools, so it can't weaponize the
+  #    .git/config -> diff.external / core.pager trick into command execution on
+  #    the runner (which would exfiltrate CLAUDE_CODE_OAUTH_TOKEN). It reads the
+  #    diff via `gh pr diff`, which is API-based and, in CI's non-TTY shell, has
+  #    no pager to hijack.
+  # It writes the review to a file handed to Job 2 as an artifact; Job 2 does the
+  # writing and never runs the agent or executes PR content.
   generate-review:
     runs-on: ubuntu-latest
     permissions:
@@ -21,8 +24,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Run Claude Code Review
         id: claude-review
@@ -33,12 +34,12 @@ jobs:
           # OIDC-exchanged app token, so this job holds no write capability.
           github_token: ${{ secrets.GITHUB_TOKEN }}
           claude_args: |
-            --allowed-tools "Read,Glob,Grep,Write,Bash(gh pr diff:*),Bash(gh pr view:*),Bash(git diff:*),Bash(git log:*)"
+            --allowed-tools "Read,Glob,Grep,Write,Bash(gh pr diff:*),Bash(gh pr view:*)"
           prompt: |
             Review PR #${{ github.event.pull_request.number }} in ${{ github.repository }}.
             Base branch: ${{ github.event.pull_request.base.ref }}
 
-            Use `git diff origin/${{ github.event.pull_request.base.ref }}...HEAD` to see the changes.
+            Use `gh pr diff ${{ github.event.pull_request.number }}` to see the changes.
             Read relevant source files for context when needed.
 
             Analyze the diff for:
