@@ -22,6 +22,7 @@ import { WorkerDto } from './workers/dto/worker.dto';
 import { SalonDto } from './salon/dto/salon.dto';
 import { SalonListResponseDto } from './salon/dto/salon-list.response.dto';
 import { SalonImageDto } from './salon/dto/salon-image.dto';
+import { SalonShareDto } from './salon/dto/salon-share.dto';
 import { CrmSalonChangeDto } from './crm-salon-changes/dto/crm-salon-change.dto';
 import { CrmCategoryDto, CrmCategoryPageDto } from './categories/dto/categories-sync-result.dto';
 import { AppCategoryResponseDto } from './app-categories/dto/app-category-response.dto';
@@ -76,7 +77,29 @@ import { OwnerNotificationSettingsDto } from './owner-settings/dto/owner-notific
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-  
+  const configService = app.get(ConfigService);
+
+  // CORS for browser clients (e.g. the owner web panel). Allowed origins come
+  // from CORS_ALLOWED_ORIGINS (comma-separated). Outside production we fall back
+  // to the local Vite dev/preview origins so `npm run dev` works out of the box;
+  // in production we never allow localhost — CORS stays closed unless origins are
+  // explicitly configured, so credentialed cross-origin access can't be opened by
+  // an unset env var.
+  const configuredOrigins = configService
+    .get<string>('CORS_ALLOWED_ORIGINS')
+    ?.split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+  const isProduction = configService.get<string>('NODE_ENV') === 'production';
+  app.enableCors({
+    origin: configuredOrigins?.length
+      ? configuredOrigins
+      : isProduction
+        ? false
+        : ['http://localhost:5173', 'http://localhost:4173'],
+    credentials: true,
+  });
+
   // Enable validation for all endpoints
   app.useGlobalPipes(new ValidationPipe({
     whitelist: true,        // Remove properties not in DTO
@@ -118,6 +141,7 @@ async function bootstrap() {
       SalonDto,
       SalonListResponseDto,
       SalonImageDto,
+      SalonShareDto,
       CrmSalonChangeDto,
       CrmCategoryDto,
       CrmCategoryPageDto,
@@ -196,7 +220,6 @@ async function bootstrap() {
     res.json(doc);
   });
 
-  const configService = app.get(ConfigService);
   const configuredPort = configService.get<string>('PORT');
   const portToListen = Number.parseInt(configuredPort ?? '3000', 10);
   await app.listen(portToListen);

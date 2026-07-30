@@ -32,6 +32,14 @@ export class SearchResponseDto {
   is_saved?: boolean;
 }
 
+export class SearchResultMetaDto {
+  @ApiPropertyOptional()
+  effective_radius_km?: number;
+
+  @ApiPropertyOptional({ enum: ['viewport', 'center', 'geoip', 'none'] })
+  geo_source?: 'viewport' | 'center' | 'geoip' | 'none';
+}
+
 export class SearchResultDto {
   @ApiProperty({ type: [SearchResponseDto] })
   items!: SearchResponseDto[];
@@ -45,11 +53,8 @@ export class SearchResultDto {
   @ApiProperty()
   total!: number;
 
-  @ApiPropertyOptional({ description: 'Extra geo metadata' })
-  meta?: {
-    effective_radius_km?: number;
-    geo_source?: 'viewport' | 'center' | 'geoip' | 'none';
-  };
+  @ApiPropertyOptional({ description: 'Extra geo metadata', type: SearchResultMetaDto })
+  meta?: SearchResultMetaDto;
 }
 
 export class SearchPinDto {
