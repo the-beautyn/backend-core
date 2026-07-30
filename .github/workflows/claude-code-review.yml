@@ -84,13 +84,6 @@ jobs:
           name: claude-review
           path: review
 
-      - name: Find existing Claude review
-        uses: peter-evans/find-comment@v4
-        id: find_claude_comment
-        with:
-          issue-number: ${{ github.event.pull_request.number }}
-          body-includes: '<!-- claude-code-review -->'
-
       - name: Validate and load review
         id: review_body
         run: |
@@ -100,10 +93,9 @@ jobs:
             echo 'skip=true' >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          # The review body is attacker-influenceable (agent-produced). Refuse to
-          # post unless it starts with the sticky marker, so a malformed/injected
-          # file can't replace the sticky comment with markerless content (which
-          # would make future runs create duplicates).
+          # The review body is attacker-influenceable (agent-produced). Require the
+          # marker on line 1 as a sanity check that this is a real review file, not
+          # empty/injected junk, before posting.
           if [ "$(head -n 1 "$FILE")" != "<!-- claude-code-review -->" ]; then
             echo "Review is missing the required marker on line 1; skipping."
             echo 'skip=true' >> "$GITHUB_OUTPUT"
@@ -124,11 +116,11 @@ jobs:
             echo "${DELIM}"
           } >> "$GITHUB_OUTPUT"
 
-      - name: Post or update Claude review
+      # Post a fresh comment on every run (no comment-id → create, not update),
+      # so each push gets its own review at the bottom of the thread.
+      - name: Post Claude review
         if: steps.review_body.outputs.skip != 'true'
         uses: peter-evans/create-or-update-comment@v5
         with:
-          comment-id: ${{ steps.find_claude_comment.outputs.comment-id }}
           issue-number: ${{ github.event.pull_request.number }}
           body: ${{ steps.review_body.outputs.body }}
-          edit-mode: replace
