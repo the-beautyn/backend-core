@@ -26,9 +26,6 @@ export class User {
   @ApiProperty({ example: false })
   is_profile_created!: boolean;
 
-  @ApiProperty({ example: false })
-  is_onboarding_completed!: boolean;
-
   @ApiProperty({ example: '2024-01-01T00:00:00.000Z' })
   created_at!: Date;
 

@@ -35,9 +35,12 @@ Thumbs.db
 /beautyn-api/swagger-static/
 
 # Prisma
-/beautyn-api/prisma/dev.db             # local SQLite
-/beautyn-api/prisma/*.db-journal       # SQLite WAL files
-/beautyn-api/.prisma/                  # generated client cache (if any)
+# local SQLite
+/beautyn-api/prisma/dev.db
+# SQLite WAL files
+/beautyn-api/prisma/*.db-journal
+# generated client cache (if any)
+/beautyn-api/.prisma/
 
 ####################################
 # 🔐  Environment & secrets (scoped)
@@ -63,12 +66,44 @@ Thumbs.db
 tmp/
 temp/
 
+####################################
+# 🕸️  Graphify (keep only what `graphify query` needs: graph.json,
+#     manifest.json, .graphify_labels.json, GRAPH_REPORT.md)
+####################################
+# dated pre-update backups (graphify update snapshots the curated graph)
+/beautyn-api/graphify-out/[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]/
+# regenerable viz (graphify export html)
+/beautyn-api/graphify-out/graph.html
+# local extraction cache
+/beautyn-api/graphify-out/cache/
+# local token telemetry
+/beautyn-api/graphify-out/cost.json
+# machine-specific interpreter path + scan root
+/beautyn-api/graphify-out/.graphify_python
+/beautyn-api/graphify-out/.graphify_root
+/beautyn-api/graphify-out/.graphify_detect.json
+/beautyn-api/graphify-out/.graphify_extract.json
+/beautyn-api/graphify-out/.graphify_ast.json
+/beautyn-api/graphify-out/.graphify_semantic.json
+/beautyn-api/graphify-out/.graphify_analysis.json
+/beautyn-api/graphify-out/.graphify_chunk_*.json
+/beautyn-api/graphify-out/.graphify_uncached.txt
+/beautyn-api/graphify-out/.graphify_cached.json
+/beautyn-api/graphify-out/.needs_update
+
 ###############################################################################
 # Supabase CLI (local containers, caches, temp files)  ─── stored in /beautyn-api
 ###############################################################################
-/beautyn-api/.supabase/                      # runtime state from `supabase start`
-/beautyn-api/supabase/.temp/                 # CLI download / build cache
-/beautyn-api/supabase/docker/**              # auto-generated docker-compose / env
+# runtime state from `supabase start`
+/beautyn-api/.supabase/
+# CLI download / build cache
+/beautyn-api/supabase/.temp/
+# auto-generated docker-compose / env
+/beautyn-api/supabase/docker/**
 /beautyn-api/supabase/backups/
 /beautyn-api/supabase/dump*.sql
-/beautyn-api/*.dump.sql                      # ad-hoc pg_dump exports
+# ad-hoc pg_dump exports
+/beautyn-api/*.dump.sql
+/beautyn-api/.claude/settings.json
+# agent worktrees and local claude state at repo root
+/.claude/

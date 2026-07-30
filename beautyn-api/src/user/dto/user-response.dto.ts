@@ -61,10 +61,6 @@ export class UserResponseDto {
   @Expose()
   is_profile_created!: boolean;
 
-  @ApiProperty({ example: false })
-  @Expose()
-  is_onboarding_completed!: boolean;
-
   @ApiProperty({ example: '2024-01-01T00:00:00.000Z' })
   @Expose()
   created_at!: Date;

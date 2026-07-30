@@ -12,7 +12,7 @@ import { ErrorResponseDto } from './shared/dto/error-response.dto';
 import { UserResponseDto } from './user/dto/user-response.dto';
 import { OnboardingProgressDto } from './onboarding/dto/onboarding-progress.dto';
 import { CrmProviderListResponseDto } from './onboarding/dto/crm-provider-list.dto';
-import { CrmProviderDto } from './onboarding/dto/crm-provider.dto';
+import { CrmProviderDto, CrmProviderLinksDto } from './onboarding/dto/crm-provider.dto';
 import { AltegioPairCodeResponseDto } from './onboarding/dto/altegio-pair-code.dto';
 import { FinalizeEasyWeekResponseDto } from './onboarding/dto/finalize-easyweek-response.dto';
 import { ServicesListResponseDto } from './services/dto/services-list.response.dto';
@@ -131,6 +131,7 @@ async function bootstrap() {
       OnboardingProgressDto,
       CrmProviderListResponseDto,
       CrmProviderDto,
+      CrmProviderLinksDto,
       AltegioPairCodeResponseDto,
       FinalizeEasyWeekResponseDto,
       ServicesListResponseDto,

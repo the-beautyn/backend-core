@@ -46,4 +46,34 @@ describe('CRM List (e2e)', () => {
     expect(res.body.data.providers.find((p: any) => p.code === 'EASYWEEK')).toBeTruthy();
     expect(res.body.data.providers.find((p: any) => p.code === 'ALTEGIO')).toBeTruthy();
   });
+
+  it('GET /api/v1/onboarding/crms returns populated links per provider', async () => {
+    const res = await request(app.getHttpServer())
+      .get('/api/v1/onboarding/crms')
+      .set('Authorization', 'Bearer valid')
+      .expect(200);
+    const easyweek = res.body.data.providers.find((p: any) => p.code === 'EASYWEEK');
+    const altegio = res.body.data.providers.find((p: any) => p.code === 'ALTEGIO');
+    expect(easyweek.links.external_url).toMatch(/^https?:\/\//);
+    expect(easyweek.links.booking_instruction_url).toMatch(/^https?:\/\//);
+    expect(altegio.links.external_url).toMatch(/^https?:\/\//);
+  });
+
+  it('GET /api/v1/onboarding/crms/:code is case-insensitive', async () => {
+    for (const code of ['EASYWEEK', 'easyweek', 'Altegio']) {
+      const res = await request(app.getHttpServer())
+        .get(`/api/v1/onboarding/crms/${code}`)
+        .set('Authorization', 'Bearer valid')
+        .expect(200);
+      expect(res.body.data.code).toBe(code.toUpperCase());
+      expect(res.body.data.links.external_url).toMatch(/^https?:\/\//);
+    }
+  });
+
+  it('GET /api/v1/onboarding/crms/:code returns 404 for unknown provider', async () => {
+    await request(app.getHttpServer())
+      .get('/api/v1/onboarding/crms/unknown')
+      .set('Authorization', 'Bearer valid')
+      .expect(404);
+  });
 });

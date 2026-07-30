@@ -38,7 +38,6 @@ model Users {
   isProfileCreated      Boolean           @default(false) @map("is_profile_created")
   authProvider          AuthProvider      @default(email) @map("auth_provider")
   isPhoneVerified       Boolean           @default(false) @map("is_phone_verified")
-  isOnboardingCompleted Boolean           @default(false) @map("is_onboarding_completed")
   subscriptionId        String?           @map("subscription_id") @db.Uuid
   crmId                 String?           @map("crm_id")
   createdAt             DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)

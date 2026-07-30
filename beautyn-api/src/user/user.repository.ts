@@ -21,7 +21,6 @@ const userSelect = {
   authProvider: true,
   isPhoneVerified: true,
   isProfileCreated: true,
-  isOnboardingCompleted: true,
   subscriptionId: true,
   crmId: true,
   createdAt: true,

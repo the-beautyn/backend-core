@@ -5,6 +5,7 @@ import { EasyWeekDiscoveryClient } from '../../src/onboarding/clients/easyweek-d
 import { CrmIntegrationService } from '../../src/crm-integration/core/crm-integration.service';
 import { CrmSyncOrchestratorService } from '../../src/crm-integration/sync/crm-sync-orchestrator.service';
 import { BadRequestException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { SyncSchedulerService } from '@crm/sync-scheduler';
 
 describe('OnboardingService EasyWeek', () => {
@@ -22,6 +23,7 @@ describe('OnboardingService EasyWeek', () => {
         { provide: CrmIntegrationService, useValue: crm },
         { provide: CrmSyncOrchestratorService, useValue: {} },
         { provide: SyncSchedulerService, useValue: {} },
+        { provide: ConfigService, useValue: { get: jest.fn((_key: string, d?: string) => d) } },
       ],
     }).compile();
 
@@ -38,18 +40,24 @@ describe('OnboardingService EasyWeek', () => {
 
   it('finalizeEasyWeekLink links and enqueues', async () => {
     crm.linkEasyWeek.mockResolvedValue(undefined);
-    await service.finalizeEasyWeekLink('user-1', 'token', 'slug', ['external-1']);
+    await service.finalizeEasyWeekLink('user-1', 'token', 'slug', [
+      { uuid: 'external-1', widgetUrl: 'https://booking.example.com/salon-1' },
+      { uuid: 'external-2' },
+    ]);
     expect(crm.linkEasyWeek).toHaveBeenCalledWith({
       userId: 'user-1',
       authToken: 'token',
       workspaceSlug: 'slug',
-      externalSalonIds: ['external-1'],
+      salons: [
+        { uuid: 'external-1', widgetUrl: 'https://booking.example.com/salon-1' },
+        { uuid: 'external-2' },
+      ],
     });
   });
 
   it('finalizeEasyWeekLink propagates CRM error', async () => {
     crm.linkEasyWeek.mockRejectedValue(new BadRequestException());
-    await expect(service.finalizeEasyWeekLink('user-1', 'token', 'slug', ['external-1']))
+    await expect(service.finalizeEasyWeekLink('user-1', 'token', 'slug', [{ uuid: 'external-1' }]))
       .rejects.toBeInstanceOf(BadRequestException);
   });
 });

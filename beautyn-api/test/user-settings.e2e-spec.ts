@@ -36,7 +36,6 @@ describe('User Settings - role-specific (e2e)', () => {
       authProvider: 'email',
       isPhoneVerified: false,
       isProfileCreated: false,
-      isOnboardingCompleted: false,
       subscriptionId: null,
       crmId: null,
       createdAt: new Date(),
