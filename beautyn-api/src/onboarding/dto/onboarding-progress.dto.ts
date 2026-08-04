@@ -1,7 +1,11 @@
+import { ApiProperty } from '@nestjs/swagger';
+import { OnboardingStepState } from '@prisma/client';
+
 export class OnboardingProgressDto {
   crm_connected: boolean;
   brand_created: boolean;
   subscription_set: boolean;
   completed: boolean;
-  current_step: 'CRM' | 'BRAND' | 'SUBSCRIPTION' | 'COMPLETED';
+  @ApiProperty({ enum: OnboardingStepState })
+  current_step: OnboardingStepState;
 }

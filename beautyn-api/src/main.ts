@@ -14,7 +14,6 @@ import { OnboardingProgressDto } from './onboarding/dto/onboarding-progress.dto'
 import { CrmProviderListResponseDto } from './onboarding/dto/crm-provider-list.dto';
 import { CrmProviderDto, CrmProviderLinksDto } from './onboarding/dto/crm-provider.dto';
 import { AltegioPairCodeResponseDto } from './onboarding/dto/altegio-pair-code.dto';
-import { FinalizeEasyWeekResponseDto } from './onboarding/dto/finalize-easyweek-response.dto';
 import { ServicesListResponseDto } from './services/dto/services-list.response.dto';
 import { CategoryListResponseDto, CategoryResponseDto } from './categories/dto/category-response.dto';
 import { ServiceDto } from './services/dto/service.dto';
@@ -39,7 +38,6 @@ import {
 } from './booking/dto/booking.response.dto';
 import { SyncBookingsNowResponseDto, SyncBookingsJobResponseDto } from './api-gateway/v1/authenticated/bookings.owner.controller';
 import { DiscoverEasyWeekResponseDto } from './onboarding/dto/discover-easyweek-response.dto';
-import { FinalizeEasyWeekResponseDto as OnboardingFinalizeDto } from './onboarding/dto/finalize-easyweek-response.dto';
 import { BookableServicesResponseDto } from './booking/altegio-booking/dto/bookable-services.response.dto';
 import { BookableWorkersResponseDto } from './booking/altegio-booking/dto/bookable-workers.response.dto';
 import { BookableDatesResponseDto } from './booking/altegio-booking/dto/bookable-dates.response.dto';
@@ -133,7 +131,6 @@ async function bootstrap() {
       CrmProviderDto,
       CrmProviderLinksDto,
       AltegioPairCodeResponseDto,
-      FinalizeEasyWeekResponseDto,
       ServicesListResponseDto,
       CategoryListResponseDto, 
       CategoryResponseDto,
@@ -162,7 +159,6 @@ async function bootstrap() {
       SyncBookingsJobResponseDto,
       // Onboarding
       DiscoverEasyWeekResponseDto,
-      OnboardingFinalizeDto,
       // Altegio booking public
       BookableServicesResponseDto,
       BookableWorkersResponseDto,
