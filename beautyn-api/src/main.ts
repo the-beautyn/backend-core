@@ -4,6 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { TransformInterceptor } from './shared/interceptors/transform.interceptor';
+import { corsOptionsFromConfig } from './shared/utils/cors-options.util';
 import { LoginResponseDto } from './auth/dto/v1/login-response.dto';
 import { RegisterResponseDto } from './auth/dto/v1/register-response.dto';
 import { ResetPasswordResponseDto } from './auth/dto/v1/reset-password-response.dto';
@@ -79,26 +80,7 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const configService = app.get(ConfigService);
 
-  // CORS for browser clients (e.g. the owner web panel). Allowed origins come
-  // from CORS_ALLOWED_ORIGINS (comma-separated). Outside production we fall back
-  // to the local Vite dev/preview origins so `npm run dev` works out of the box;
-  // in production we never allow localhost — CORS stays closed unless origins are
-  // explicitly configured, so credentialed cross-origin access can't be opened by
-  // an unset env var.
-  const configuredOrigins = configService
-    .get<string>('CORS_ALLOWED_ORIGINS')
-    ?.split(',')
-    .map((origin) => origin.trim())
-    .filter(Boolean);
-  const isProduction = configService.get<string>('NODE_ENV') === 'production';
-  app.enableCors({
-    origin: configuredOrigins?.length
-      ? configuredOrigins
-      : isProduction
-        ? false
-        : ['http://localhost:5173', 'http://localhost:4173'],
-    credentials: true,
-  });
+  app.enableCors(corsOptionsFromConfig(configService));
 
   // Enable validation for all endpoints
   app.useGlobalPipes(new ValidationPipe({
