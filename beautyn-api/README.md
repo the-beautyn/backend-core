@@ -31,6 +31,33 @@
 $ npm install
 ```
 
+## Configuration
+
+Environment variables are loaded from `.env.<NODE_ENV>` with `.env` as a fallback
+(see `ConfigModule.forRoot` in `src/shared/shared.module.ts`). `.env.example`
+documents every variable; copy it to `.env.local` / `.env.dev` / etc. and fill in
+values. Deployed environments (Railway) set variables in the service config
+instead of committed files.
+
+### CORS
+
+Browser clients (the salon owner web panel) require CORS. The allowlist is driven
+by `CORS_ALLOWED_ORIGINS` — a comma-separated list of exact origins
+(e.g. `https://panel.example.com,https://panel-stage.example.com`):
+
+- **Unset outside production** — falls back to the local Vite dev/preview origins
+  (`http://localhost:5173`, `http://localhost:4173`) so panel development works
+  out of the box.
+- **Unset in production** — CORS stays fully closed; localhost is never allowed.
+  Set the real panel origins in Railway when the panel deploys.
+- Allowed headers are `Content-Type` and `Authorization` (the panel authenticates
+  with Bearer tokens). Preflight (`OPTIONS`) is handled for all routes.
+- Requests without an `Origin` header (curl, server-to-server, the iOS app) are
+  unaffected by CORS.
+
+The options builder lives in `src/shared/utils/cors-options.util.ts` and is
+covered by `test/unit/cors-options.spec.ts` and `test/e2e/cors.e2e-spec.ts`.
+
 ## Compile and run the project
 
 ```bash
