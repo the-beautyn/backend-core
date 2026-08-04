@@ -69,17 +69,19 @@ jobs:
           echo "$RESPONSE" | jq -r '.data.environments.edges[].node.name'
           echo "======================================"
 
-          # Try matching "pr-<number>" (Railway's default PR env naming)
+          # Match "pr-<number>" anywhere in the env name — Railway names PR
+          # envs "<service>-pr-<number>" (e.g. backend-core-pr-100), not the
+          # bare "pr-<number>" this matched before.
           PR_ENV_NAME=$(echo "$RESPONSE" | jq -r \
             --arg pr "$PR_NUMBER" \
             '.data.environments.edges[]
-             | select((.node.name | test("(?i)^pr-")) and (.node.name | test("-" + $pr + "$")))
+             | select(.node.name | test("(?i)(^|-)pr-" + $pr + "$"))
              | .node.name' | head -n 1)
 
           PR_ENV_ID=$(echo "$RESPONSE" | jq -r \
             --arg pr "$PR_NUMBER" \
             '.data.environments.edges[]
-             | select((.node.name | test("(?i)^pr-")) and (.node.name | test("-" + $pr + "$")))
+             | select(.node.name | test("(?i)(^|-)pr-" + $pr + "$"))
              | .node.id' | head -n 1)
 
           # Fallback: match by PR branch name
@@ -417,11 +419,11 @@ jobs:
               \"query\": \"query { environments(projectId: \\\"$RAILWAY_PROJECT_ID\\\") { edges { node { id name } } } }\"
             }")
 
-          # Try pr-number match
+          # Try pr-number match (same "<service>-pr-<number>" naming as glue)
           PR_ENV_ID=$(echo "$RESPONSE" | jq -r \
             --arg pr "$PR_NUMBER" \
             '.data.environments.edges[]
-             | select((.node.name | test("(?i)^pr-")) and (.node.name | test("-" + $pr + "$")))
+             | select(.node.name | test("(?i)(^|-)pr-" + $pr + "$"))
              | .node.id' | head -n 1)
 
           # Fallback: branch name match
