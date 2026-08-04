@@ -22,12 +22,15 @@ import {
 } from '@nestjs/swagger';
 import { Request } from 'express';
 import { JwtAuthGuard } from '../../../shared/guards/jwt-auth.guard';
-import { envelopeRef, envelopeErrorSchema } from '../../../shared/utils/swagger-envelope.util';
+import {
+  envelopeRef,
+  envelopeErrorSchema,
+  envelopeSuccessOnly,
+} from '../../../shared/utils/swagger-envelope.util';
 import { OnboardingService } from '../../../onboarding/onboarding.service';
 import { OnboardingProgressDto } from '../../../onboarding/dto/onboarding-progress.dto';
 import { DiscoverEasyWeekDto } from '../../../onboarding/dto/discover-easyweek.dto';
 import { FinalizeEasyWeekDto } from '../../../onboarding/dto/finalize-easyweek.dto';
-import { FinalizeEasyWeekResponseDto } from '../../../onboarding/dto/finalize-easyweek-response.dto';
 import { DiscoverEasyWeekResponseDto } from '../../../onboarding/dto/discover-easyweek-response.dto';
 import { CrmProvidersRegistry } from '../../../onboarding/providers/crm-providers.registry';
 import { CrmProviderListResponseDto } from '../../../onboarding/dto/crm-provider-list.dto';
@@ -70,7 +73,7 @@ export class OnboardingController {
   @Post('easyweek/connect')
   @HttpCode(HttpStatus.ACCEPTED)
   @ApiOperation({ summary: 'Finalize EasyWeek link with selected salons' })
-  @ApiAcceptedResponse(envelopeRef(FinalizeEasyWeekResponseDto))
+  @ApiAcceptedResponse(envelopeSuccessOnly())
   async finalize(@Req() req: Request & { user: { id: string } }, @Body() dto: FinalizeEasyWeekDto) {
     const userId = req.user.id as string;
     await this.onboardingService.finalizeEasyWeekLink(
@@ -79,7 +82,7 @@ export class OnboardingController {
       dto.workspace_slug,
       dto.salons.map((s) => ({ uuid: s.uuid, widgetUrl: s.widget_url })),
     );
-    return { success: true } as any;
+    return { success: true };
   }
 
   // CRM registry endpoints
