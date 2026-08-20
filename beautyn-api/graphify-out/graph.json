@@ -6782,8 +6782,8 @@
       "source_location": "L129",
       "_origin": "ast",
       "id": "package_devdependencies_concurrently",
-      "community": 206,
-      "community_name": "category-owner.guard.ts",
+      "community": 121,
+      "community_name": "devDependencies",
       "norm_label": "concurrently"
     },
     {
@@ -6793,8 +6793,8 @@
       "source_location": "L129",
       "_origin": "ast",
       "id": "concurrently",
-      "community": 206,
-      "community_name": "category-owner.guard.ts",
+      "community": 121,
+      "community_name": "devDependencies",
       "norm_label": "concurrently"
     },
     {
@@ -6826,8 +6826,8 @@
       "source_location": "L131",
       "_origin": "ast",
       "id": "package_devdependencies_dotenv_cli",
-      "community": 121,
-      "community_name": "devDependencies",
+      "community": 208,
+      "community_name": "dotenv-cli",
       "norm_label": "dotenv-cli"
     },
     {
@@ -6837,8 +6837,8 @@
       "source_location": "L131",
       "_origin": "ast",
       "id": "dotenv_cli",
-      "community": 121,
-      "community_name": "devDependencies",
+      "community": 208,
+      "community_name": "dotenv-cli",
       "norm_label": "dotenv-cli"
     },
     {
@@ -9521,8 +9521,8 @@
       "source_location": "L17",
       "_origin": "ast",
       "id": "src_api_gateway_v1_authenticated_categories_controller_categoriesauthenticatedcontroller_constructor",
-      "community": 8,
-      "community_name": "Internal Categories Controllers",
+      "community": 3,
+      "community_name": "Categories Sync Controllers",
       "norm_label": ".constructor()"
     },
     {
@@ -10665,8 +10665,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "src_api_gateway_v1_authenticated_saved_salons_controller",
-      "community": 38,
-      "community_name": "SavedSalonListQueryDto",
+      "community": 206,
+      "community_name": "category-owner.guard.ts",
       "norm_label": "saved-salons.controller.ts"
     },
     {
@@ -16459,7 +16459,7 @@
       "label": ".resetPassword()",
       "file_type": "code",
       "source_file": "src/auth/auth.service.ts",
-      "source_location": "L308",
+      "source_location": "L311",
       "_origin": "ast",
       "id": "src_auth_auth_service_authservice_resetpassword",
       "community": 10,
@@ -26956,8 +26956,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "src_salon_salon_service",
-      "community": 1,
-      "community_name": "Repositories & EasyWeek Booking",
+      "community": 206,
+      "community_name": "category-owner.guard.ts",
       "norm_label": "salon.service.ts"
     },
     {
@@ -27000,8 +27000,8 @@
       "source_location": "L29",
       "_origin": "ast",
       "id": "src_salon_salon_service_salonservice_constructor",
-      "community": 1,
-      "community_name": "Repositories & EasyWeek Booking",
+      "community": 49,
+      "community_name": "crm-salon-diff.service.ts",
       "norm_label": ".constructor()"
     },
     {
@@ -27143,8 +27143,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "src_saved_salons_dto_saved_salon_list_query_dto",
-      "community": 38,
-      "community_name": "SavedSalonListQueryDto",
+      "community": 206,
+      "community_name": "category-owner.guard.ts",
       "norm_label": "saved-salon-list-query.dto.ts"
     },
     {
@@ -27154,8 +27154,8 @@
       "source_location": "L4",
       "_origin": "ast",
       "id": "src_saved_salons_dto_saved_salon_list_query_dto_savedsalonlistquerydto",
-      "community": 38,
-      "community_name": "SavedSalonListQueryDto",
+      "community": 206,
+      "community_name": "category-owner.guard.ts",
       "norm_label": "savedsalonlistquerydto"
     },
     {
@@ -27165,8 +27165,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "src_saved_salons_dto_saved_salon_list_query_dto_ts_isoptional",
-      "community": 38,
-      "community_name": "SavedSalonListQueryDto",
+      "community": 206,
+      "community_name": "category-owner.guard.ts",
       "norm_label": "isoptional"
     },
     {
@@ -27176,8 +27176,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "src_saved_salons_dto_saved_salon_list_query_dto_ts_isstring",
-      "community": 38,
-      "community_name": "SavedSalonListQueryDto",
+      "community": 206,
+      "community_name": "category-owner.guard.ts",
       "norm_label": "isstring"
     },
     {
@@ -27187,8 +27187,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "src_saved_salons_dto_saved_salon_list_query_dto_ts_type",
-      "community": 38,
-      "community_name": "SavedSalonListQueryDto",
+      "community": 206,
+      "community_name": "category-owner.guard.ts",
       "norm_label": "type"
     },
     {
@@ -27198,8 +27198,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "src_saved_salons_dto_saved_salon_list_query_dto_ts_isint",
-      "community": 38,
-      "community_name": "SavedSalonListQueryDto",
+      "community": 206,
+      "community_name": "category-owner.guard.ts",
       "norm_label": "isint"
     },
     {
@@ -27209,8 +27209,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "src_saved_salons_dto_saved_salon_list_query_dto_ts_min",
-      "community": 38,
-      "community_name": "SavedSalonListQueryDto",
+      "community": 206,
+      "community_name": "category-owner.guard.ts",
       "norm_label": "min"
     },
     {
@@ -27220,8 +27220,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "src_saved_salons_dto_saved_salon_list_query_dto_ts_max",
-      "community": 38,
-      "community_name": "SavedSalonListQueryDto",
+      "community": 206,
+      "community_name": "category-owner.guard.ts",
       "norm_label": "max"
     },
     {
@@ -27352,8 +27352,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "src_saved_salons_saved_salons_repository",
-      "community": 1,
-      "community_name": "Repositories & EasyWeek Booking",
+      "community": 206,
+      "community_name": "category-owner.guard.ts",
       "norm_label": "saved-salons.repository.ts"
     },
     {
@@ -27363,8 +27363,8 @@
       "source_location": "L5",
       "_origin": "ast",
       "id": "src_saved_salons_saved_salons_repository_savedsalonsrepository",
-      "community": 1,
-      "community_name": "Repositories & EasyWeek Booking",
+      "community": 206,
+      "community_name": "category-owner.guard.ts",
       "norm_label": "savedsalonsrepository"
     },
     {
@@ -27374,8 +27374,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "src_saved_salons_saved_salons_repository_ts_injectable",
-      "community": 1,
-      "community_name": "Repositories & EasyWeek Booking",
+      "community": 206,
+      "community_name": "category-owner.guard.ts",
       "norm_label": "injectable"
     },
     {
@@ -27385,8 +27385,8 @@
       "source_location": "L6",
       "_origin": "ast",
       "id": "src_saved_salons_saved_salons_repository_savedsalonsrepository_constructor",
-      "community": 1,
-      "community_name": "Repositories & EasyWeek Booking",
+      "community": 206,
+      "community_name": "category-owner.guard.ts",
       "norm_label": ".constructor()"
     },
     {
@@ -27396,8 +27396,8 @@
       "source_location": "L8",
       "_origin": "ast",
       "id": "src_saved_salons_saved_salons_repository_savedsalonsrepository_save",
-      "community": 1,
-      "community_name": "Repositories & EasyWeek Booking",
+      "community": 206,
+      "community_name": "category-owner.guard.ts",
       "norm_label": ".save()"
     },
     {
@@ -27407,8 +27407,8 @@
       "source_location": "L16",
       "_origin": "ast",
       "id": "src_saved_salons_saved_salons_repository_savedsalonsrepository_unsave",
-      "community": 1,
-      "community_name": "Repositories & EasyWeek Booking",
+      "community": 206,
+      "community_name": "category-owner.guard.ts",
       "norm_label": ".unsave()"
     },
     {
@@ -27418,8 +27418,8 @@
       "source_location": "L22",
       "_origin": "ast",
       "id": "src_saved_salons_saved_salons_repository_savedsalonsrepository_listbyuser",
-      "community": 1,
-      "community_name": "Repositories & EasyWeek Booking",
+      "community": 206,
+      "community_name": "category-owner.guard.ts",
       "norm_label": ".listbyuser()"
     },
     {
@@ -27429,8 +27429,8 @@
       "source_location": "L52",
       "_origin": "ast",
       "id": "src_saved_salons_saved_salons_repository_savedsalonsrepository_countbyuser",
-      "community": 1,
-      "community_name": "Repositories & EasyWeek Booking",
+      "community": 206,
+      "community_name": "category-owner.guard.ts",
       "norm_label": ".countbyuser()"
     },
     {
@@ -27440,8 +27440,8 @@
       "source_location": "L64",
       "_origin": "ast",
       "id": "src_saved_salons_saved_salons_repository_savedsalonsrepository_issavedbatch",
-      "community": 1,
-      "community_name": "Repositories & EasyWeek Booking",
+      "community": 206,
+      "community_name": "category-owner.guard.ts",
       "norm_label": ".issavedbatch()"
     },
     {
@@ -27451,8 +27451,8 @@
       "source_location": "L72",
       "_origin": "ast",
       "id": "src_saved_salons_saved_salons_repository_savedsalonsrepository_findbyuserandsalon",
-      "community": 1,
-      "community_name": "Repositories & EasyWeek Booking",
+      "community": 206,
+      "community_name": "category-owner.guard.ts",
       "norm_label": ".findbyuserandsalon()"
     },
     {
@@ -27462,8 +27462,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "src_saved_salons_saved_salons_service",
-      "community": 1,
-      "community_name": "Repositories & EasyWeek Booking",
+      "community": 206,
+      "community_name": "category-owner.guard.ts",
       "norm_label": "saved-salons.service.ts"
     },
     {
@@ -27473,8 +27473,8 @@
       "source_location": "L11",
       "_origin": "ast",
       "id": "src_saved_salons_saved_salons_service_savedsalonsservice",
-      "community": 1,
-      "community_name": "Repositories & EasyWeek Booking",
+      "community": 206,
+      "community_name": "category-owner.guard.ts",
       "norm_label": "savedsalonsservice"
     },
     {
@@ -27484,8 +27484,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "src_saved_salons_saved_salons_service_ts_injectable",
-      "community": 1,
-      "community_name": "Repositories & EasyWeek Booking",
+      "community": 206,
+      "community_name": "category-owner.guard.ts",
       "norm_label": "injectable"
     },
     {
@@ -27495,8 +27495,8 @@
       "source_location": "L12",
       "_origin": "ast",
       "id": "src_saved_salons_saved_salons_service_savedsalonsservice_constructor",
-      "community": 1,
-      "community_name": "Repositories & EasyWeek Booking",
+      "community": 206,
+      "community_name": "category-owner.guard.ts",
       "norm_label": ".constructor()"
     },
     {
@@ -27506,8 +27506,8 @@
       "source_location": "L17",
       "_origin": "ast",
       "id": "src_saved_salons_saved_salons_service_savedsalonsservice_save",
-      "community": 1,
-      "community_name": "Repositories & EasyWeek Booking",
+      "community": 206,
+      "community_name": "category-owner.guard.ts",
       "norm_label": ".save()"
     },
     {
@@ -27517,8 +27517,8 @@
       "source_location": "L25",
       "_origin": "ast",
       "id": "src_saved_salons_saved_salons_service_savedsalonsservice_unsave",
-      "community": 1,
-      "community_name": "Repositories & EasyWeek Booking",
+      "community": 206,
+      "community_name": "category-owner.guard.ts",
       "norm_label": ".unsave()"
     },
     {
@@ -27528,8 +27528,8 @@
       "source_location": "L29",
       "_origin": "ast",
       "id": "src_saved_salons_saved_salons_service_savedsalonsservice_listbyuser",
-      "community": 1,
-      "community_name": "Repositories & EasyWeek Booking",
+      "community": 206,
+      "community_name": "category-owner.guard.ts",
       "norm_label": ".listbyuser()"
     },
     {
@@ -27539,8 +27539,8 @@
       "source_location": "L48",
       "_origin": "ast",
       "id": "src_saved_salons_saved_salons_service_savedsalonsservice_issavedbatch",
-      "community": 1,
-      "community_name": "Repositories & EasyWeek Booking",
+      "community": 206,
+      "community_name": "category-owner.guard.ts",
       "norm_label": ".issavedbatch()"
     },
     {
@@ -27550,8 +27550,8 @@
       "source_location": "L53",
       "_origin": "ast",
       "id": "src_saved_salons_saved_salons_service_savedsalonsservice_todto",
-      "community": 1,
-      "community_name": "Repositories & EasyWeek Booking",
+      "community": 206,
+      "community_name": "category-owner.guard.ts",
       "norm_label": ".todto()"
     },
     {
@@ -33897,8 +33897,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "test_utils_create_test_app",
-      "community": 202,
-      "community_name": "create-test-app.ts",
+      "community": 1,
+      "community_name": "Repositories & EasyWeek Booking",
       "norm_label": "create-test-app.ts"
     },
     {
@@ -33908,8 +33908,8 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "test_utils_create_test_app_createtestapp",
-      "community": 202,
-      "community_name": "create-test-app.ts",
+      "community": 1,
+      "community_name": "Repositories & EasyWeek Booking",
       "norm_label": "createtestapp()"
     },
     {
@@ -33919,8 +33919,8 @@
       "source_location": "L27",
       "_origin": "ast",
       "id": "test_utils_create_test_app_cleanuptestapp",
-      "community": 202,
-      "community_name": "create-test-app.ts",
+      "community": 1,
+      "community_name": "Repositories & EasyWeek Booking",
       "norm_label": "cleanuptestapp()"
     },
     {
@@ -33930,8 +33930,8 @@
       "source_location": "L37",
       "_origin": "ast",
       "id": "test_utils_create_test_app_cleanuptestdata",
-      "community": 202,
-      "community_name": "create-test-app.ts",
+      "community": 1,
+      "community_name": "Repositories & EasyWeek Booking",
       "norm_label": "cleanuptestdata()"
     },
     {
@@ -33941,8 +33941,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "test_utils_test_config",
-      "community": 202,
-      "community_name": "create-test-app.ts",
+      "community": 1,
+      "community_name": "Repositories & EasyWeek Booking",
       "norm_label": "test-config.ts"
     },
     {
@@ -33952,8 +33952,8 @@
       "source_location": "L6",
       "_origin": "ast",
       "id": "test_utils_test_config_test_config",
-      "community": 202,
-      "community_name": "create-test-app.ts",
+      "community": 1,
+      "community_name": "Repositories & EasyWeek Booking",
       "norm_label": "test_config"
     },
     {
@@ -33963,8 +33963,8 @@
       "source_location": "L23",
       "_origin": "ast",
       "id": "test_utils_test_config_setuptestenvironment",
-      "community": 202,
-      "community_name": "create-test-app.ts",
+      "community": 1,
+      "community_name": "Repositories & EasyWeek Booking",
       "norm_label": "setuptestenvironment()"
     },
     {
@@ -34843,8 +34843,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "test_salon_unit_salon_service_spec",
-      "community": 1,
-      "community_name": "Repositories & EasyWeek Booking",
+      "community": 206,
+      "community_name": "category-owner.guard.ts",
       "norm_label": "salon.service.spec.ts"
     },
     {
@@ -34931,8 +34931,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "test_saved_salons_saved_salons_service_spec",
-      "community": 1,
-      "community_name": "Repositories & EasyWeek Booking",
+      "community": 206,
+      "community_name": "category-owner.guard.ts",
       "norm_label": "saved-salons.service.spec.ts"
     },
     {
@@ -89981,7 +89981,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "src/auth/auth.service.ts",
-      "source_location": "L308",
+      "source_location": "L311",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_auth_auth_service_authservice",
@@ -90269,7 +90269,7 @@
       "context": "parameter_type",
       "confidence": "EXTRACTED",
       "source_file": "src/auth/auth.service.ts",
-      "source_location": "L308",
+      "source_location": "L311",
       "weight": 1.0,
       "_origin": "ast",
       "source": "src_auth_auth_service_authservice_resetpassword",
@@ -136872,5 +136872,5 @@
       "source_file": "docs/workers.md"
     }
   ],
-  "built_at_commit": "5a9714e1f2400da45f1d210ed611546e585a18e8"
+  "built_at_commit": "82f9211a26350b7b181e8d866fc6d02cfd6bf005"
 }

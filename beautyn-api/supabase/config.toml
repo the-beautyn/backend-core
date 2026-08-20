@@ -129,6 +129,7 @@ additional_redirect_urls = [
   "http://localhost:3000/auth/reset",
   "http://127.0.0.1:54321/auth/reset",
   "http://localhost:5173/auth/reset",
+  "http://localhost:4173/auth/reset",
 ]
 # How long tokens are valid for, in seconds. Defaults to 3600 (1 hour), maximum 604,800 (1 week).
 jwt_expiry = 3600

@@ -1,16 +1,16 @@
 # Graph Report - beautyn-api  (2026-08-20)
 
 ## Corpus Check
-- 545 files · ~149,414 words
+- 545 files · ~149,508 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 3552 nodes · 8306 edges · 225 communities (174 shown, 51 thin omitted)
+- 3552 nodes · 8306 edges · 226 communities (175 shown, 51 thin omitted)
 - Extraction: 98% EXTRACTED · 2% INFERRED · 0% AMBIGUOUS · INFERRED: 129 edges (avg confidence: 0.79)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `5a9714e1`
+- Built from commit: `82f9211a`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -223,6 +223,7 @@
 - @types/jsonwebtoken
 - category-owner.guard.ts
 - UserSettingsService
+- dotenv-cli
 - @eslint/eslintrc
 - @eslint/js
 - wait-on
@@ -257,12 +258,12 @@
   libs/crm/provider-core/src/dtos.ts → test/unit/working-schedule.spec.ts
 - `buildPublicApp()` --indirect_call--> `WorkersController`  [INFERRED]
   test/workers/utils/test-app.workers.ts → src/api-gateway/v1/public/workers.controller.ts
-- `cleanupTestApp()` --indirect_call--> `PrismaService`  [INFERRED]
-  test-utils/create-test-app.ts → src/shared/database/prisma.service.ts
-- `createTestApp()` --indirect_call--> `PrismaService`  [INFERRED]
-  test-utils/create-test-app.ts → src/shared/database/prisma.service.ts
 - `buildInternalApp()` --indirect_call--> `InternalApiKeyGuard`  [INFERRED]
   test/salon/utils/test-app.salon.ts → src/shared/guards/internal-api-key.guard.ts
+- `buildInternalApp()` --indirect_call--> `InternalApiKeyGuard`  [INFERRED]
+  test/workers/utils/test-app.workers.ts → src/shared/guards/internal-api-key.guard.ts
+- `createTestApp()` --indirect_call--> `SharedModule`  [INFERRED]
+  test-utils/create-test-app.ts → src/shared/shared.module.ts
 
 ## Import Cycles
 - None detected.
@@ -272,22 +273,22 @@
 - **Outbox Delivery Pipeline (durable APP->CRM reconciliation)** — src_sync_reconciliation_readme_outboxservice, src_sync_reconciliation_readme_outboxprocessor, src_sync_reconciliation_readme_mappingrepository, src_sync_reconciliation_readme_shadowstore, src_sync_reconciliation_readme_mergepolicyservice, src_sync_reconciliation_readme_conflictresolverservice [EXTRACTED 1.00]
 - **Two-Lane Bookings Poller Flow (cron tick -> dispatch -> per-salon rebase)** — docs_workers_cron_worker, docs_workers_internal_sync_api, docs_workers_bookings_worker, docs_workers_two_lane_bookings_poller, libs_crm_sync_scheduler_readme_syncscheduler [EXTRACTED 1.00]
 
-## Communities (225 total, 51 thin omitted)
+## Communities (226 total, 51 thin omitted)
 
 ### Community 0 - "NPM Scripts & Build Tooling"
 Cohesion: 0.03
 Nodes (79): scripts, build, build:railway, cleanup:dev, cleanup:local, db:deploy, db:dev:deploy, db:dev:migrate (+71 more)
 
 ### Community 1 - "Repositories & EasyWeek Booking"
-Cohesion: 0.08
-Nodes (12): UpsertInput, SavedSalonsRepository, Injectable, SavedSalonsService, Injectable, ServiceUpsertData, PrismaService, Injectable (+4 more)
+Cohesion: 0.11
+Nodes (13): UpsertInput, ServiceUpsertData, PrismaService, Injectable, SalonOwnerGuard, SalonOwnerRequest, Injectable, WorkerWithServices (+5 more)
 
 ### Community 2 - "Bookings Sync & Auth DTOs"
 Cohesion: 0.10
 Nodes (34): SyncBookingsJobResponseDto, SyncBookingsNowResponseDto, ApiProperty, SyncSalonJobResponseDto, ApiProperty, SalonCategoryMappingResponseDto, LoginResponseDto, ApiProperty (+26 more)
 
 ### Community 3 - "Categories Sync Controllers"
-Cohesion: 0.18
+Cohesion: 0.17
 Nodes (19): CategoriesAuthenticatedController, ApiAcceptedResponse, ApiBearerAuth, ApiConflictResponse, ApiCreatedResponse, ApiNoContentResponse, ApiOkResponse, ApiOperation (+11 more)
 
 ### Community 4 - "API Gateway Modules"
@@ -307,7 +308,7 @@ Cohesion: 0.11
 Nodes (21): Op, ListRecordsParams, BookingData, CategoryData, ServiceData, WorkerData, WorkerSchedule, AvailabilitySlot (+13 more)
 
 ### Community 8 - "Internal Categories Controllers"
-Cohesion: 0.15
+Cohesion: 0.16
 Nodes (6): CategoriesService, Injectable, normalizeHexColor(), toCategoryResponse(), CategoriesRepository, Injectable
 
 ### Community 9 - "Workers Sync & UUID Identity"
@@ -419,8 +420,8 @@ Cohesion: 0.13
 Nodes (15): CategoriesInternalController, log, ApiExcludeController, Controller, SalonAccessGuard, Injectable, CategoryOwnerGuard, CategoryRequest (+7 more)
 
 ### Community 38 - "SavedSalonListQueryDto"
-Cohesion: 0.10
-Nodes (21): SavedSalonsController, ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags, Controller, Delete, Get (+13 more)
+Cohesion: 0.16
+Nodes (14): SavedSalonsController, ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags, Controller, Delete, Get (+6 more)
 
 ### Community 39 - "ServicesAuthenticatedController"
 Cohesion: 0.17
@@ -463,7 +464,7 @@ Cohesion: 0.19
 Nodes (13): SalonsController, ApiBadRequestResponse, ApiOkResponse, ApiOperation, ApiParam, ApiQuery, ApiTags, Controller (+5 more)
 
 ### Community 49 - "crm-salon-diff.service.ts"
-Cohesion: 0.12
+Cohesion: 0.11
 Nodes (20): applyFieldPatch(), buildLocalSnapshot(), CrmSalonDiffService, LocalSalonSnapshot, PendingOperation, toPrismaJson(), TRACKED_FIELDS, TrackedField (+12 more)
 
 ### Community 50 - "onboarding.module.ts"
@@ -736,7 +737,7 @@ Nodes (10): ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiParam, ApiTags,
 
 ### Community 121 - "devDependencies"
 Cohesion: 0.22
-Nodes (9): dotenv-cli, @nestjs/schematics, @nestjs/testing, devDependencies, dotenv-cli, @nestjs/schematics, @nestjs/testing, typescript (+1 more)
+Nodes (9): concurrently, @nestjs/schematics, @nestjs/testing, devDependencies, concurrently, @nestjs/schematics, @nestjs/testing, typescript (+1 more)
 
 ### Community 122 - "ServicesInternalController"
 Cohesion: 0.15
@@ -959,12 +960,16 @@ Cohesion: 0.40
 Nodes (4): RefreshTokenDto, ApiProperty, IsNotEmpty, IsString
 
 ### Community 202 - "create-test-app.ts"
-Cohesion: 0.26
-Nodes (9): test, buildInternalApp(), buildPublicApp(), withInternalKey(), cleanupTestApp(), cleanupTestData(), createTestApp(), setupTestEnvironment() (+1 more)
+Cohesion: 0.60
+Nodes (4): test, buildInternalApp(), buildPublicApp(), withInternalKey()
 
 ### Community 203 - "salons.e2e-spec.ts"
 Cohesion: 0.67
 Nodes (3): CrmServiceDto, CrmServicePageDto, ApiProperty
+
+### Community 206 - "category-owner.guard.ts"
+Cohesion: 0.10
+Nodes (11): SavedSalonListQueryDto, IsInt, IsOptional, IsString, Max, Min, Type, SavedSalonsRepository (+3 more)
 
 ## Knowledge Gaps
 - **484 isolated node(s):** `config`, `AnyAccountData`, `Op`, `AltegioBookCategory`, `AltegioBookService` (+479 more)
@@ -974,11 +979,11 @@ Nodes (3): CrmServiceDto, CrmServicePageDto, ApiProperty
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `PrismaService` connect `Repositories & EasyWeek Booking` to `CrmSyncOrchestratorService`, `API Gateway Modules`, `Altegio/EasyWeek Provider Records`, `Internal Categories Controllers`, `User Account & Notifications`, `category-owner.guard.ts`, `Booking Handler Service`, `Category Mappings Controllers`, `OnboardingProgressDto`, `Home Feed DTOs`, `Workers Controllers`, `Brand Repository`, `SearchRequestDto`, `BookingQueryService`, `index.ts`, `bookings.owner.controller.ts`, `@eslint/js`, `SearchHistoryService`, `crm-salon-diff.service.ts`, `AppCategoriesRepository`, `@nestjs/swagger`, `WorkersListQuery`, `UpdateCategoryDto`, `create-test-app.ts`, `OwnerSettingsService`, `shared.module.ts`, `CapabilityRegistryService`, `EasyWeekBooking`, `BookingDto`, `ClientSettingsService`, `ServicesRepository`, `WorkersRepository`, `ServicesSyncDto`, `CreateAltegioRecordDto`, `bookings.internal.controller.ts`, `CreateAppCategoryDto`, `SalonListQuery`?**
+- **Why does `PrismaService` connect `Repositories & EasyWeek Booking` to `CrmSyncOrchestratorService`, `API Gateway Modules`, `Altegio/EasyWeek Provider Records`, `Internal Categories Controllers`, `User Account & Notifications`, `category-owner.guard.ts`, `Booking Handler Service`, `Category Mappings Controllers`, `OnboardingProgressDto`, `Home Feed DTOs`, `Workers Controllers`, `Brand Repository`, `SearchRequestDto`, `BookingQueryService`, `index.ts`, `bookings.owner.controller.ts`, `@eslint/js`, `SearchHistoryService`, `crm-salon-diff.service.ts`, `AppCategoriesRepository`, `@nestjs/swagger`, `WorkersListQuery`, `UpdateCategoryDto`, `create-test-app.ts`, `OwnerSettingsService`, `category-owner.guard.ts`, `shared.module.ts`, `CapabilityRegistryService`, `EasyWeekBooking`, `BookingDto`, `ClientSettingsService`, `ServicesRepository`, `WorkersRepository`, `ServicesSyncDto`, `CreateAltegioRecordDto`, `bookings.internal.controller.ts`, `CreateAppCategoryDto`, `SalonListQuery`?**
   _High betweenness centrality (0.098) - this node is a cross-community bridge._
 - **Why does `scripts` connect `NPM Scripts & Build Tooling` to `create-test-app.ts`, `package.json`?**
   _High betweenness centrality (0.085) - this node is a cross-community bridge._
-- **Why does `test` connect `create-test-app.ts` to `NPM Scripts & Build Tooling`, `Workers Controllers`?**
+- **Why does `test` connect `create-test-app.ts` to `NPM Scripts & Build Tooling`, `Repositories & EasyWeek Booking`, `Workers Controllers`?**
   _High betweenness centrality (0.084) - this node is a cross-community bridge._
 - **Are the 2 inferred relationships involving `PrismaService` (e.g. with `cleanupTestApp()` and `createTestApp()`) actually correct?**
   _`PrismaService` has 2 INFERRED edges - model-reasoned connections that need verification._

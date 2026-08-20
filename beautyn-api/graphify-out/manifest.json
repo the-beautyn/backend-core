@@ -405,8 +405,8 @@
     "semantic_hash": "aa4c1d3664cda0866e4ee0f489b5d7fc"
   },
   "postman/Beautyn.postman_collection.json": {
-    "mtime": 1785399268.1171842,
-    "ast_hash": "ad49ba9d7d37ec70994006e630333e62",
+    "mtime": 1787241216.6505547,
+    "ast_hash": "db435e04d7d2218a2ab6085413e0740e",
     "semantic_hash": ""
   },
   "prisma/migrations/20250818071312_init/migration.sql": {
@@ -995,8 +995,8 @@
     "semantic_hash": "c4ef09dd740ff11fe713762bbd56a9e8"
   },
   "src/auth/auth.service.ts": {
-    "mtime": 1787241039.7416222,
-    "ast_hash": "95568d295a0e78135793a4f433d9b44c",
+    "mtime": 1787244180.0937364,
+    "ast_hash": "a48567a2f614c3431c53a9689caa4009",
     "semantic_hash": ""
   },
   "src/auth/dto/v1/change-password.dto.ts": {
@@ -2495,8 +2495,8 @@
     "semantic_hash": "42fb4ec58db0379b904ee2950857be4f"
   },
   "test/unit/auth.service.spec.ts": {
-    "mtime": 1787241091.1621363,
-    "ast_hash": "10603eed85d07e6dd9bcf3658364f3f2",
+    "mtime": 1787244183.5715973,
+    "ast_hash": "73a14e8a267ed49862d2146b18c39dd2",
     "semantic_hash": ""
   },
   "test/unit/easyweek.salon.spec.ts": {

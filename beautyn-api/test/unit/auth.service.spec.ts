@@ -428,7 +428,9 @@ describe('AuthService', () => {
 
     it('should redirect web-admin resets to the admin panel URL', async () => {
       // Arrange
-      mockAdminPanelUrl = 'https://panel.test.beautyn.com.ua';
+      // Trailing slash on purpose — the service must normalize it away or the
+      // URL fails Supabase's exact redirect-allowlist match.
+      mockAdminPanelUrl = 'https://panel.test.beautyn.com.ua/';
       (supabaseClient.auth.resetPasswordForEmail as unknown as jest.Mock).mockResolvedValue({ error: null });
 
       // Act
