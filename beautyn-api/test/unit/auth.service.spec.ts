@@ -16,6 +16,7 @@ describe('AuthService', () => {
   let service: AuthService;
   let userService: jest.Mocked<UserService>;
   let supabaseClient: jest.Mocked<SupabaseClient>;
+  let mockAdminPanelUrl: string | undefined;
 
   // Mock data
   const mockUser = {
@@ -52,6 +53,7 @@ describe('AuthService', () => {
   };
 
   beforeEach(async () => {
+    mockAdminPanelUrl = undefined;
     const mockUserService = {
       create: jest.fn(),
       createWithId: jest.fn(),
@@ -92,6 +94,7 @@ describe('AuthService', () => {
           useValue: {
             get: jest.fn().mockImplementation((key: string, fallback?: string) => {
               if (key === 'APP_URL') return 'https://test.beautyn.com.ua';
+              if (key === 'ADMIN_PANEL_URL') return mockAdminPanelUrl;
               return fallback ?? 'true';
             }),
           },
@@ -421,6 +424,39 @@ describe('AuthService', () => {
       expect(result).toEqual({
         message: 'Password-reset email sent',
       });
+    });
+
+    it('should redirect web-admin resets to the admin panel URL', async () => {
+      // Arrange
+      mockAdminPanelUrl = 'https://panel.test.beautyn.com.ua';
+      (supabaseClient.auth.resetPasswordForEmail as unknown as jest.Mock).mockResolvedValue({ error: null });
+
+      // Act
+      await service.forgotPassword({ ...forgotPasswordDto, client: 'web-admin' });
+
+      // Assert
+      expect(supabaseClient.auth.resetPasswordForEmail).toHaveBeenCalledWith(
+        forgotPasswordDto.email,
+        {
+          redirectTo: 'https://panel.test.beautyn.com.ua/auth/reset',
+        },
+      );
+    });
+
+    it('should fall back to APP_URL for web-admin when ADMIN_PANEL_URL is not set', async () => {
+      // Arrange
+      (supabaseClient.auth.resetPasswordForEmail as unknown as jest.Mock).mockResolvedValue({ error: null });
+
+      // Act
+      await service.forgotPassword({ ...forgotPasswordDto, client: 'web-admin' });
+
+      // Assert
+      expect(supabaseClient.auth.resetPasswordForEmail).toHaveBeenCalledWith(
+        forgotPasswordDto.email,
+        {
+          redirectTo: 'https://test.beautyn.com.ua/auth/reset',
+        },
+      );
     });
 
     it('should throw BadRequestException when reset email fails', async () => {

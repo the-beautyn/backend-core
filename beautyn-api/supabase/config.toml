@@ -119,7 +119,17 @@ enabled = true
 # in emails.
 site_url = "http://localhost:3000"
 # A list of *exact* URLs that auth providers are permitted to redirect to post authentication.
-additional_redirect_urls = []
+# The recovery email template links to {{ .RedirectTo }}; every redirect the
+# API passes to resetPasswordForEmail must be listed here (mobile: APP_URL,
+# owner panel: ADMIN_PANEL_URL). Non-allowlisted values are silently replaced
+# with site_url, which strips the /auth/reset path and breaks the link.
+# Hosted projects (prod/stage/dev) need the same entries in the dashboard's
+# Redirect URLs list.
+additional_redirect_urls = [
+  "http://localhost:3000/auth/reset",
+  "http://127.0.0.1:54321/auth/reset",
+  "http://localhost:5173/auth/reset",
+]
 # How long tokens are valid for, in seconds. Defaults to 3600 (1 hour), maximum 604,800 (1 week).
 jwt_expiry = 3600
 # Path to JWT signing key. DO NOT commit your signing keys file to git.

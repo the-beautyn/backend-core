@@ -1,16 +1,16 @@
-# Graph Report - beautyn-api  (2026-07-30)
+# Graph Report - beautyn-api  (2026-08-20)
 
 ## Corpus Check
-- 543 files · ~148,647 words
+- 545 files · ~149,414 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 3540 nodes · 8293 edges · 227 communities (175 shown, 52 thin omitted)
-- Extraction: 98% EXTRACTED · 2% INFERRED · 0% AMBIGUOUS · INFERRED: 130 edges (avg confidence: 0.79)
+- 3552 nodes · 8306 edges · 225 communities (174 shown, 51 thin omitted)
+- Extraction: 98% EXTRACTED · 2% INFERRED · 0% AMBIGUOUS · INFERRED: 129 edges (avg confidence: 0.79)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `e6899731`
+- Built from commit: `5a9714e1`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -223,8 +223,6 @@
 - @types/jsonwebtoken
 - category-owner.guard.ts
 - UserSettingsService
-- SelectBrandSalonDto
-- dotenv-cli
 - @eslint/eslintrc
 - @eslint/js
 - wait-on
@@ -274,7 +272,7 @@
 - **Outbox Delivery Pipeline (durable APP->CRM reconciliation)** — src_sync_reconciliation_readme_outboxservice, src_sync_reconciliation_readme_outboxprocessor, src_sync_reconciliation_readme_mappingrepository, src_sync_reconciliation_readme_shadowstore, src_sync_reconciliation_readme_mergepolicyservice, src_sync_reconciliation_readme_conflictresolverservice [EXTRACTED 1.00]
 - **Two-Lane Bookings Poller Flow (cron tick -> dispatch -> per-salon rebase)** — docs_workers_cron_worker, docs_workers_internal_sync_api, docs_workers_bookings_worker, docs_workers_two_lane_bookings_poller, libs_crm_sync_scheduler_readme_syncscheduler [EXTRACTED 1.00]
 
-## Communities (227 total, 52 thin omitted)
+## Communities (225 total, 51 thin omitted)
 
 ### Community 0 - "NPM Scripts & Build Tooling"
 Cohesion: 0.03
@@ -282,19 +280,19 @@ Nodes (79): scripts, build, build:railway, cleanup:dev, cleanup:local, db:deploy
 
 ### Community 1 - "Repositories & EasyWeek Booking"
 Cohesion: 0.08
-Nodes (11): UpsertMappingInput, SavedSalonsRepository, Injectable, SavedSalonsService, Injectable, ServiceUpsertData, PrismaService, Injectable (+3 more)
+Nodes (12): UpsertInput, SavedSalonsRepository, Injectable, SavedSalonsService, Injectable, ServiceUpsertData, PrismaService, Injectable (+4 more)
 
 ### Community 2 - "Bookings Sync & Auth DTOs"
-Cohesion: 0.06
-Nodes (51): SyncBookingsJobResponseDto, SyncBookingsNowResponseDto, ApiProperty, SyncSalonJobResponseDto, ApiProperty, LoginResponseDto, ApiProperty, MessageResponseDto (+43 more)
+Cohesion: 0.10
+Nodes (34): SyncBookingsJobResponseDto, SyncBookingsNowResponseDto, ApiProperty, SyncSalonJobResponseDto, ApiProperty, SalonCategoryMappingResponseDto, LoginResponseDto, ApiProperty (+26 more)
 
 ### Community 3 - "Categories Sync Controllers"
-Cohesion: 0.17
+Cohesion: 0.18
 Nodes (19): CategoriesAuthenticatedController, ApiAcceptedResponse, ApiBearerAuth, ApiConflictResponse, ApiCreatedResponse, ApiNoContentResponse, ApiOkResponse, ApiOperation (+11 more)
 
 ### Community 4 - "API Gateway Modules"
-Cohesion: 0.17
-Nodes (12): AppModule, Module, JwtAuthGuard, Injectable, Envelope, TransformInterceptor, Injectable, delete() (+4 more)
+Cohesion: 0.13
+Nodes (16): AppModule, Module, JwtAuthGuard, Injectable, Envelope, TransformInterceptor, Injectable, StorageModule (+8 more)
 
 ### Community 5 - "Sync Reconciliation & Conflict Resolution"
 Cohesion: 0.06
@@ -305,12 +303,12 @@ Cohesion: 0.26
 Nodes (16): CRM Integration Layer, Onboarding Flow (CRM connect -> brand -> subscription), Altegio CRM Integration (sync API reference), Altegio booking-create idempotency (dedupe by client/datetime/staff/services), Altegio dual-token auth (Bearer + User headers), EasyWeek booking-create idempotency (dedupe by phone/reserved_on/service), EasyWeek CRM Integration (sync API reference), EasyWeek widget booking confirmation (POST /bookings/easyweek/confirm) (+8 more)
 
 ### Community 7 - "Altegio/EasyWeek Provider Records"
-Cohesion: 0.07
-Nodes (6): CategoryData, Page, ServiceData, WorkerData, EasyWeekProvider, ICrmProvider
+Cohesion: 0.11
+Nodes (21): Op, ListRecordsParams, BookingData, CategoryData, ServiceData, WorkerData, WorkerSchedule, AvailabilitySlot (+13 more)
 
 ### Community 8 - "Internal Categories Controllers"
-Cohesion: 0.21
-Nodes (8): CategoriesService, Injectable, CategoryListResponseDto, CategoryResponseDto, ApiProperty, CATEGORY_LIST_MAX_LIMIT, normalizeHexColor(), toCategoryResponse()
+Cohesion: 0.15
+Nodes (6): CategoriesService, Injectable, normalizeHexColor(), toCategoryResponse(), CategoriesRepository, Injectable
 
 ### Community 9 - "Workers Sync & UUID Identity"
 Cohesion: 0.25
@@ -318,47 +316,43 @@ Nodes (7): ApiProperty, IsBoolean, IsNotEmpty, IsOptional, IsString, Length, Ups
 
 ### Community 10 - "Public Auth Endpoints & DTOs"
 Cohesion: 0.07
-Nodes (36): CheckEmailDto, ApiProperty, IsEmail, CheckEmailResponseDto, EmailStatus, ApiProperty, ForgotPasswordDto, ApiProperty (+28 more)
+Nodes (30): CheckEmailDto, ApiProperty, IsEmail, CheckEmailResponseDto, EmailStatus, ApiProperty, FORGOT_PASSWORD_CLIENTS, ForgotPasswordClient (+22 more)
 
 ### Community 11 - "CRM Adapter Service"
-Cohesion: 0.09
-Nodes (6): CrmAdapterService, Injectable, Capability, CrmType, CrmIntegrationService, Injectable
+Cohesion: 0.11
+Nodes (5): CrmAdapterService, Injectable, CrmType, CrmIntegrationService, Injectable
 
 ### Community 12 - "User Account & Notifications"
 Cohesion: 0.07
 Nodes (14): AuthService, Injectable, NotificationUserDto, ApiProperty, Expose, Injectable, UserRepository, userSelect (+6 more)
 
 ### Community 13 - "Onboarding Flow Controller"
-Cohesion: 0.17
-Nodes (17): OnboardingController, ApiAcceptedResponse, ApiBadRequestResponse, ApiBearerAuth, ApiOkResponse, ApiOperation, ApiParam, ApiTags (+9 more)
-
-### Community 14 - "Booking Handler Service"
-Cohesion: 0.15
-Nodes (3): AltegioBooking, BookingHandlerService, Injectable
+Cohesion: 0.06
+Nodes (40): OnboardingController, ApiAcceptedResponse, ApiBadRequestResponse, ApiBearerAuth, ApiOkResponse, ApiOperation, ApiParam, ApiTags (+32 more)
 
 ### Community 15 - "Category Mappings Controllers"
 Cohesion: 0.12
-Nodes (13): SalonAppCategoryMappingDto, SalonCategoryMappingResponseDto, ApiProperty, ApiProperty, IsBoolean, IsOptional, IsUUID, UpdateSalonCategoryMappingDto (+5 more)
+Nodes (11): ApiProperty, IsBoolean, IsOptional, IsUUID, UpdateSalonCategoryMappingDto, toSalonCategoryMappingResponse(), SalonCategoryMappingsRepository, Injectable (+3 more)
 
 ### Community 16 - "Provider Booking Pullers"
-Cohesion: 0.09
-Nodes (33): Op, fetchBooking(), listRecords(), ListRecordsParams, mapRecord(), pullBookings(), wait(), BookingData (+25 more)
+Cohesion: 0.11
+Nodes (16): fetchBooking(), normalizeBooking(), pullBookings(), wait(), CrmError, isRetryable(), ErrorKind, ProviderId (+8 more)
 
 ### Community 17 - "Altegio Booking Flow Types"
-Cohesion: 0.09
-Nodes (32): AltegioBookCategory, AltegioBookDatesResponse, AltegioBookService, AltegioBookServicesResponse, AltegioBookStaff, AltegioBookStaffResponse, AltegioBookTime, AltegioBookTimesResponse (+24 more)
+Cohesion: 0.08
+Nodes (37): AltegioBookCategory, AltegioBookDatesResponse, AltegioBookService, AltegioBookServicesResponse, AltegioBookStaff, AltegioBookStaffResponse, AltegioBookTime, AltegioBookTimesResponse (+29 more)
 
 ### Community 18 - "Search Seed Data & Scripts"
-Cohesion: 0.11
-Nodes (24): buildCatalogRows(), CatalogRows, CATEGORY_IMAGES, CRM_CATEGORY_TO_APP_SLUG, CRM_OWNER_EMAILS, CrmAnchor, CrmCatalogCategory, CrmCatalogLink (+16 more)
+Cohesion: 0.09
+Nodes (33): backfillSalonSchedules(), buildCatalogRows(), CatalogRows, CATEGORY_IMAGES, CRM_CATEGORY_TO_APP_SLUG, CRM_OWNER_EMAILS, CrmAnchor, CrmCatalogCategory (+25 more)
 
 ### Community 19 - "Schedule Formatting Utilities"
-Cohesion: 0.11
-Nodes (21): Day, DAY_NAME, dayHours(), formatWorkingDay(), formatWorkingSchedule(), Hhmm, SalonData, toDotHhmm() (+13 more)
+Cohesion: 0.13
+Nodes (20): Day, DAY_NAME, dayHours(), formatWorkingDay(), formatWorkingSchedule(), Hhmm, toDotHhmm(), WorkerScheduleDay (+12 more)
 
 ### Community 20 - "Home Feed DTOs"
-Cohesion: 0.10
-Nodes (22): HomeFeedNextBookingDto, HomeFeedNextBookingServiceDto, ApiProperty, ApiPropertyOptional, HomeFeedResponseDto, ApiProperty, ApiPropertyOptional, HomeFeedSalonCardDto (+14 more)
+Cohesion: 0.13
+Nodes (14): HomeFeedSalonCardDto, ApiProperty, ApiPropertyOptional, HomeFeedSectionDto, ApiProperty, ApiPropertyOptional, HomeFeedSectionSearchParamsDto, ApiPropertyOptional (+6 more)
 
 ### Community 21 - "Account Registry & Altegio Provider"
 Cohesion: 0.05
@@ -366,7 +360,7 @@ Nodes (38): 1. Purpose, 2. Responsibilities, 3.1.1 LocationType, 3.1.2 SearchReq
 
 ### Community 22 - "Workers Controllers"
 Cohesion: 0.13
-Nodes (14): ApiExcludeController, ApiExcludeEndpoint, Body, Controller, HttpCode, Post, UseGuards, WorkersInternalController (+6 more)
+Nodes (15): RFC-4122, uuidV5FromStrings(), ApiExcludeController, ApiExcludeEndpoint, Body, Controller, HttpCode, Post (+7 more)
 
 ### Community 23 - "Auth Public Controller"
 Cohesion: 0.23
@@ -377,56 +371,52 @@ Cohesion: 0.13
 Nodes (19): ApiBadRequestResponse, ApiBearerAuth, ApiBody, ApiOkResponse, ApiOperation, ApiQuery, ApiTags, ApiUnauthorizedResponse (+11 more)
 
 ### Community 25 - "Altegio Public Booking DTOs"
-Cohesion: 0.15
-Nodes (19): SalonContext, BookableDatesResponseDto, ApiProperty, BookableServiceCategoryDto, BookableServiceDto, BookableServicesResponseDto, ApiProperty, BookableWorkerDto (+11 more)
+Cohesion: 0.16
+Nodes (18): BookableDatesResponseDto, ApiProperty, BookableServiceCategoryDto, BookableServiceDto, BookableServicesResponseDto, ApiProperty, BookableWorkerDto, BookableWorkersResponseDto (+10 more)
 
 ### Community 26 - "Authenticated Client Controllers"
-Cohesion: 0.09
-Nodes (19): ApiGatewayModule, Module, AuthenticatedApiModule, Module, InternalApiModule, Module, PublicApiModule, Module (+11 more)
+Cohesion: 0.22
+Nodes (8): ApiGatewayModule, Module, AuthenticatedApiModule, Module, InternalApiModule, Module, PublicApiModule, Module
 
 ### Community 27 - "Brand Repository"
-Cohesion: 0.14
+Cohesion: 0.17
 Nodes (4): BrandRepository, BrandWithCount, Injectable, isSubscriptionStepEnabled()
 
 ### Community 28 - "Home Feed Section DTOs"
-Cohesion: 0.14
-Nodes (14): HomeFeedSectionFiltersDto, ApiPropertyOptional, IsBoolean, IsEnum, IsNumber, IsOptional, IsString, IsUUID (+6 more)
+Cohesion: 0.18
+Nodes (11): HomeFeedSectionFiltersDto, ApiPropertyOptional, IsBoolean, IsEnum, IsNumber, IsOptional, IsString, IsUUID (+3 more)
 
 ### Community 29 - "Sync Scheduler & Queues"
 Cohesion: 0.15
-Nodes (14): BullQueueLike, CronDiffJob, CronDiffJobWithSchedule, SyncDispatchJob, log, handleSyncDispatch(), log, startCronDiffWorker() (+6 more)
+Nodes (11): BullQueueLike, makeQueue(), SyncSchedulerService, Injectable, CronDiffJob, CronDiffJobWithSchedule, SyncJob, log (+3 more)
 
 ### Community 30 - "SearchRequestDto"
-Cohesion: 0.08
-Nodes (26): SearchRequestDto, SearchViewportDto, ApiPropertyOptional, IsArray, IsEnum, IsNumber, IsOptional, IsString (+18 more)
+Cohesion: 0.05
+Nodes (50): SearchPublicController, ApiBadRequestResponse, ApiOkResponse, ApiOperation, ApiTags, Body, Controller, Get (+42 more)
 
 ### Community 31 - "BrandController"
-Cohesion: 0.17
-Nodes (18): Put, BrandController, ApiBadRequestResponse, ApiBearerAuth, ApiCreatedResponse, ApiOkResponse, ApiOperation, ApiQuery (+10 more)
+Cohesion: 0.20
+Nodes (16): Put, BrandController, ApiBadRequestResponse, ApiBearerAuth, ApiOkResponse, ApiOperation, ApiQuery, ApiTags (+8 more)
 
 ### Community 32 - "salons.internal.controller.ts"
-Cohesion: 0.18
-Nodes (12): SalonsInternalController, ApiExcludeController, Body, Controller, HttpCode, Param, Post, UseGuards (+4 more)
+Cohesion: 0.29
+Nodes (8): SalonsInternalController, ApiExcludeController, Body, Controller, HttpCode, Param, Post, UseGuards
 
 ### Community 33 - "BookingQueryService"
-Cohesion: 0.16
+Cohesion: 0.17
 Nodes (6): BookingQueryService, BookingWithRelations, Injectable, BookingListResponseDto, BookingProviderAltegioDto, BookingProviderEasyweekDto
 
 ### Community 34 - "index.ts"
-Cohesion: 0.09
+Cohesion: 0.08
 Nodes (16): AccountRegistryModule, Module, AccountRegistryService, Inject, Injectable, PrismaAccountRegistryRepository, Injectable, AccountRegistryRepository (+8 more)
 
-### Community 35 - "index.ts"
-Cohesion: 0.18
-Nodes (5): TokenStorageRepository, TokenStorageModule, Module, Inject, MemRepo
-
 ### Community 36 - "altegio-webhook.controller.ts"
-Cohesion: 0.07
-Nodes (26): Res, AltegioWebhookController, ApiExcludeController, Body, Controller, Get, Post, Query (+18 more)
+Cohesion: 0.10
+Nodes (17): Res, AltegioWebhookController, ApiExcludeController, Body, Controller, Get, Post, Query (+9 more)
 
 ### Community 37 - "bookings.owner.controller.ts"
-Cohesion: 0.19
-Nodes (12): MIME_TO_EXT, ConfirmEasyweekBookingDto, ApiProperty, IsUUID, SalonAccessGuard, Injectable, AdminRolesGuard, ClientRolesGuard (+4 more)
+Cohesion: 0.13
+Nodes (15): CategoriesInternalController, log, ApiExcludeController, Controller, SalonAccessGuard, Injectable, CategoryOwnerGuard, CategoryRequest (+7 more)
 
 ### Community 38 - "SavedSalonListQueryDto"
 Cohesion: 0.10
@@ -437,8 +427,8 @@ Cohesion: 0.17
 Nodes (19): ServicesAuthenticatedController, ApiAcceptedResponse, ApiBearerAuth, ApiConflictResponse, ApiCreatedResponse, ApiNoContentResponse, ApiOkResponse, ApiOperation (+11 more)
 
 ### Community 40 - "ServicesService"
-Cohesion: 0.21
-Nodes (5): ServiceResponseDto, ApiProperty, ServiceRecord, ServicesService, Injectable
+Cohesion: 0.24
+Nodes (3): ServiceRecord, ServicesService, Injectable
 
 ### Community 41 - "WorkersAuthenticatedController"
 Cohesion: 0.18
@@ -449,16 +439,20 @@ Cohesion: 0.08
 Nodes (24): ./tsconfig.base.json, compilerOptions, allowSyntheticDefaultImports, declaration, emitDecoratorMetadata, esModuleInterop, experimentalDecorators, forceConsistentCasingInFileNames (+16 more)
 
 ### Community 43 - "onboarding.controller.ts"
-Cohesion: 0.12
-Nodes (19): AltegioPairCodeResponseDto, ApiProperty, CrmFieldDto, CrmProviderDto, CrmProviderLinksDto, ApiProperty, CrmProviderListResponseDto, ApiProperty (+11 more)
+Cohesion: 0.14
+Nodes (16): AltegioPairCodeResponseDto, ApiProperty, CrmFieldDto, CrmProviderDto, CrmProviderLinksDto, ApiProperty, CrmProviderListResponseDto, ApiProperty (+8 more)
 
 ### Community 44 - "SearchHistoryService"
-Cohesion: 0.08
-Nodes (21): SearchAuthenticatedController, ApiBearerAuth, ApiNoContentResponse, ApiOkResponse, ApiOperation, ApiTags, Controller, Delete (+13 more)
+Cohesion: 0.10
+Nodes (20): SearchAuthenticatedController, ApiBearerAuth, ApiNoContentResponse, ApiOkResponse, ApiOperation, ApiTags, Controller, Delete (+12 more)
 
 ### Community 45 - "PhoneVerificationService"
 Cohesion: 0.14
 Nodes (9): PhoneVerificationService, Inject, Injectable, Optional, VerificationSession, MockSmsProvider, SMS_PROVIDER, SmsProvider (+1 more)
+
+### Community 46 - "AltegioProvider"
+Cohesion: 0.12
+Nodes (3): AltegioBooking, AltegioProvider, Page
 
 ### Community 47 - ".uploadImage()"
 Cohesion: 0.16
@@ -469,8 +463,8 @@ Cohesion: 0.19
 Nodes (13): SalonsController, ApiBadRequestResponse, ApiOkResponse, ApiOperation, ApiParam, ApiQuery, ApiTags, Controller (+5 more)
 
 ### Community 49 - "crm-salon-diff.service.ts"
-Cohesion: 0.07
-Nodes (33): CrmSalonChangesController, ApiBadRequestResponse, ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags, Controller, Get (+25 more)
+Cohesion: 0.12
+Nodes (20): applyFieldPatch(), buildLocalSnapshot(), CrmSalonDiffService, LocalSalonSnapshot, PendingOperation, toPrismaJson(), TRACKED_FIELDS, TrackedField (+12 more)
 
 ### Community 50 - "onboarding.module.ts"
 Cohesion: 0.07
@@ -481,23 +475,23 @@ Cohesion: 0.09
 Nodes (21): 10) Booking — Cancel, 1) Workspace, 2) Locations (Salons), 3) Service Categories, 4) Services, 5) Staff (Workers), 6) Accounts (for completion payments), 7) Availability (+13 more)
 
 ### Community 52 - "AppCategoriesRepository"
-Cohesion: 0.15
-Nodes (5): AppCategoriesService, Injectable, toAppCategoryResponse(), AppCategoriesRepository, Injectable
+Cohesion: 0.11
+Nodes (7): AppCategoriesService, Injectable, toAppCategoryResponse(), AppCategoriesRepository, Injectable, StorageService, Injectable
 
 ### Community 53 - "SavedSalonsService"
-Cohesion: 0.40
-Nodes (4): SavedSalonItemDto, SavedSalonListResponseDto, ApiProperty, ApiPropertyOptional
+Cohesion: 0.14
+Nodes (14): MIME_TO_EXT, ConfirmEasyweekBookingDto, ApiProperty, IsUUID, ConfirmEasyweekBookingResponseDto, EasyweekBookingSummaryDto, ApiProperty, ApiPropertyOptional (+6 more)
 
 ### Community 54 - "paths"
 Cohesion: 0.09
 Nodes (21): libs/crm/account-registry/src, libs/crm/adapter/src, libs/crm/capability-registry/src, libs/crm/provider-core/src, libs/crm/retry-handler/src, libs/crm/shared/src, libs/crm/sync-scheduler/src, libs/crm/token-storage/src (+13 more)
 
 ### Community 55 - "public-api.module.ts"
-Cohesion: 0.12
-Nodes (15): HealthController, Controller, Get, AuthModule, Module, PhoneVerificationModule, Module, SyncTriggerService (+7 more)
+Cohesion: 0.16
+Nodes (11): HealthController, Controller, Get, AuthModule, Module, PhoneVerificationModule, Module, SyncTriggerService (+3 more)
 
 ### Community 56 - "ProviderFactory"
-Cohesion: 0.19
+Cohesion: 0.17
 Nodes (16): ProviderCoreModule, Module, ProviderFactory, Injectable, bootstrap(), bootstrap(), bootstrap(), envBool() (+8 more)
 
 ### Community 57 - "fakes.prisma.workers.ts"
@@ -505,23 +499,23 @@ Cohesion: 0.10
 Nodes (11): createFakePrismaForSalon(), count(), createFakePrismaForWorkers(), FakePrismaWorkersApi, ServiceRecord, TextContains, update(), WorkerCreateData (+3 more)
 
 ### Community 58 - "createChildLogger()"
-Cohesion: 0.09
-Nodes (18): notImplemented(), als, getRequestId(), RequestContext, LoggerInterceptor, Injectable, LoggerModule, Global (+10 more)
+Cohesion: 0.16
+Nodes (9): notImplemented(), als, getRequestId(), RequestContext, baseLogger, createChildLogger(), LoggerLike, LogLevel (+1 more)
 
 ### Community 59 - "OwnerBookingsController"
 Cohesion: 0.17
 Nodes (13): OwnerBookingsController, ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags, Body, Controller, Get (+5 more)
 
 ### Community 60 - "HomeFeedSectionsAdminController"
-Cohesion: 0.08
-Nodes (20): HomeFeedSectionsAdminController, ApiBearerAuth, ApiCreatedResponse, ApiNoContentResponse, ApiOkResponse, ApiOperation, ApiTags, Body (+12 more)
+Cohesion: 0.12
+Nodes (16): HomeFeedSectionsAdminController, ApiBearerAuth, ApiCreatedResponse, ApiNoContentResponse, ApiOkResponse, ApiOperation, ApiTags, Body (+8 more)
 
 ### Community 61 - "HomeFeedSectionConfigRepository"
-Cohesion: 0.16
-Nodes (14): CreateHomeFeedSectionDto, ApiProperty, ApiPropertyOptional, IsBoolean, IsInt, IsNotEmpty, IsOptional, IsString (+6 more)
+Cohesion: 0.15
+Nodes (13): CreateHomeFeedSectionDto, ApiProperty, ApiPropertyOptional, IsBoolean, IsInt, IsNotEmpty, IsOptional, IsString (+5 more)
 
 ### Community 62 - "ServicesListQuery"
-Cohesion: 0.10
+Cohesion: 0.09
 Nodes (17): ServicesController, ApiBadRequestResponse, ApiOkResponse, ApiOperation, ApiTags, Controller, Get, Query (+9 more)
 
 ### Community 63 - "WorkersListQuery"
@@ -529,35 +523,31 @@ Cohesion: 0.12
 Nodes (13): PublicWorkerDto, ApiProperty, ApiProperty, IsBoolean, IsInt, IsOptional, IsString, IsUUID (+5 more)
 
 ### Community 64 - "authenticated-api.module.ts"
-Cohesion: 0.18
-Nodes (20): AltegioBookingModule, Module, BookingModule, Module, EasyweekBookingModule, Module, CategoriesModule, Module (+12 more)
+Cohesion: 0.20
+Nodes (17): AltegioBookingModule, Module, BookingModule, Module, EasyweekBookingModule, Module, CrmIntegrationModule, Module (+9 more)
 
 ### Community 65 - ".getHomeFeed()"
-Cohesion: 0.11
-Nodes (16): HomeFeedController, ApiOkResponse, ApiOperation, ApiTags, Controller, Get, Query, Req (+8 more)
-
-### Community 66 - "SearchService"
-Cohesion: 0.18
-Nodes (11): FilterOptionsResultDto, ApiProperty, SearchPinDto, SearchPinsResultDto, SearchResponseDto, SearchResultDto, SearchResultMetaDto, ApiProperty (+3 more)
+Cohesion: 0.09
+Nodes (18): HomeFeedController, ApiOkResponse, ApiOperation, ApiTags, Controller, Get, Query, Req (+10 more)
 
 ### Community 67 - "UpdateUserDto"
-Cohesion: 0.15
-Nodes (14): ALLOWED_AVATAR_DOMAINS, IsAllowedAvatarDomain(), TestDto, IsValidPhone(), TestDto, IsEnum, IsISO8601, IsOptional (+6 more)
+Cohesion: 0.09
+Nodes (21): ApiProperty, IsString, Length, Matches, Transform, VerifyOtpDto, ALLOWED_AVATAR_DOMAINS, IsAllowedAvatarDomain() (+13 more)
 
 ### Community 68 - "crm-internal.controller.ts"
-Cohesion: 0.16
-Nodes (9): CrmInternalController, ApiExcludeController, Controller, UseGuards, CrmInternalModule, Module, EnsureCronSyncDto, IsOptional (+1 more)
+Cohesion: 0.20
+Nodes (7): CrmInternalController, ApiExcludeController, Controller, UseGuards, EnsureCronSyncDto, IsOptional, IsString
 
 ### Community 69 - "ClientBookingsController"
 Cohesion: 0.18
 Nodes (12): ClientBookingsController, ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags, Controller, Get, Param (+4 more)
 
 ### Community 70 - "CrmSalonChangesController"
-Cohesion: 0.25
-Nodes (8): CrmSalonChangeDto, ApiProperty, GetCrmSalonChangesQuery, IsEnum, IsOptional, IsUUID, CrmSalonChangeMapper, envelopeArrayRef()
+Cohesion: 0.27
+Nodes (7): CrmSalonChangeDto, ApiProperty, GetCrmSalonChangesQuery, IsEnum, IsOptional, IsUUID, CrmSalonChangeMapper
 
 ### Community 71 - ".confirm()"
-Cohesion: 0.15
+Cohesion: 0.13
 Nodes (11): EasyweekBookingAuthenticatedController, ApiBadRequestResponse, ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags, Body, Controller (+3 more)
 
 ### Community 72 - ".upload()"
@@ -565,12 +555,12 @@ Cohesion: 0.14
 Nodes (14): StorageController, ApiBearerAuth, ApiConsumes, ApiOkResponse, ApiOperation, ApiTags, Controller, Delete (+6 more)
 
 ### Community 73 - "app-categories.service.ts"
-Cohesion: 0.39
-Nodes (4): AppCategoryListResponseDto, ApiProperty, AppCategoryResponseDto, ApiProperty
+Cohesion: 0.15
+Nodes (15): AppCategoryListResponseDto, ApiProperty, AppCategoryResponseDto, ApiProperty, HomeFeedNextBookingDto, HomeFeedNextBookingServiceDto, ApiProperty, ApiPropertyOptional (+7 more)
 
 ### Community 74 - "AuthService"
-Cohesion: 0.11
-Nodes (18): CategoriesInternalController, log, ApiExcludeController, ApiExcludeEndpoint, Body, Controller, HttpCode, Post (+10 more)
+Cohesion: 0.14
+Nodes (14): ApiExcludeEndpoint, Body, HttpCode, Post, UseGuards, CategoriesSyncDto, CategorySyncItemDto, ApiProperty (+6 more)
 
 ### Community 76 - "OwnerSettingsService"
 Cohesion: 0.27
@@ -585,60 +575,60 @@ Cohesion: 0.20
 Nodes (8): CategoriesPublicController, ApiBadRequestResponse, ApiOkResponse, ApiOperation, ApiTags, Controller, Get, Query
 
 ### Community 79 - ".updateNotifications()"
-Cohesion: 0.16
+Cohesion: 0.15
 Nodes (13): ApiBearerAuth, ApiBody, ApiOkResponse, ApiOperation, ApiTags, ApiUnauthorizedResponse, Body, Controller (+5 more)
 
 ### Community 80 - ".searchPins()"
-Cohesion: 0.21
-Nodes (12): SearchPublicController, ApiBadRequestResponse, ApiOkResponse, ApiOperation, ApiTags, Body, Controller, Get (+4 more)
+Cohesion: 0.19
+Nodes (13): CrmSalonChangesController, ApiBadRequestResponse, ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags, Controller, Get (+5 more)
 
 ### Community 81 - "SendOtpDto"
-Cohesion: 0.15
-Nodes (12): SendOtpDto, ApiProperty, IsString, Matches, Transform, ApiProperty, IsString, Length (+4 more)
+Cohesion: 0.40
+Nodes (5): SendOtpDto, ApiProperty, IsString, Matches, Transform
 
 ### Community 82 - "shared.module.ts"
 Cohesion: 0.16
 Nodes (6): Catch, EnvelopeExceptionFilter, AppConfigService, Injectable, HashService, Injectable
 
 ### Community 83 - "CapabilityRegistryService"
-Cohesion: 0.13
-Nodes (11): CapabilityRegistryService, deepMerge(), isRecord(), loadDefaultMapWithCandidates(), loadJson(), loadOverride(), Injectable, CapabilityMap (+3 more)
+Cohesion: 0.18
+Nodes (9): CapabilityRegistryService, deepMerge(), isRecord(), loadDefaultMapWithCandidates(), loadJson(), loadOverride(), Injectable, Capability (+1 more)
 
 ### Community 84 - "EasyWeekBooking"
-Cohesion: 0.16
-Nodes (17): BookingsRebaseDto, ApiProperty, ApiPropertyOptional, IsIn, IsOptional, IsUUID, AltegioBookingPayload, AltegioBookingsSyncDto (+9 more)
+Cohesion: 0.15
+Nodes (16): EasyWeekBooking, NormalizedEasyweek, AltegioBookingPayload, AltegioBookingsSyncDto, EasyweekBookingPayload, EasyweekBookingsSyncDto, ApiProperty, IsArray (+8 more)
 
 ### Community 85 - "internal-api.module.ts"
 Cohesion: 0.13
 Nodes (15): ChangePasswordDto, ApiProperty, IsNotEmpty, IsString, Matches, MaxLength, MinLength, ResetPasswordResponseDto (+7 more)
 
 ### Community 86 - "search.service.ts"
-Cohesion: 0.27
-Nodes (11): AppCategoryMappingsController, ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags, Body, Controller, Get (+3 more)
+Cohesion: 0.19
+Nodes (13): AppCategoryMappingsController, ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags, Body, Controller, Get (+5 more)
 
 ### Community 87 - "BookingSyncService"
-Cohesion: 0.22
+Cohesion: 0.25
 Nodes (8): CreateCategoryDto, ApiProperty, IsArray, IsInt, IsNotEmpty, IsOptional, IsString, Length
 
 ### Community 88 - "ClientSettingsResponseDto"
-Cohesion: 0.24
-Nodes (8): settingsOneOf(), ClientNotificationSettingsDto, ApiProperty, Expose, ClientSettingsResponseDto, ApiProperty, Expose, Type
+Cohesion: 0.17
+Nodes (12): settingsOneOf(), ClientNotificationSettingsDto, ApiProperty, Expose, ClientSettingsResponseDto, ApiProperty, Expose, Type (+4 more)
 
 ### Community 89 - "SearchQueryBuilderService"
-Cohesion: 0.17
-Nodes (13): Injectable, WorkersCategory, ApiProperty, WorkerDto, ApiProperty, WorkersListResponseDto, ApiProperty, WorkersSyncJobResponseDto (+5 more)
+Cohesion: 0.31
+Nodes (8): ApiProperty, WorkerDto, ApiProperty, WorkersListResponseDto, ApiProperty, WorkersSyncJobResponseDto, WorkersSyncResultDto, WorkerMapper
 
 ### Community 90 - "runWithRequestContext()"
-Cohesion: 0.15
-Nodes (4): RFC-4122, uuidV5FromStrings(), Injectable, WorkersService
+Cohesion: 0.14
+Nodes (5): Injectable, WorkersCategory, WorkerEntityInput, Injectable, WorkersService
 
 ### Community 91 - ".create()"
 Cohesion: 0.14
 Nodes (12): AltegioBookingAuthenticatedController, ApiBadRequestResponse, ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags, Body, Controller (+4 more)
 
 ### Community 92 - "BookingDto"
-Cohesion: 0.16
-Nodes (11): Lane, BookingsInternalController, ApiExcludeController, Body, Controller, HttpCode, Post, UseGuards (+3 more)
+Cohesion: 0.12
+Nodes (17): Lane, BookingsInternalController, ApiExcludeController, Body, Controller, HttpCode, Post, UseGuards (+9 more)
 
 ### Community 93 - "AltegioBookingPublicController"
 Cohesion: 0.34
@@ -649,7 +639,7 @@ Cohesion: 0.19
 Nodes (9): AuthResetController, Controller, Get, Header, Controller, Get, Header, WellKnownController (+1 more)
 
 ### Community 95 - "ClientSettingsService"
-Cohesion: 0.22
+Cohesion: 0.27
 Nodes (4): ClientSettingsRepository, Injectable, ClientSettingsService, Injectable
 
 ### Community 98 - "CircuitBreaker"
@@ -657,43 +647,43 @@ Cohesion: 0.27
 Nodes (4): BreakerOpenError, CircuitBreaker, BreakerState, CircuitBreakerOptions
 
 ### Community 99 - "ListAppCategoriesQueryDto"
-Cohesion: 0.21
-Nodes (10): ListAppCategoriesQueryDto, ApiProperty, IsBoolean, IsInt, IsOptional, Max, Min, Type (+2 more)
+Cohesion: 0.11
+Nodes (17): AppCategoriesPublicController, ApiOkResponse, ApiOperation, ApiTags, Controller, Get, Query, ListAppCategoriesQueryDto (+9 more)
 
 ### Community 100 - "SalonService"
-Cohesion: 0.23
-Nodes (5): SalonDto, ApiProperty, Expose, SalonService, Injectable
+Cohesion: 0.19
+Nodes (6): SalonDto, ApiProperty, Expose, SalonIncludeOptions, SalonService, Injectable
 
 ### Community 101 - "ServicesSyncDto"
-Cohesion: 0.11
-Nodes (21): ServiceDto, ApiProperty, Expose, ServicesSyncDto, ServicesSyncServiceDto, ApiProperty, IsArray, IsBoolean (+13 more)
+Cohesion: 0.16
+Nodes (15): ServiceDto, ApiProperty, Expose, ServiceResponseDto, ApiProperty, ServicesListResponseDto, ApiProperty, Expose (+7 more)
 
 ### Community 102 - "CreateAltegioRecordDto"
-Cohesion: 0.17
-Nodes (11): ArrayMaxSize, ArrayMinSize, CreateAltegioRecordDto, ApiProperty, ApiPropertyOptional, IsArray, IsISO8601, IsOptional (+3 more)
+Cohesion: 0.13
+Nodes (15): ArrayMaxSize, ArrayMinSize, SalonContext, CreateAltegioRecordDto, ApiProperty, ApiPropertyOptional, IsArray, IsISO8601 (+7 more)
 
 ### Community 103 - "initialSync.processor.ts"
-Cohesion: 0.33
-Nodes (9): deriveFirstName(), deriveLastName(), resolveNamePart(), splitName(), SyncJob, log, toWorkerPayload(), log (+1 more)
+Cohesion: 0.36
+Nodes (8): deriveFirstName(), deriveLastName(), resolveNamePart(), splitName(), log, toWorkerPayload(), log, mapWorkerForSync()
 
 ### Community 104 - "SalonsAuthenticatedController"
 Cohesion: 0.26
 Nodes (9): SalonsAuthenticatedController, ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags, Controller, Param, Post (+1 more)
 
 ### Community 105 - "bookings.internal.controller.ts"
-Cohesion: 0.20
-Nodes (5): EasyWeekBooking, NormalizedEasyweek, EasyweekBookingService, Injectable, EasyweekBookingDtoNormalized
+Cohesion: 0.18
+Nodes (4): HomeFeedSectionConfigRepository, Injectable, HomeFeedSectionConfigService, Injectable
 
 ### Community 106 - "CreateAppCategoryDto"
-Cohesion: 0.19
-Nodes (10): MIME_TO_EXT, APP_CATEGORY_MAX_LIMIT, ApiProperty, IsArray, IsBoolean, IsOptional, IsString, Length (+2 more)
+Cohesion: 0.12
+Nodes (19): MIME_TO_EXT, CreateAppCategoryDto, ApiProperty, IsArray, IsBoolean, IsNotEmpty, IsOptional, IsString (+11 more)
 
 ### Community 107 - "CreateServiceDto"
-Cohesion: 0.17
+Cohesion: 0.18
 Nodes (11): CreateServiceDto, ApiProperty, IsArray, IsBoolean, IsInt, IsNotEmpty, IsOptional, IsString (+3 more)
 
 ### Community 108 - "UpdateServiceDto"
-Cohesion: 0.17
+Cohesion: 0.18
 Nodes (11): ApiProperty, IsArray, IsBoolean, IsInt, IsNotEmpty, IsOptional, IsString, IsUUID (+3 more)
 
 ### Community 109 - "dependencies"
@@ -713,23 +703,23 @@ Cohesion: 0.18
 Nodes (10): OAUTH_PROVIDERS, OAuthProvider, OAuthSignInDto, ApiProperty, ApiPropertyOptional, IsIn, IsNotEmpty, IsOptional (+2 more)
 
 ### Community 113 - "crypto.helper.ts"
-Cohesion: 0.42
-Nodes (5): decryptBundle(), encryptBundle(), EncryptedPayload, loadMasterKey(), TOKEN_STORAGE_REPOSITORY
+Cohesion: 0.24
+Nodes (8): TokenBundle, decryptBundle(), encryptBundle(), EncryptedPayload, loadMasterKey(), TokenStorageModule, Module, TOKEN_STORAGE_REPOSITORY
 
 ### Community 114 - "OwnerSettingsResponseDto"
-Cohesion: 0.24
-Nodes (8): OwnerNotificationSettingsDto, ApiProperty, Expose, OwnerSettingsResponseDto, ApiProperty, Expose, Type, OwnerNotificationPatch
+Cohesion: 0.28
+Nodes (7): OwnerNotificationSettingsDto, ApiProperty, Expose, OwnerSettingsResponseDto, ApiProperty, Expose, Type
 
 ### Community 115 - "UpdateAppCategoryDto"
-Cohesion: 0.16
-Nodes (14): BrandMemberResponseDto, ApiProperty, BrandResponseDto, ApiProperty, CreateBrandDto, ApiProperty, IsString, Length (+6 more)
+Cohesion: 0.10
+Nodes (17): BrandService, Injectable, BrandMemberResponseDto, ApiProperty, BrandResponseDto, ApiProperty, SelectBrandSalonDto, ApiProperty (+9 more)
 
 ### Community 116 - "GetTimeSlotsDto"
-Cohesion: 0.22
+Cohesion: 0.20
 Nodes (9): GetTimeSlotsDto, ApiProperty, ApiPropertyOptional, Expose, IsArray, IsOptional, IsUUID, Matches (+1 more)
 
 ### Community 117 - "GetBookableWorkersDto"
-Cohesion: 0.22
+Cohesion: 0.20
 Nodes (9): GetBookableWorkersDto, ApiPropertyOptional, Expose, IsArray, IsBoolean, IsISO8601, IsOptional, IsUUID (+1 more)
 
 ### Community 118 - "CrmSalonDiffService"
@@ -737,8 +727,8 @@ Cohesion: 0.15
 Nodes (13): Authentication & Authorization, Booking Management, Brand & Salon Management, CRM Integration, Geolocation Search, Key Features, Onboarding, Geo source priority (viewport > center > Geo-IP > none) (+5 more)
 
 ### Community 119 - "OwnerServicesListQueryDto"
-Cohesion: 0.12
-Nodes (13): OwnerServicesListQueryDto, ApiProperty, IsBoolean, IsInt, IsOptional, IsString, IsUUID, Min (+5 more)
+Cohesion: 0.22
+Nodes (9): OwnerServicesListQueryDto, ApiProperty, IsBoolean, IsInt, IsOptional, IsString, IsUUID, Min (+1 more)
 
 ### Community 120 - "SharedModule"
 Cohesion: 0.19
@@ -746,27 +736,27 @@ Nodes (10): ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiParam, ApiTags,
 
 ### Community 121 - "devDependencies"
 Cohesion: 0.22
-Nodes (9): concurrently, @nestjs/schematics, @nestjs/testing, devDependencies, concurrently, @nestjs/schematics, @nestjs/testing, typescript (+1 more)
+Nodes (9): dotenv-cli, @nestjs/schematics, @nestjs/testing, devDependencies, dotenv-cli, @nestjs/schematics, @nestjs/testing, typescript (+1 more)
 
 ### Community 122 - "ServicesInternalController"
 Cohesion: 0.15
 Nodes (12): Components, Configuration, Current status, Delivery logic, Enqueueing intents, Extending, Goals, High-level flow (+4 more)
 
 ### Community 123 - "AppCategoriesPublicController"
-Cohesion: 0.22
-Nodes (7): AppCategoriesPublicController, ApiOkResponse, ApiOperation, ApiTags, Controller, Get, Query
+Cohesion: 0.15
+Nodes (9): LoggerInterceptor, Injectable, LoggerModule, Global, Module, http, IncomingMessage, RequestCorrelationMiddleware (+1 more)
 
 ### Community 124 - "GetBookableDatesDto"
-Cohesion: 0.25
+Cohesion: 0.22
 Nodes (8): GetBookableDatesDto, ApiPropertyOptional, Expose, IsArray, IsOptional, IsUUID, Matches, Transform
 
 ### Community 125 - "GetBookableServicesDto"
-Cohesion: 0.25
+Cohesion: 0.22
 Nodes (8): GetBookableServicesDto, ApiPropertyOptional, Expose, IsArray, IsISO8601, IsOptional, IsUUID, Transform
 
 ### Community 126 - "SalonListQuery"
-Cohesion: 0.13
-Nodes (11): SalonListQuery, IsInt, IsOptional, IsString, Length, Max, Min, SalonShareDto (+3 more)
+Cohesion: 0.22
+Nodes (7): SalonListQuery, IsInt, IsOptional, IsString, Length, Max, Min
 
 ### Community 127 - "logger.module.ts"
 Cohesion: 0.17
@@ -779,6 +769,10 @@ Nodes (7): collection, compilerOptions, assets, deleteOutDir, plugins, $schema, 
 ### Community 129 - "exclude"
 Cohesion: 0.25
 Nodes (7): dist, node_modules, **/*spec.ts, test, ./tsconfig.json, exclude, extends
+
+### Community 130 - "CrmSyncOrchestratorService"
+Cohesion: 0.19
+Nodes (4): SalonData, CrmSyncOrchestratorService, Injectable, Optional
 
 ### Community 131 - "SubmitSalonFromCrmDto"
 Cohesion: 0.25
@@ -805,40 +799,40 @@ Cohesion: 0.33
 Nodes (4): @prisma/client, @prisma/client, main(), main()
 
 ### Community 137 - "salons.e2e-spec.ts"
-Cohesion: 0.14
-Nodes (12): SalonImageSyncItemDto, IsInt, IsOptional, IsString, SalonInternalSyncDto, ApiProperty, IsObject, IsOptional (+4 more)
+Cohesion: 0.22
+Nodes (8): SalonInternalSyncDto, ApiProperty, IsObject, IsOptional, IsUUID, SalonPullDto, ApiProperty, IsUUID
 
 ### Community 138 - "search.authenticated.controller.ts"
-Cohesion: 0.20
-Nodes (9): Compile and run the project, Deployment, Description, License, Project setup, Resources, Run tests, Stay in touch (+1 more)
+Cohesion: 0.17
+Nodes (11): Compile and run the project, Configuration, CORS, Deployment, Description, License, Project setup, Resources (+3 more)
 
 ### Community 139 - "storage.controller.ts"
 Cohesion: 0.25
 Nodes (9): Local Redis service (redis:7-alpine, port 6380), The 7 BullMQ sync workers (one process per queue), Deterministic jobId overlap protection (sync:<type>:<lane>:<provider>:<salonId>), Change Proposal System (never mutate salon directly), CrmSalonDiffService (field-level CRM change detection), Canonicalize + SHA-256 hash baseline (crm_salon_last_hash), ConflictResolverService (push/pull/noop patch decisions), MergePolicyService (per-field SoT: APP/CRM/AUTO) (+1 more)
 
 ### Community 140 - ".sync()"
-Cohesion: 0.31
-Nodes (9): applyJitter(), calcDelay(), clamp(), sleep(), envBool(), envInt(), executeWithRetry(), RetryOptions (+1 more)
+Cohesion: 0.40
+Nodes (8): applyJitter(), calcDelay(), clamp(), sleep(), envBool(), envInt(), executeWithRetry(), RetryOptions
 
 ### Community 141 - "category-owner.guard.ts"
-Cohesion: 0.19
-Nodes (4): BrandService, Injectable, BrandAccessGuard, Injectable
+Cohesion: 0.21
+Nodes (9): AltegioPartnerClient, Injectable, AltegioWebhookService, Injectable, delete(), find(), findUnique(), key() (+1 more)
 
 ### Community 142 - "OnboardingProgressDto"
-Cohesion: 0.19
-Nodes (8): EasyWeekDiscoveryClient, EasyWeekLocation, HttpEasyWeekDiscoveryClient, OnboardingProgressDto, OnboardingMapper, OnboardingService, Injectable, Optional
+Cohesion: 0.14
+Nodes (12): EasyWeekDiscoveryClient, EasyWeekLocation, HttpEasyWeekDiscoveryClient, OnboardingProgressDto, ApiProperty, OnboardingMapper, SalonMapper, delete() (+4 more)
 
 ### Community 143 - "salon-owner.guard.ts"
-Cohesion: 0.31
-Nodes (3): PrismaTokenStorageRepository, Injectable, CrmCredentialRow
+Cohesion: 0.18
+Nodes (5): PrismaTokenStorageRepository, Injectable, CrmCredentialRow, TokenStorageRepository, Inject
 
 ### Community 144 - "RefreshTokenDto"
 Cohesion: 0.18
-Nodes (3): CategoriesRepository, Injectable, UpsertInput
+Nodes (9): SalonImageDto, ApiProperty, Expose, SalonListResponseDto, ApiProperty, Expose, Type, SalonShareDto (+1 more)
 
 ### Community 145 - "GetCrmSalonChangesQuery"
-Cohesion: 0.28
-Nodes (9): backfillSalonSchedules(), DAY_DISPLAY_ORDER, formatScheduleFromOpenHours(), randomGalleryImages(), randomOffset(), randomOpenHours(), randomPrice(), seedSalons() (+1 more)
+Cohesion: 0.18
+Nodes (6): ApiCreatedResponse, Post, CreateBrandDto, ApiProperty, IsString, Length
 
 ### Community 146 - "UserSettingsService"
 Cohesion: 0.28
@@ -877,8 +871,8 @@ Cohesion: 0.33
 Nodes (5): Circuit Breaker, CRM Retry Handler, Environment Defaults, Notes, Quick Start
 
 ### Community 156 - "startSalonsSyncWorker()"
-Cohesion: 0.33
-Nodes (5): CrmSalonPreviewRequestDto, ApiProperty, IsEnum, IsString, Matches
+Cohesion: 0.29
+Nodes (8): SyncDispatchJob, handleSyncDispatch(), log, startCronDiffWorker(), startSalonsSyncWorker(), bootstrap(), runWithRequestContext(), startOutboxWorker()
 
 ### Community 157 - "cleanup-local.ts"
 Cohesion: 0.29
@@ -901,16 +895,16 @@ Cohesion: 0.50
 Nodes (5): Shared Logger (Winston JSON logs, x-request-id correlation), MappingRepository (internal<->external ID mappings), Outbox pattern for durable APP->CRM delivery, Outbox Worker (outbox.processor.ts, consumes crm-outbox), OutboxService (persists intents, queues crm-outbox jobs, jobId=intentId)
 
 ### Community 171 - "@eslint/eslintrc"
-Cohesion: 0.19
-Nodes (8): CrmAdapterModule, Module, CapabilityRegistryModule, Module, SyncSchedulerModule, Module, BrandModule, Module
+Cohesion: 0.13
+Nodes (12): CrmAdapterModule, Module, CapabilityRegistryModule, Module, SyncSchedulerModule, Module, CrmInternalModule, Module (+4 more)
 
 ### Community 172 - "@eslint/js"
-Cohesion: 0.18
-Nodes (9): altegioLinks(), CrmCode, CrmDescriptor, CrmField, CrmFieldType, CrmFlow, CrmProviderLinks, CrmProvidersRegistry (+1 more)
+Cohesion: 0.38
+Nodes (4): HomeFeedSectionResponseDto, ApiProperty, ApiPropertyOptional, UpdateHomeFeedSectionDto
 
 ### Community 178 - "libphonenumber-js"
-Cohesion: 0.26
-Nodes (9): AppCategoriesModule, Module, SavedSalonsModule, Module, SearchModule, Module, SharedModule, Global (+1 more)
+Cohesion: 0.31
+Nodes (8): AppCategoriesModule, Module, HomeFeedModule, Module, SavedSalonsModule, Module, SearchModule, Module
 
 ### Community 180 - "@nestjs/common"
 Cohesion: 0.50
@@ -929,68 +923,68 @@ Cohesion: 0.50
 Nodes (3): Environment Variables, Shared Logger, Usage
 
 ### Community 184 - "@nestjs/swagger"
-Cohesion: 0.50
-Nodes (3): CreateAltegioRecordResponseDto, ApiProperty, ApiPropertyOptional
+Cohesion: 0.20
+Nodes (8): SalonImagesSyncDto, SalonImageSyncItemDto, IsArray, IsInt, IsOptional, IsString, Type, ValidateNested
 
 ### Community 188 - "pg"
-Cohesion: 0.18
-Nodes (12): FinalizeEasyWeekDto, FinalizeEasyWeekSalonDto, ApiProperty, ArrayNotEmpty, IsArray, IsNotEmpty, IsOptional, IsString (+4 more)
+Cohesion: 0.22
+Nodes (9): RegisterDto, ApiProperty, IsEmail, IsIn, IsNotEmpty, IsString, Matches, MaxLength (+1 more)
 
 ### Community 189 - "reflect-metadata"
-Cohesion: 0.20
-Nodes (9): CreateAppCategoryDto, ApiProperty, IsArray, IsBoolean, IsNotEmpty, IsOptional, IsString, Length (+1 more)
+Cohesion: 0.29
+Nodes (6): CrmSyncOrchestratorModule, Module, CrmSalonChangesModule, Module, OnboardingModule, Module
 
 ### Community 190 - "rxjs"
-Cohesion: 0.33
+Cohesion: 0.36
 Nodes (9): ListQueryDto, OwnerListQueryDto, ApiProperty, IsInt, IsOptional, IsUUID, Max, Min (+1 more)
 
 ### Community 191 - "user-settings.service.ts"
-Cohesion: 0.24
-Nodes (6): ClientNotificationPatch, ApiPropertyOptional, IsBoolean, IsOptional, UpdateNotificationSettingsDto, RoleSettingsResponse
+Cohesion: 0.38
+Nodes (3): ClientNotificationPatch, OwnerNotificationPatch, RoleSettingsResponse
 
 ### Community 192 - "ServicesInternalController"
-Cohesion: 0.22
-Nodes (7): ServicesInternalController, ApiExcludeController, Body, Controller, HttpCode, Post, UseGuards
+Cohesion: 0.10
+Nodes (19): ServicesInternalController, ApiExcludeController, Body, Controller, HttpCode, Post, UseGuards, ServicesSyncDto (+11 more)
 
 ### Community 193 - "UpdateCategoryDto"
-Cohesion: 0.25
-Nodes (7): ApiProperty, IsArray, IsInt, IsOptional, IsString, Length, UpdateCategoryDto
+Cohesion: 0.20
+Nodes (11): CategoryListResponseDto, CategoryResponseDto, ApiProperty, CATEGORY_LIST_MAX_LIMIT, ApiProperty, IsArray, IsInt, IsOptional (+3 more)
+
+### Community 196 - "ProviderContext"
+Cohesion: 0.32
+Nodes (4): corsOptionsFromConfig(), CorsCheckController, Controller, Get
+
+### Community 200 - "StorageService"
+Cohesion: 0.40
+Nodes (4): RefreshTokenDto, ApiProperty, IsNotEmpty, IsString
 
 ### Community 202 - "create-test-app.ts"
-Cohesion: 0.48
-Nodes (5): cleanupTestApp(), cleanupTestData(), createTestApp(), setupTestEnvironment(), TEST_CONFIG
+Cohesion: 0.26
+Nodes (9): test, buildInternalApp(), buildPublicApp(), withInternalKey(), cleanupTestApp(), cleanupTestData(), createTestApp(), setupTestEnvironment() (+1 more)
 
 ### Community 203 - "salons.e2e-spec.ts"
-Cohesion: 0.60
-Nodes (4): test, buildInternalApp(), buildPublicApp(), withInternalKey()
-
-### Community 206 - "category-owner.guard.ts"
-Cohesion: 0.33
-Nodes (3): CategoryOwnerGuard, CategoryRequest, Injectable
-
-### Community 208 - "SelectBrandSalonDto"
-Cohesion: 0.50
-Nodes (3): SelectBrandSalonDto, ApiProperty, IsUUID
+Cohesion: 0.67
+Nodes (3): CrmServiceDto, CrmServicePageDto, ApiProperty
 
 ## Knowledge Gaps
-- **481 isolated node(s):** `config`, `AnyAccountData`, `Op`, `AltegioBookCategory`, `AltegioBookService` (+476 more)
+- **484 isolated node(s):** `config`, `AnyAccountData`, `Op`, `AltegioBookCategory`, `AltegioBookService` (+479 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **52 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **51 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `PrismaService` connect `Repositories & EasyWeek Booking` to `CrmSyncOrchestratorService`, `API Gateway Modules`, `Internal Categories Controllers`, `User Account & Notifications`, `Booking Handler Service`, `Category Mappings Controllers`, `RefreshTokenDto`, `Provider Booking Pullers`, `OnboardingProgressDto`, `Home Feed DTOs`, `Altegio Public Booking DTOs`, `Authenticated Client Controllers`, `Brand Repository`, `SearchRequestDto`, `salons.internal.controller.ts`, `BookingQueryService`, `altegio-webhook.controller.ts`, `bookings.owner.controller.ts`, `SearchHistoryService`, `crm-salon-diff.service.ts`, `AppCategoriesRepository`, `HomeFeedSectionsAdminController`, `HomeFeedSectionConfigRepository`, `WorkersListQuery`, `create-test-app.ts`, `AltegioBookingService`, `OwnerSettingsService`, `salons.e2e-spec.ts`, `category-owner.guard.ts`, `shared.module.ts`, `CapabilityRegistryService`, `SearchQueryBuilderService`, `BookingDto`, `ClientSettingsService`, `ServicesRepository`, `WorkersRepository`, `ServicesSyncDto`, `bookings.internal.controller.ts`, `CreateAppCategoryDto`, `SalonListQuery`?**
-  _High betweenness centrality (0.095) - this node is a cross-community bridge._
-- **Why does `scripts` connect `NPM Scripts & Build Tooling` to `salons.e2e-spec.ts`, `package.json`?**
+- **Why does `PrismaService` connect `Repositories & EasyWeek Booking` to `CrmSyncOrchestratorService`, `API Gateway Modules`, `Altegio/EasyWeek Provider Records`, `Internal Categories Controllers`, `User Account & Notifications`, `category-owner.guard.ts`, `Booking Handler Service`, `Category Mappings Controllers`, `OnboardingProgressDto`, `Home Feed DTOs`, `Workers Controllers`, `Brand Repository`, `SearchRequestDto`, `BookingQueryService`, `index.ts`, `bookings.owner.controller.ts`, `@eslint/js`, `SearchHistoryService`, `crm-salon-diff.service.ts`, `AppCategoriesRepository`, `@nestjs/swagger`, `WorkersListQuery`, `UpdateCategoryDto`, `create-test-app.ts`, `OwnerSettingsService`, `shared.module.ts`, `CapabilityRegistryService`, `EasyWeekBooking`, `BookingDto`, `ClientSettingsService`, `ServicesRepository`, `WorkersRepository`, `ServicesSyncDto`, `CreateAltegioRecordDto`, `bookings.internal.controller.ts`, `CreateAppCategoryDto`, `SalonListQuery`?**
+  _High betweenness centrality (0.098) - this node is a cross-community bridge._
+- **Why does `scripts` connect `NPM Scripts & Build Tooling` to `create-test-app.ts`, `package.json`?**
   _High betweenness centrality (0.085) - this node is a cross-community bridge._
-- **Why does `test` connect `salons.e2e-spec.ts` to `NPM Scripts & Build Tooling`, `create-test-app.ts`, `Workers Controllers`?**
+- **Why does `test` connect `create-test-app.ts` to `NPM Scripts & Build Tooling`, `Workers Controllers`?**
   _High betweenness centrality (0.084) - this node is a cross-community bridge._
 - **Are the 2 inferred relationships involving `PrismaService` (e.g. with `cleanupTestApp()` and `createTestApp()`) actually correct?**
   _`PrismaService` has 2 INFERRED edges - model-reasoned connections that need verification._
-- **Are the 78 inferred relationships involving `bootstrap()` (e.g. with `SyncBookingsJobResponseDto` and `SyncBookingsNowResponseDto`) actually correct?**
-  _`bootstrap()` has 78 INFERRED edges - model-reasoned connections that need verification._
+- **Are the 77 inferred relationships involving `bootstrap()` (e.g. with `SyncBookingsJobResponseDto` and `SyncBookingsNowResponseDto`) actually correct?**
+  _`bootstrap()` has 77 INFERRED edges - model-reasoned connections that need verification._
 - **What connects `config`, `AnyAccountData`, `Op` to the rest of the system?**
-  _481 weakly-connected nodes found - possible documentation gaps or missing edges._
+  _484 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `NPM Scripts & Build Tooling` be split into smaller, more focused modules?**
   _Cohesion score 0.02531645569620253 - nodes in this community are weakly interconnected._
