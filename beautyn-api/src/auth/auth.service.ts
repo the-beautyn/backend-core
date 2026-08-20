@@ -288,10 +288,21 @@ export class AuthService {
     };
   }
 
-  async forgotPassword({ email }: ForgotPasswordDto) {
-    const appUrl = this.config.get<string>('APP_URL');
+  async forgotPassword({ email, client }: ForgotPasswordDto) {
+    // The recovery email template links to {{ .RedirectTo }}. The default
+    // (mobile) URL lives on the API domain, which iOS claims as a universal
+    // link — web-admin resets must point at the panel domain instead so the
+    // link is never intercepted by the app. Falls back to the mobile URL
+    // when ADMIN_PANEL_URL is not configured. Both URLs must be in
+    // Supabase's redirect allowlist or it silently rewrites them to site_url.
+    const appUrl = (this.config.get<string>('APP_URL') ?? '').replace(/\/+$/, '');
+    const adminPanelUrl = (this.config.get<string>('ADMIN_PANEL_URL') ?? '').replace(/\/+$/, '');
+    const baseUrl = client === 'web-admin' && adminPanelUrl ? adminPanelUrl : appUrl;
+    if (!baseUrl) {
+      throw new Error('APP_URL is not configured');
+    }
     const { error } = await this.sb.auth.resetPasswordForEmail(email, {
-      redirectTo: `${appUrl}/auth/reset`,
+      redirectTo: `${baseUrl}/auth/reset`,
     });
     if (error) throw new BadRequestException(error.message);
     return { message: 'Password-reset email sent' };
