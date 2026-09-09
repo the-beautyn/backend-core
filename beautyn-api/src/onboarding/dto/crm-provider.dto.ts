@@ -13,7 +13,7 @@ export class CrmFieldDto {
   @ApiProperty({ example: true })
   required!: boolean;
 
-  @ApiProperty({ example: 'EW-****', required: false })
+  @ApiProperty({ example: 'secret_****', required: false })
   placeholder?: string;
 
   @ApiProperty({ example: 'Copy from EasyWeek account', required: false })
