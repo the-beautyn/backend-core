@@ -120,13 +120,43 @@ export class SalonService {
   }
 
   async upsertFromCrm(input: SalonInternalSyncDto): Promise<SalonDto> {
-    const data = this.mapSyncDto(input.salon);
-    let salon: SalonModel;
+    // `undefined` means the adapter had no gallery data in this payload (the
+    // EasyWeek mapper emits it whenever `images` is not an array) — not that
+    // the salon has none. Same reading as `CrmSalonDiffService.detectChanges`:
+    // an omitted field is skipped, so a partial response never erases a
+    // gallery the CRM did not actually retract. An explicit `[]` still clears.
+    const imageUrls = input.salon.imageUrls?.filter(
+      (url): url is string => typeof url === 'string' && url.length > 0,
+    );
+    // The count is left out of the write (not set to undefined) when the
+    // gallery was omitted, so the stored value survives untouched.
+    const data: Prisma.SalonUncheckedCreateInput = {
+      ...this.mapSyncDto(input.salon),
+      ...(imageUrls !== undefined ? { imagesCount: imageUrls.length } : {}),
+    };
 
-    salon = await this.prisma.salon.upsert({
-      where: { id: input.salon_id },
-      update: data,
-      create: { id: input.salon_id, ...data },
+    // The gallery rows mirror `imageUrls` exactly as `imagesCount` does: the
+    // CRM pull is the source of truth for both, so a salon can never report a
+    // count its own gallery cannot back. Replaced wholesale, in CRM order.
+    const salon: SalonModel = await this.prisma.$transaction(async (tx) => {
+      const row = await tx.salon.upsert({
+        where: { id: input.salon_id },
+        update: data,
+        create: { id: input.salon_id, ...data },
+      });
+      if (imageUrls !== undefined) {
+        await tx.salonImage.deleteMany({ where: { salonId: row.id } });
+        if (imageUrls.length) {
+          await tx.salonImage.createMany({
+            data: imageUrls.map((url, index) => ({
+              salonId: row.id,
+              imageUrl: url,
+              sortOrder: index,
+            })),
+          });
+        }
+      }
+      return row;
     });
 
     return SalonMapper.toDto(salon);
@@ -261,7 +291,7 @@ export class SalonService {
       ratingCount: null,
       workingSchedule: input.workingSchedule,
       openHoursJson: Prisma.DbNull,
-      imagesCount: input.imageUrls?.length ?? 0,
+      // imagesCount is owned by upsertFromCrm, alongside the gallery rows.
       coverImageUrl: input.mainImageUrl,
     };
   }
