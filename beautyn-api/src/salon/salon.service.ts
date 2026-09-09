@@ -120,13 +120,34 @@ export class SalonService {
   }
 
   async upsertFromCrm(input: SalonInternalSyncDto): Promise<SalonDto> {
-    const data = this.mapSyncDto(input.salon);
-    let salon: SalonModel;
+    const imageUrls = (input.salon.imageUrls ?? []).filter(
+      (url): url is string => typeof url === 'string' && url.length > 0,
+    );
+    const data: Prisma.SalonUncheckedCreateInput = {
+      ...this.mapSyncDto(input.salon),
+      imagesCount: imageUrls.length,
+    };
 
-    salon = await this.prisma.salon.upsert({
-      where: { id: input.salon_id },
-      update: data,
-      create: { id: input.salon_id, ...data },
+    // The gallery rows mirror `imageUrls` exactly as `imagesCount` does: the
+    // CRM pull is the source of truth for both, so a salon can never report a
+    // count its own gallery cannot back. Replaced wholesale, in CRM order.
+    const salon: SalonModel = await this.prisma.$transaction(async (tx) => {
+      const row = await tx.salon.upsert({
+        where: { id: input.salon_id },
+        update: data,
+        create: { id: input.salon_id, ...data },
+      });
+      await tx.salonImage.deleteMany({ where: { salonId: row.id } });
+      if (imageUrls.length) {
+        await tx.salonImage.createMany({
+          data: imageUrls.map((url, index) => ({
+            salonId: row.id,
+            imageUrl: url,
+            sortOrder: index,
+          })),
+        });
+      }
+      return row;
     });
 
     return SalonMapper.toDto(salon);

@@ -68,6 +68,49 @@ describe('SalonService', () => {
     expect(res.items).toHaveLength(1);
   });
 
+  it('upsertFromCrm stores the gallery rows in CRM order and replaces them on the next pull', async () => {
+    await service.upsertFromCrm({
+      salon_id: 's1',
+      salon: {
+        externalId: 'ext-1',
+        name: 'Salon',
+        mainImageUrl: 'url1',
+        imageUrls: ['url1', 'url2', ''],
+      } as any,
+    });
+
+    let images = await prisma.salonImage.findMany({ where: { salonId: 's1' } });
+    expect(images.map((i: any) => [i.imageUrl, i.sortOrder])).toEqual([
+      ['url1', 0],
+      ['url2', 1],
+    ]);
+    let salon = await prisma.salon.findFirst({ where: { id: 's1' } });
+    expect(salon.imagesCount).toBe(2);
+    expect(salon.coverImageUrl).toBe('url1');
+
+    // The next pull is the whole truth: a shrunk gallery drops rows too.
+    await service.upsertFromCrm({
+      salon_id: 's1',
+      salon: { externalId: 'ext-1', name: 'Salon', imageUrls: ['url3'] } as any,
+    });
+
+    images = await prisma.salonImage.findMany({ where: { salonId: 's1' } });
+    expect(images.map((i: any) => i.imageUrl)).toEqual(['url3']);
+    salon = await prisma.salon.findFirst({ where: { id: 's1' } });
+    expect(salon.imagesCount).toBe(1);
+
+    // No images from the CRM clears the gallery rather than keeping stale rows.
+    await service.upsertFromCrm({
+      salon_id: 's1',
+      salon: { externalId: 'ext-1', name: 'Salon' } as any,
+    });
+
+    images = await prisma.salonImage.findMany({ where: { salonId: 's1' } });
+    expect(images).toHaveLength(0);
+    salon = await prisma.salon.findFirst({ where: { id: 's1' } });
+    expect(salon.imagesCount).toBe(0);
+  });
+
   it('replaceImages fully replaces gallery', async () => {
     await prisma.salon.create({ data: { id: 's1', name: 'Salon', imagesCount: 2 } });
     await prisma.salonImage.createMany({
