@@ -17,7 +17,11 @@ describe('BrandService', () => {
     listByBrand: jest.fn(),
   } as any;
 
-  const service = new BrandService(repo, salonService);
+  const syncScheduler = {
+    scheduleSync: jest.fn(),
+  } as any;
+
+  const service = new BrandService(repo, salonService, syncScheduler);
 
   beforeEach(() => {
     jest.resetAllMocks();
@@ -26,6 +30,61 @@ describe('BrandService', () => {
   it('throws if user already has a brand', async () => {
     repo.listBrandsForUser.mockResolvedValue([{ id: 'b1' }]);
     await expect(service.createBrand('u1', { name: 'Test' } as any)).rejects.toBeInstanceOf(BadRequestException);
+    expect(syncScheduler.scheduleSync).not.toHaveBeenCalled();
+  });
+
+  describe('createBrand initial sync', () => {
+    const brand = {
+      id: 'b1',
+      name: 'Acme',
+      createdAt: new Date('2024-01-01'),
+      updatedAt: new Date('2024-01-01'),
+    };
+
+    beforeEach(() => {
+      repo.listBrandsForUser.mockResolvedValue([]);
+      repo.createBrandWithOwner.mockResolvedValue(brand);
+    });
+
+    it('enqueues an initial sync for every CRM-linked salon attached to the brand', async () => {
+      repo.listSalonsByBrand.mockResolvedValue([
+        { id: 's1', provider: 'EASYWEEK' },
+        { id: 's2', provider: 'ALTEGIO' },
+      ]);
+      syncScheduler.scheduleSync.mockResolvedValue('job');
+
+      const res = await service.createBrand('u1', { name: ' Acme ' } as any);
+
+      expect(res).toMatchObject({ id: 'b1', name: 'Acme', salons_count: 2 });
+      expect(syncScheduler.scheduleSync).toHaveBeenCalledTimes(2);
+      expect(syncScheduler.scheduleSync).toHaveBeenCalledWith(
+        { salonId: 's1', provider: 'EASYWEEK' },
+        { type: 'initial' },
+      );
+      expect(syncScheduler.scheduleSync).toHaveBeenCalledWith(
+        { salonId: 's2', provider: 'ALTEGIO' },
+        { type: 'initial' },
+      );
+    });
+
+    it('skips salons without a CRM provider', async () => {
+      repo.listSalonsByBrand.mockResolvedValue([{ id: 's1', provider: null }]);
+
+      await service.createBrand('u1', { name: 'Acme' } as any);
+
+      expect(syncScheduler.scheduleSync).not.toHaveBeenCalled();
+    });
+
+    it('still creates the brand when enqueueing fails', async () => {
+      repo.listSalonsByBrand.mockResolvedValue([
+        { id: 's1', provider: 'EASYWEEK' },
+      ]);
+      syncScheduler.scheduleSync.mockRejectedValue(new Error('redis down'));
+
+      const res = await service.createBrand('u1', { name: 'Acme' } as any);
+
+      expect(res).toMatchObject({ id: 'b1', salons_count: 1 });
+    });
   });
 
   it('returns brand list', async () => {

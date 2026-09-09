@@ -3,17 +3,38 @@ import { BrandRepository } from './brand.repository';
 import { CreateBrandDto } from './dto/create-brand.dto';
 import { UpdateBrandDto } from './dto/update-brand.dto';
 import { BrandResponseDto } from './dto/brand-response.dto';
-import { BrandMember } from '@prisma/client';
+import { BrandMember, Salon } from '@prisma/client';
+import { SyncSchedulerService } from '@crm/sync-scheduler';
+import { CrmType } from '@crm/shared';
+import { createChildLogger } from '@shared/logger';
 import { SalonDto } from '../salon/dto/salon.dto';
 import { SalonService } from '../salon/salon.service';
 import { SalonIncludeOptions } from '../salon/salon.service';
 import { BrandMemberResponseDto } from './dto/brand-member-response.dto';
 
+/**
+ * Upper bound on waiting for the queue to accept an initial-sync job. BullMQ
+ * buffers commands while Redis is unreachable instead of failing, so without
+ * a bound a Redis outage would turn brand creation into a hanging request.
+ */
+const INITIAL_SYNC_ENQUEUE_TIMEOUT_MS = 5_000;
+
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  let timer: NodeJS.Timeout | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`timed out after ${ms}ms`)), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
 @Injectable()
 export class BrandService {
+  private readonly log = createChildLogger('brand.service');
+
   constructor(
     private readonly repo: BrandRepository,
     private readonly salonService: SalonService,
+    private readonly syncScheduler: SyncSchedulerService,
   ) {}
 
   async createBrand(userId: string, dto: CreateBrandDto): Promise<BrandResponseDto> {
@@ -23,14 +44,55 @@ export class BrandService {
     }
     const name = dto.name.trim();
     const brand = await this.repo.createBrandWithOwner(userId, name);
-    const withCount = await this.repo.listSalonsByBrand(brand.id);
+    const salons = await this.repo.listSalonsByBrand(brand.id);
+    await this.enqueueInitialSync(brand.id, salons);
     return {
       id: brand.id,
       name: brand.name,
       created_at: brand.createdAt,
       updated_at: brand.updatedAt,
-      salons_count: withCount?.length ?? 0,
+      salons_count: salons?.length ?? 0,
     };
+  }
+
+  /**
+   * Brand creation is the first moment an initial CRM sync can run: the
+   * onboarding sync endpoints resolve salons through brand membership, and
+   * the CRM link step only stores identifiers — name, address, services and
+   * staff all arrive with this sync. Nothing else in the flow triggers it, so
+   * an owner who never called the sync endpoint by hand ended up with a
+   * nameless salon.
+   *
+   * Deliberately non-fatal: the brand and the onboarding step are already
+   * committed, and a queue problem must not undo that. Failures are logged;
+   * the owner can still trigger the sync from the app.
+   */
+  private async enqueueInitialSync(
+    brandId: string,
+    salons: Salon[],
+  ): Promise<void> {
+    for (const salon of salons ?? []) {
+      if (!salon.provider) continue;
+      try {
+        await withTimeout(
+          this.syncScheduler.scheduleSync(
+            { salonId: salon.id, provider: salon.provider as CrmType },
+            { type: 'initial' },
+          ),
+          INITIAL_SYNC_ENQUEUE_TIMEOUT_MS,
+        );
+      } catch (error) {
+        this.log.warn(
+          'Failed to enqueue initial CRM sync after brand creation',
+          {
+            brandId,
+            salonId: salon.id,
+            provider: salon.provider,
+            error: error instanceof Error ? error.message : String(error),
+          },
+        );
+      }
+    }
   }
 
   async listMyBrands(userId: string): Promise<BrandResponseDto[]> {

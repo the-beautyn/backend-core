@@ -6,10 +6,19 @@ import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/shared/database/prisma.service';
 import { TransformInterceptor } from '../src/shared/interceptors/transform.interceptor';
 import { JwtAuthGuard } from '../src/shared/guards/jwt-auth.guard';
+import { SyncSchedulerService } from '@crm/sync-scheduler';
 
 describe('Brand (e2e)', () => {
   let app: INestApplication;
   const userId = '123e4567-e89b-12d3-a456-426614174111';
+
+  // Brand creation enqueues the initial CRM sync; the real scheduler would
+  // open a Redis connection, so it is replaced here and asserted on instead.
+  const syncSchedulerMock = {
+    scheduleSync: jest
+      .fn()
+      .mockResolvedValue('job-1'),
+  };
 
   const brands: any[] = [];
   const brandMembers: any[] = [];
@@ -139,6 +148,8 @@ describe('Brand (e2e)', () => {
       .useValue(mockJwtGuard)
       .overrideProvider(PrismaService)
       .useValue(prismaMock)
+      .overrideProvider(SyncSchedulerService)
+      .useValue(syncSchedulerMock)
       .compile();
 
     app = moduleFixture.createNestApplication();
@@ -162,6 +173,7 @@ describe('Brand (e2e)', () => {
     brandMembers.length = 0;
     salons.length = 0;
     steps.length = 0;
+    syncSchedulerMock.scheduleSync.mockClear();
   });
 
   it('GET /api/v1/brand/my without JWT returns 401', () => {
@@ -208,6 +220,15 @@ describe('Brand (e2e)', () => {
 
     expect(createRes.body.success).toBe(true);
     expect(createRes.body.data.name).toBe('Acme');
+    // The salon linked during onboarding gets its initial CRM sync queued now.
+    expect(syncSchedulerMock.scheduleSync).toHaveBeenCalledTimes(1);
+    expect(syncSchedulerMock.scheduleSync).toHaveBeenCalledWith(
+      {
+        salonId: preSalonId,
+        provider: 'EASYWEEK',
+      },
+      { type: 'initial' },
+    );
 
     const brandId = createRes.body.data.id;
     salons.push({
@@ -332,6 +353,9 @@ describe('Brand (e2e)', () => {
       .set('Authorization', 'Bearer valid')
       .send({ name: 'Acme' })
       .expect(201);
+
+    // No salon is attached to the brand, so there is nothing to sync.
+    expect(syncSchedulerMock.scheduleSync).not.toHaveBeenCalled();
 
     const progressRes = await request(app.getHttpServer())
       .get('/api/v1/onboarding/progress')
