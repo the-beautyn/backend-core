@@ -99,10 +99,24 @@ describe('SalonService', () => {
     salon = await prisma.salon.findFirst({ where: { id: 's1' } });
     expect(salon.imagesCount).toBe(1);
 
-    // No images from the CRM clears the gallery rather than keeping stale rows.
+    // A payload that omits imageUrls (the EasyWeek mapper emits undefined when
+    // `images` is not an array) says nothing about the gallery: rows and count
+    // stay as they were.
     await service.upsertFromCrm({
       salon_id: 's1',
-      salon: { externalId: 'ext-1', name: 'Salon' } as any,
+      salon: { externalId: 'ext-1', name: 'Salon renamed' } as any,
+    });
+
+    images = await prisma.salonImage.findMany({ where: { salonId: 's1' } });
+    expect(images.map((i: any) => i.imageUrl)).toEqual(['url3']);
+    salon = await prisma.salon.findFirst({ where: { id: 's1' } });
+    expect(salon.name).toBe('Salon renamed');
+    expect(salon.imagesCount).toBe(1);
+
+    // An explicit empty gallery is a retraction and does clear the rows.
+    await service.upsertFromCrm({
+      salon_id: 's1',
+      salon: { externalId: 'ext-1', name: 'Salon', imageUrls: [] } as any,
     });
 
     images = await prisma.salonImage.findMany({ where: { salonId: 's1' } });
