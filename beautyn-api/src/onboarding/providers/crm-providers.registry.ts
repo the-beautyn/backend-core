@@ -50,7 +50,7 @@ export class CrmProvidersRegistry {
         label: 'EasyWeek',
         flow: 'token',
         fields: [
-          { name: 'auth_token', label: 'API Token', type: 'password', required: true, placeholder: 'EW-****' },
+          { name: 'auth_token', label: 'API Token', type: 'password', required: true, placeholder: 'secret_****' },
           { name: 'workspace_slug', label: 'Workspace Slug', type: 'text', required: true, placeholder: 'acme-studio' },
         ],
         capabilities: ['locations', 'serviceCatalog', 'workerRoster'],
