@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { INestApplication, UnauthorizedException } from '@nestjs/common';
+import { INestApplication, UnauthorizedException, ValidationPipe } from '@nestjs/common';
 import request from 'supertest';
 import { AppModule } from '../../src/app.module';
 import { BookingQueryService } from '../../src/booking/booking-query.service';
@@ -61,8 +61,22 @@ describe('Owner bookings API (e2e)', () => {
       .compile();
 
     app = moduleFixture.createNestApplication();
+    // Mirrors main.ts, so the list query DTO's validation and its string→number
+    // transform are exercised here rather than bypassed.
+    app.useGlobalPipes(
+      new ValidationPipe({
+        whitelist: true,
+        forbidNonWhitelisted: true,
+        transform: true,
+        transformOptions: { enableImplicitConversion: true },
+      }),
+    );
     app.useGlobalInterceptors(new TransformInterceptor(new Reflector()));
     await app.init();
+  });
+
+  beforeEach(() => {
+    bookingQueryMock.listForSalon.mockClear();
   });
 
   afterAll(async () => {
@@ -76,6 +90,43 @@ describe('Owner bookings API (e2e)', () => {
       .expect(200);
 
     expect(res.body?.data?.items?.[0]?.id).toBe(bookingId);
+  });
+
+  it('returns page and total in offset mode', async () => {
+    bookingQueryMock.listForSalon.mockResolvedValueOnce({
+      items: [{ id: bookingId }],
+      limit: 10,
+      page: 2,
+      total: 1000,
+    });
+
+    const res = await request(app.getHttpServer())
+      .get(`/api/v1/salons/${salonId}/bookings?page=2&limit=10&status=created`)
+      .set('Authorization', 'Bearer token')
+      .expect(200);
+
+    expect(res.body?.data?.total).toBe(1000);
+    expect(res.body?.data?.page).toBe(2);
+    // Query strings arrive as strings; the DTO's @Type(() => Number) is what makes
+    // these numbers by the time the service sees them.
+    expect(bookingQueryMock.listForSalon).toHaveBeenCalledWith(
+      expect.objectContaining({ page: 2, limit: 10, status: 'created' }),
+    );
+  });
+
+  it.each([
+    ['page below 1', 'page=0'],
+    ['limit above the cap', 'limit=500'],
+    ['a non-numeric page', 'page=abc'],
+    ['a malformed date', 'from=not-a-date'],
+    ['an unknown param', 'bogus=1'],
+  ])('rejects %s', async (_label, qs) => {
+    await request(app.getHttpServer())
+      .get(`/api/v1/salons/${salonId}/bookings?${qs}`)
+      .set('Authorization', 'Bearer token')
+      .expect(400);
+
+    expect(bookingQueryMock.listForSalon).not.toHaveBeenCalled();
   });
 
   it('gets booking by id', async () => {

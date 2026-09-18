@@ -2,6 +2,20 @@ import { CrmError, ErrorKind } from '@crm/shared';
 import { EasyWeekContext } from './context';
 import { Page } from '../dtos';
 
+/**
+ * The customer EasyWeek attaches to a booking. Present on both the create response
+ * and the booking GET. `phone` already arrives in E.164 ("+380950000001"), and
+ * `uuid` is stable per customer — the external key a clients table would key on.
+ */
+export type EasyWeekBookingCustomer = {
+  uuid?: string | null;
+  firstName?: string | null;
+  lastName?: string | null;
+  middleName?: string | null;
+  phone?: string | null;
+  email?: string | null;
+};
+
 export type EasyWeekBooking = {
   uuid: string;
   locationUuid?: string | null;
@@ -17,8 +31,21 @@ export type EasyWeekBooking = {
   duration?: any;
   policy?: any;
   links?: any;
+  customer?: EasyWeekBookingCustomer | null;
   raw?: any;
 };
+
+function normalizeCustomer(raw: any): EasyWeekBookingCustomer | null {
+  if (!raw || typeof raw !== 'object') return null;
+  return {
+    uuid: raw.uuid ?? null,
+    firstName: raw.first_name ?? raw.firstName ?? null,
+    lastName: raw.last_name ?? raw.lastName ?? null,
+    middleName: raw.middle_name ?? raw.middleName ?? null,
+    phone: raw.phone ?? null,
+    email: raw.email ?? null,
+  };
+}
 
 function normalizeBooking(raw: any, fallbackUuid: string): EasyWeekBooking {
   const booking = raw ?? {};
@@ -51,6 +78,7 @@ function normalizeBooking(raw: any, fallbackUuid: string): EasyWeekBooking {
     duration: booking.duration ?? null,
     policy: booking.policy ?? null,
     links: booking.links ?? null,
+    customer: normalizeCustomer(booking.customer),
     raw: booking,
   };
 }

@@ -1,6 +1,5 @@
-import { Body, Controller, Get, NotFoundException, Param, ParseUUIDPipe, Post, Query, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, NotFoundException, Param, ParseUUIDPipe, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags, ApiProperty } from '@nestjs/swagger';
-import type { Request } from 'express';
 import { BookingQueryService } from '../../../booking/booking-query.service';
 import {
   BookingDto,
@@ -8,6 +7,7 @@ import {
   BookingListResponseDtoClass,
   BookingResponseDto,
 } from '../../../booking/dto/booking.response.dto';
+import { OwnerBookingsListQueryDto } from '../../../booking/dto/owner-bookings-list.query';
 import { JwtAuthGuard } from '../../../shared/guards/jwt-auth.guard';
 import { OwnerRolesGuard } from '../../../shared/guards/roles.guard';
 import { SalonAccessGuard } from '../../../brand/guards/salon-access.guard';
@@ -42,26 +42,17 @@ export class OwnerBookingsController {
   @ApiOkResponse({ description: 'List of bookings', ...envelopeRef(BookingListResponseDtoClass) })
   async list(
     @Param('salonId', new ParseUUIDPipe()) salonId: string,
-    @Query('status') status?: string,
-    @Query('from') from?: string,
-    @Query('to') to?: string,
-    @Query('limit') limit?: string,
-    @Query('cursor') cursor?: string,
-    @Query('included') included?: string,
-    @Req() _req?: Request,
+    @Query() query: OwnerBookingsListQueryDto,
   ): Promise<BookingListResponseDto> {
-    const fromDate = this.toDate(from);
-    const toDate = this.toDate(to);
-    const take = limit ? Number(limit) : undefined;
-    const includeHistory = this.hasInclude(included, 'history');
     return this.bookings.listForSalon({
       salonId,
-      status: status || undefined,
-      from: fromDate || undefined,
-      to: toDate || undefined,
-      limit: Number.isFinite(take) ? take : undefined,
-      cursor: cursor || undefined,
-      includeHistory,
+      status: query.status || undefined,
+      from: this.toDate(query.from) || undefined,
+      to: this.toDate(query.to) || undefined,
+      limit: query.limit,
+      page: query.page,
+      cursor: query.cursor || undefined,
+      includeHistory: this.hasInclude(query.included, 'history'),
     });
   }
 

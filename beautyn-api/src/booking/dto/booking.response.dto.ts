@@ -112,12 +112,25 @@ export type BookingSalonSummaryDto = {
   timezone?: string | null;
 };
 
+/**
+ * Who the booking is for, as the CRM described them at sync time. `source` says
+ * where it came from: the CRM record, or the account that made the booking.
+ */
+export type BookingClientDto = {
+  name?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  source?: string | null;
+};
+
 export type BookingDto = {
   id: string;
   salon_id: string;
   salon?: BookingSalonSummaryDto | null;
   user_id: string | null;
   worker?: { id: string; first_name: string; last_name: string; photo_url?: string | null } | null;
+  /** Denormalised client snapshot stored on the booking row. */
+  client?: BookingClientDto | null;
   status: string;
   datetime: string;
   end_datetime?: string | null;
@@ -153,6 +166,9 @@ export type BookingListResponseDto = {
   items: BookingDto[];
   next_cursor?: string | null;
   limit: number;
+  /** Offset mode only (owner list). Absent from cursor responses, which the app uses. */
+  page?: number;
+  total?: number;
 };
 
 export class BookingProviderEasyweekResponseDto {
@@ -200,12 +216,33 @@ export class BookingSalonSummaryResponseDto {
   @ApiPropertyOptional() timezone?: string | null;
 }
 
+export class BookingWorkerResponseDto {
+  @ApiProperty() id!: string;
+  @ApiProperty() first_name!: string;
+  @ApiProperty() last_name!: string;
+  @ApiPropertyOptional() photo_url?: string | null;
+}
+
+export class BookingClientResponseDto {
+  @ApiPropertyOptional() name?: string | null;
+  @ApiPropertyOptional() phone?: string | null;
+  @ApiPropertyOptional() email?: string | null;
+  @ApiPropertyOptional({ description: 'easyweek | altegio | user' })
+  source?: string | null;
+}
+
 export class BookingResponseDto {
   @ApiProperty() id!: string;
   @ApiProperty() salon_id!: string;
   @ApiPropertyOptional({ type: () => BookingSalonSummaryResponseDto })
   salon?: BookingSalonSummaryResponseDto | null;
   @ApiPropertyOptional() user_id?: string | null;
+  // Returned by mapBooking since BEA-52 but never declared, so it was invisible
+  // to /api-json and to the generated panel client.
+  @ApiPropertyOptional({ type: () => BookingWorkerResponseDto })
+  worker?: BookingWorkerResponseDto | null;
+  @ApiPropertyOptional({ type: () => BookingClientResponseDto })
+  client?: BookingClientResponseDto | null;
   @ApiProperty() status!: string;
   @ApiProperty() datetime!: string;
   @ApiPropertyOptional() end_datetime?: string | null;
@@ -234,4 +271,7 @@ export class BookingListResponseDtoClass {
   @ApiProperty({ type: [BookingResponseDto] }) items!: BookingResponseDto[];
   @ApiPropertyOptional() next_cursor?: string | null;
   @ApiProperty() limit!: number;
+  // Offset mode only. Optional so the client app's cursor responses are unchanged.
+  @ApiPropertyOptional() page?: number;
+  @ApiPropertyOptional() total?: number;
 }

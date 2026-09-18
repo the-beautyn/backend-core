@@ -393,6 +393,13 @@ model Booking {
   serviceIds    Json?    @map("service_ids")
   shortLink     String?  @map("short_link")
   crmPayload    Json?    @map("crm_payload")
+  // Client snapshot: who the CRM says this booking is for, denormalised onto the
+  // row so the owner list can show a name/phone without a clients table. Refreshed
+  // on every sync, so CRM-side edits win. `clientSource` records where it came from.
+  clientName    String?  @map("client_name")
+  clientPhone   String?  @map("client_phone") @db.VarChar(30)
+  clientEmail   String?  @map("client_email")
+  clientSource  String?  @map("client_source")
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
 
@@ -403,6 +410,9 @@ model Booking {
   history BookingHistory[]
 
   @@index([salonId], map: "bookings_salon_idx")
+  // The owner list orders by datetime desc within a salon and now also counts
+  // over the same filter for `total`; without this both are a salon-wide scan.
+  @@index([salonId, datetime(sort: Desc)], map: "bookings_salon_datetime_idx")
   @@unique([crmType, crmRecordId], map: "bookings_crm_type_record_unique")
   @@map("bookings")
 }

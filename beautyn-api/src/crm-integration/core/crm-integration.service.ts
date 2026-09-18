@@ -231,6 +231,7 @@ export class CrmIntegrationService {
         duration: res.duration,
         policy: res.policy,
         links: res.links,
+        customer: res.customer ?? null,
         raw: res.raw,
       };
     } catch (e) {

@@ -36,6 +36,8 @@ import {
   BookingProviderAltegioResponseDto,
   BookingProviderSpecificDto,
   BookingHistoryEntryDto,
+  BookingWorkerResponseDto,
+  BookingClientResponseDto,
 } from './booking/dto/booking.response.dto';
 import { SyncBookingsNowResponseDto, SyncBookingsJobResponseDto } from './api-gateway/v1/authenticated/bookings.owner.controller';
 import { DiscoverEasyWeekResponseDto } from './onboarding/dto/discover-easyweek-response.dto';
@@ -137,6 +139,8 @@ async function bootstrap() {
       BookingProviderAltegioResponseDto,
       BookingProviderSpecificDto,
       BookingHistoryEntryDto,
+      BookingWorkerResponseDto,
+      BookingClientResponseDto,
       SyncBookingsNowResponseDto,
       SyncBookingsJobResponseDto,
       // Onboarding

@@ -3,8 +3,20 @@ import { Prisma } from '@prisma/client';
 import { CrmType } from '@crm/shared';
 import type { EasyWeekBooking } from '@crm/provider-core/easyweek/bookings';
 import type { AltegioBooking } from '@crm/provider-core/altegio/bookings';
-import type { EasyweekBookingDtoNormalized } from '../crm-integration/core/dto/easyweek-booking.dto';
+import type {
+  EasyweekBookingCustomerDto,
+  EasyweekBookingDtoNormalized,
+} from '../crm-integration/core/dto/easyweek-booking.dto';
 import { PrismaService } from '../shared/database/prisma.service';
+import {
+  clientFromAltegioClient,
+  clientFromEasyweekCustomer,
+  clientFromRow,
+  EMPTY_CLIENT,
+  hasAnyClientField,
+  resolveClientSnapshot as resolveSnapshot,
+  type ClientSnapshot,
+} from './client-snapshot';
 
 type NormalizedEasyweek = {
   bookingUuid: string;
@@ -21,6 +33,7 @@ type NormalizedEasyweek = {
   policy?: any;
   links?: any;
   comment?: string | null;
+  customer?: EasyweekBookingCustomerDto | null;
   raw?: any;
 };
 
@@ -57,6 +70,10 @@ export class BookingHandlerService {
     const status = normalized.isCanceled ? 'canceled' : normalized.isCompleted ? 'completed' : 'created';
     const payload = normalized.raw ?? normalized;
     const shortLink = params.workspaceSlug ? this.buildShortLink(params.workspaceSlug, normalized.bookingUuid) : null;
+    const client = await this.resolveClientSnapshot(
+      clientFromEasyweekCustomer(normalized.customer ?? null),
+      params.userId ?? null,
+    );
 
     const incoming = this.buildEasyweekIncomingState({
       salonId: params.salonId,
@@ -73,6 +90,7 @@ export class BookingHandlerService {
       orderedServices: Array.isArray(normalized.orderedServices) ? normalized.orderedServices : [],
       order: normalized.order ?? null,
       duration: normalized.duration ?? null,
+      client,
     });
 
     const created = await this.prisma.$transaction(async (tx) => {
@@ -89,6 +107,7 @@ export class BookingHandlerService {
           crmCompanyId: normalized.locationUuid ?? null,
           comment: normalized.comment ?? null,
           crmPayload: payload,
+          ...client,
           crmServiceIds: [],
           serviceIds: [],
           shortLink,
@@ -141,6 +160,10 @@ export class BookingHandlerService {
     const end = this.toDate(normalized.endTime ?? null);
     const status = normalized.isCanceled ? 'canceled' : normalized.isCompleted ? 'completed' : 'created';
     const payload = normalized.raw ?? normalized;
+    const client = await this.resolveClientSnapshot(
+      clientFromEasyweekCustomer(normalized.customer ?? null),
+      existing.userId ?? null,
+    );
 
     const incoming = this.buildEasyweekIncomingState({
       salonId: existing.salonId,
@@ -157,6 +180,7 @@ export class BookingHandlerService {
       orderedServices: Array.isArray(normalized.orderedServices) ? normalized.orderedServices : [],
       order: normalized.order ?? null,
       duration: normalized.duration ?? null,
+      client,
     });
 
     const existingSnapshot = this.buildEasyweekExistingState(existing);
@@ -177,6 +201,7 @@ export class BookingHandlerService {
           crmCompanyId: normalized.locationUuid ?? null,
           comment: normalized.comment ?? null,
           crmPayload: payload,
+          ...client,
           crmServiceIds: [],
           serviceIds: [],
           shortLink: existing.shortLink ?? null,
@@ -253,6 +278,7 @@ export class BookingHandlerService {
           serviceIds: incoming.serviceIds ?? Prisma.DbNull,
           shortLink: params.booking?.raw?.short_link ?? null,
           crmPayload: payload,
+          ...incoming.clientSnapshot,
           version: 1,
         },
       });
@@ -337,6 +363,7 @@ export class BookingHandlerService {
           shortLink: params.booking?.raw?.short_link ?? null,
           comment: params.booking?.comment ?? null,
           crmPayload: payload,
+          ...incoming.clientSnapshot,
           version: nextVersion,
         },
       });
@@ -357,6 +384,44 @@ export class BookingHandlerService {
     return { booking: existing, changed: true };
   }
 
+  /**
+   * The client to store on the booking row. The precedence rules live in
+   * `client-snapshot.ts` so the back-fill script produces byte-identical results;
+   * all this adds is the account read, since `Booking.userId` is a bare column with
+   * no Prisma relation to follow.
+   */
+  private async resolveClientSnapshot(
+    fromCrm: ClientSnapshot,
+    userId: string | null | undefined,
+  ): Promise<ClientSnapshot> {
+    if (hasAnyClientField(fromCrm)) return fromCrm;
+    if (!userId) return EMPTY_CLIENT;
+
+    const user = await this.prisma.users.findUnique({
+      where: { id: userId },
+      select: { name: true, secondName: true, phone: true, email: true },
+    });
+    return resolveSnapshot(fromCrm, user);
+  }
+
+  /**
+   * EasyWeek's `customer` as it sits in the untouched payload. Used when the typed
+   * field is absent — the raw blob has carried it all along, which is also what
+   * lets the migration back-fill historical rows without a CRM re-pull.
+   */
+  private readRawCustomer(raw: any): EasyweekBookingCustomerDto | null {
+    const customer = raw?.customer;
+    if (!customer || typeof customer !== 'object') return null;
+    return {
+      uuid: customer.uuid ?? null,
+      firstName: customer.first_name ?? customer.firstName ?? null,
+      lastName: customer.last_name ?? customer.lastName ?? null,
+      middleName: customer.middle_name ?? customer.middleName ?? null,
+      phone: customer.phone ?? null,
+      email: customer.email ?? null,
+    };
+  }
+
   private normalizeEasyweekInput(input: EasyWeekBooking | EasyweekBookingDtoNormalized): NormalizedEasyweek {
     if ((input as EasyweekBookingDtoNormalized)?.bookingUuid) {
       const dto = input as EasyweekBookingDtoNormalized;
@@ -375,6 +440,9 @@ export class BookingHandlerService {
         policy: dto.policy ?? null,
         links: dto.links ?? null,
         comment: dto.comment ?? null,
+        // Fall back to the raw payload: callers built before the customer was
+        // threaded through still carry it there, untouched.
+        customer: dto.customer ?? this.readRawCustomer(dto.raw),
         raw: dto.raw ?? null,
       };
     }
@@ -395,6 +463,7 @@ export class BookingHandlerService {
       policy: booking.policy ?? null,
       links: booking.links ?? null,
       comment: booking.publicNotes ?? null,
+      customer: booking.customer ?? this.readRawCustomer(booking.raw),
       raw: booking.raw ?? null,
     };
   }
@@ -414,6 +483,7 @@ export class BookingHandlerService {
     orderedServices: any[];
     order: any;
     duration: any;
+    client: ClientSnapshot;
   }) {
     const mappedDuration = this.mapEasyweekDuration(args.duration);
     const mappedOrder = this.mapEasyweekOrder(args.order);
@@ -436,6 +506,10 @@ export class BookingHandlerService {
         serviceIds: null,
         shortLink: args.shortLink ?? null,
         crmPayload: args.crmPayload ?? null,
+        // In the snapshot deliberately: without it, a booking whose only change
+        // is the client compares equal and the CRM-side edit is dropped by the
+        // early return in the update path.
+        ...args.client,
       },
     });
 
@@ -467,6 +541,7 @@ export class BookingHandlerService {
         serviceIds: this.normalizeJsonArray(existing.serviceIds),
         shortLink: existing.shortLink ?? null,
         crmPayload: existing.crmPayload ?? null,
+        ...clientFromRow(existing),
       },
     });
 
@@ -497,6 +572,12 @@ export class BookingHandlerService {
     const mappedServices = this.mapAltegioServices(args.booking?.services ?? args.booking?.raw?.services ?? null);
     const mappedDocuments = this.mapAltegioDocuments(args.booking?.documents ?? args.booking?.raw?.documents ?? null);
     const mappedGoods = this.mapAltegioGoods(args.booking?.goodsTransactions ?? args.booking?.raw?.goods_transactions ?? null);
+    // `mapAltegioClient` returns an all-nulls object rather than null when Altegio
+    // sent no client, so the fallback is driven by content, not by presence.
+    const clientSnapshot = await this.resolveClientSnapshot(
+      clientFromAltegioClient(mappedClient),
+      args.userId,
+    );
 
     const snapshot = this.normalizeSnapshot({
       booking: {
@@ -515,11 +596,15 @@ export class BookingHandlerService {
         serviceIds: serviceIds.length ? serviceIds : null,
         shortLink: args.booking?.raw?.short_link ?? null,
         crmPayload: args.payload ?? null,
+        // See the EasyWeek builder: in the snapshot so a client-only CRM edit is
+        // not swallowed by the change-detection guard.
+        ...clientSnapshot,
       },
     });
 
     return {
       snapshot,
+      clientSnapshot,
       details: mappedDetails,
       staff: mappedStaff,
       client: mappedClient,
@@ -551,6 +636,7 @@ export class BookingHandlerService {
         serviceIds: this.normalizeJsonArray(existing.serviceIds),
         shortLink: existing.shortLink ?? null,
         crmPayload: existing.crmPayload ?? null,
+        ...clientFromRow(existing),
       },
     });
 

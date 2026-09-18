@@ -1,7 +1,12 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { Prisma, Booking } from '@prisma/client';
 import { PrismaService } from '../shared/database/prisma.service';
+import { normalizePagination } from '../shared/utils/pagination.util';
 import { BookingDto, BookingListResponseDto, BookingProviderAltegioDto, BookingProviderEasyweekDto } from './dto/booking.response.dto';
+
+/** Shared by both pagination modes so cursor and offset never disagree on limits. */
+const DEFAULT_PAGE_SIZE = 20;
+const MAX_PAGE_SIZE = 100;
 
 type BookingWithRelations = Booking & {
   salon: {
@@ -88,7 +93,7 @@ export class BookingQueryService {
       where: { id: bookingId, salonId },
       include: this.include,
     });
-    return booking ? this.mapBooking(booking as unknown as BookingWithRelations, { includeHistory }) : null;
+    return booking ? this.mapBooking(booking as unknown as BookingWithRelations, { includeHistory, includeClient: true }) : null;
   }
 
   async listForClient(params: {
@@ -102,7 +107,7 @@ export class BookingQueryService {
   }): Promise<BookingListResponseDto> {
     const take = this.clampTake(params.limit);
     const direction: Prisma.SortOrder = params.sort === 'datetime_asc' ? 'asc' : 'desc';
-    const where = this.buildClientScopeWhere(params, new Date());
+    const where = this.buildBucketWhere({ userId: params.userId }, params, new Date());
 
     // All buckets (incl. cancelled) are returned ordered by appointment datetime.
     // The Cancelled tab is re-ordered by cancelledAt client-side; cancelled_at is
@@ -125,20 +130,25 @@ export class BookingQueryService {
     };
   }
 
-  // The My Bookings tabs send `status` as a bucket selector (created → upcoming,
-  // completed → past, canceled → cancelled). We translate that into a datetime-driven
-  // WHERE evaluated at read-time, so a booking is never stranded just because the CRM
-  // never flipped its stored status:
+  // Both the app's My Bookings tabs and the owner panel's Bookings tabs send `status`
+  // as a bucket selector (created → upcoming, completed → past, canceled → cancelled).
+  // We translate that into a datetime-driven WHERE evaluated at read-time, so a booking
+  // is never stranded just because the CRM never flipped its stored status:
   //   • upcoming  → not cancelled AND the visit hasn't happened (end, fallback start, is in
   //                 the future) AND not already marked attended (Altegio attendance=1).
   //   • past      → not cancelled AND (end/start has passed OR Altegio attendance=1).
   //   • cancelled → EasyWeek 'canceled' + Altegio 'deleted'.
   // Any other/absent status falls back to the legacy generic status + date-range filter.
-  private buildClientScopeWhere(
-    params: { userId: string; status?: string; from?: Date; to?: Date },
+  //
+  // `base` is the only thing that differs between the two callers — `{ userId }` for
+  // the client's own list, `{ salonId }` for the owner's. Keeping one builder is what
+  // guarantees an owner's Активні tab holds exactly the rows the client app calls
+  // upcoming, rather than two definitions that drift apart.
+  private buildBucketWhere(
+    base: Prisma.BookingWhereInput,
+    params: { status?: string; from?: Date; to?: Date },
     now: Date,
   ): Prisma.BookingWhereInput {
-    const base: Prisma.BookingWhereInput = { userId: params.userId };
     const notCancelled = { notIn: BookingQueryService.CANCELLED_STATUSES };
     const attended: Prisma.BookingWhereInput = { altegioDetails: { is: { attendance: 1 } } };
     // "Not attended" must be NULL-safe: `NOT: { altegioDetails: { is: { attendance: 1 } } }`
@@ -202,43 +212,70 @@ export class BookingQueryService {
     }
   }
 
+  /**
+   * The owner panel's booking list. Two pagination modes, deliberately exclusive:
+   *
+   *  • `cursor` — the original mode, still used by anything that walks forward.
+   *  • `page`   — offset mode, which also returns `total` so the panel can render
+   *               "Showing 1–10 of N" and numbered pages. Costs an extra COUNT over
+   *               the same filter, which is why `(salon_id, datetime desc)` is indexed.
+   *
+   * Sending both is rejected rather than silently picking one, because the two
+   * disagree about what "the next page" means and the caller would not find out.
+   */
   async listForSalon(params: {
     salonId: string;
     status?: string;
     from?: Date;
     to?: Date;
     cursor?: string;
+    page?: number;
     limit?: number;
     includeHistory?: boolean;
   }): Promise<BookingListResponseDto> {
-    const take = this.clampTake(params.limit);
-    const where: Prisma.BookingWhereInput = {
-      salonId: params.salonId,
-      ...(params.status ? { status: params.status } : {}),
-      ...(params.from || params.to
-        ? {
-            datetime: {
-              ...(params.from ? { gte: params.from } : {}),
-              ...(params.to ? { lte: params.to } : {}),
-            },
-          }
-        : {}),
-    };
+    if (params.page !== undefined && params.cursor) {
+      throw new BadRequestException('Use either page or cursor, not both');
+    }
 
+    // Same bucket logic as the client app's tabs — see buildBucketWhere.
+    const where = this.buildBucketWhere({ salonId: params.salonId }, params, new Date());
+    const includeHistory = params.includeHistory ?? true;
+    const orderBy: Prisma.BookingOrderByWithRelationInput[] = [{ datetime: 'desc' }, { id: 'desc' }];
+
+    if (params.page !== undefined) {
+      const { page, limit, skip } = normalizePagination(params.page, params.limit, {
+        defaultLimit: DEFAULT_PAGE_SIZE,
+        maxLimit: MAX_PAGE_SIZE,
+      });
+      const [rows, total] = await this.prisma.$transaction([
+        this.prisma.booking.findMany({ where, include: this.include, skip, take: limit, orderBy }),
+        this.prisma.booking.count({ where }),
+      ]);
+      return {
+        items: (rows as unknown as BookingWithRelations[]).map((b) =>
+          this.mapBooking(b, { includeHistory, includeClient: true }),
+        ),
+        // No next_cursor in offset mode: mixing the two is what the guard above prevents.
+        limit,
+        page,
+        total,
+      };
+    }
+
+    const take = this.clampTake(params.limit);
     const items = await this.prisma.booking.findMany({
       where,
       include: this.include,
       take: take + 1,
       skip: params.cursor ? 1 : 0,
       cursor: params.cursor ? { id: params.cursor } : undefined,
-      orderBy: [{ datetime: 'desc' }, { id: 'desc' }],
+      orderBy,
     });
 
     const nextCursor = items.length > take ? items[take].id : undefined;
     const slice = items.slice(0, take) as unknown as BookingWithRelations[];
-    const includeHistory = params.includeHistory ?? true;
     return {
-      items: slice.map((b) => this.mapBooking(b, { includeHistory })),
+      items: slice.map((b) => this.mapBooking(b, { includeHistory, includeClient: true })),
       next_cursor: nextCursor,
       limit: take,
     };
@@ -258,13 +295,41 @@ export class BookingQueryService {
     return unique.map((id) => mapped.get(id)).filter((b): b is BookingDto => !!b);
   }
 
-  private clampTake(limit?: number): number {
-    if (!limit || limit <= 0) return 20;
-    return Math.min(limit, 100);
+  /**
+   * The stored client snapshot. Null when we know nothing about the client — a
+   * booking predating the back-fill, or one whose CRM gave us no client and which
+   * has no account behind it. The panel renders a dash for those.
+   */
+  private mapClient(booking: BookingWithRelations): BookingDto['client'] {
+    if (!booking.clientName && !booking.clientPhone && !booking.clientEmail) {
+      return null;
+    }
+    return {
+      name: booking.clientName ?? null,
+      phone: booking.clientPhone ?? null,
+      email: booking.clientEmail ?? null,
+      source: booking.clientSource ?? null,
+    };
   }
 
-  private mapBooking(booking: BookingWithRelations, opts?: { includeHistory?: boolean }): BookingDto {
+  private clampTake(limit?: number): number {
+    if (!limit || limit <= 0) return DEFAULT_PAGE_SIZE;
+    return Math.min(limit, MAX_PAGE_SIZE);
+  }
+
+  /**
+   * `includeClient` is off by default because this mapper is shared with the client
+   * app's own bookings endpoints. The snapshot is the CRM's record of who the booking
+   * is for, which is not always the account holder reading it — a widget booking made
+   * on someone else's behalf, for instance — and BEA-68 is scoped to the owner panel.
+   * Only the salon-facing paths opt in. Same shape as `includeHistory` below.
+   */
+  private mapBooking(
+    booking: BookingWithRelations,
+    opts?: { includeHistory?: boolean; includeClient?: boolean },
+  ): BookingDto {
     const includeHistory = opts?.includeHistory !== false;
+    const includeClient = opts?.includeClient === true;
     const easyweek = this.mapEasyweek(booking);
     const altegio = this.mapAltegio(booking);
     return {
@@ -290,6 +355,7 @@ export class BookingQueryService {
             photo_url: booking.worker.photoUrl,
           }
         : null,
+      client: includeClient ? this.mapClient(booking) : undefined,
       status: booking.status,
       datetime: booking.datetime.toISOString(),
       end_datetime: booking.endDatetime ? booking.endDatetime.toISOString() : null,

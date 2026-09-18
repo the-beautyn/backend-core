@@ -63,10 +63,44 @@ describe('OwnerBookingsController (unit)', () => {
 
   it('returns booking list', async () => {
     bookingQuery.listForSalon.mockResolvedValue({ items: [], next_cursor: null, limit: 20 });
-    const res = await controller.list(salonId);
+    const res = await controller.list(salonId, {});
     expect(res.limit).toBe(20);
     expect(bookingQuery.listForSalon).toHaveBeenCalledWith(
       expect.objectContaining({ salonId }),
+    );
+  });
+
+  it('passes the bucket, window and page through to the query service', async () => {
+    bookingQuery.listForSalon.mockResolvedValue({ items: [], limit: 10, page: 2, total: 42 });
+
+    const res = await controller.list(salonId, {
+      status: 'created',
+      from: '2026-01-01T00:00:00.000Z',
+      to: '2026-02-01T00:00:00.000Z',
+      page: 2,
+      limit: 10,
+    });
+
+    expect(res.total).toBe(42);
+    expect(bookingQuery.listForSalon).toHaveBeenCalledWith(
+      expect.objectContaining({
+        salonId,
+        status: 'created',
+        from: new Date('2026-01-01T00:00:00.000Z'),
+        to: new Date('2026-02-01T00:00:00.000Z'),
+        page: 2,
+        limit: 10,
+      }),
+    );
+  });
+
+  it('drops an unparseable date rather than passing an Invalid Date down', async () => {
+    bookingQuery.listForSalon.mockResolvedValue({ items: [], next_cursor: null, limit: 20 });
+
+    await controller.list(salonId, { from: 'not-a-date' });
+
+    expect(bookingQuery.listForSalon).toHaveBeenCalledWith(
+      expect.objectContaining({ from: undefined }),
     );
   });
 
