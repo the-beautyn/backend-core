@@ -101,6 +101,43 @@ describe('BookingQueryService.listForSalon scope translation', () => {
     },
   );
 
+  describe('client snapshot exposure', () => {
+    const row = {
+      id: 'b1',
+      salonId,
+      datetime: new Date('2026-06-15T10:00:00Z'),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      status: 'created',
+      clientName: 'Ivan Petrenko',
+      clientPhone: '+380950000001',
+      clientEmail: 'ivan@example.com',
+      clientSource: 'altegio',
+      history: [],
+    };
+
+    it('returns the client on the owner list', async () => {
+      findMany.mockResolvedValue([row]);
+      const res = await service.listForSalon({ salonId });
+      expect(res.items[0].client).toEqual({
+        name: 'Ivan Petrenko',
+        phone: '+380950000001',
+        email: 'ivan@example.com',
+        source: 'altegio',
+      });
+    });
+
+    // The mapper is shared with the client app's own bookings endpoints. The
+    // snapshot is the CRM's record of who the booking is for, which is not always
+    // the account holder reading it, and BEA-68 is scoped to the owner panel — so
+    // the client paths must not start returning it as a side effect.
+    it('withholds it from the client list', async () => {
+      findMany.mockResolvedValue([row]);
+      const res = await service.listForClient({ userId });
+      expect(res.items[0].client).toBeUndefined();
+    });
+  });
+
   describe('pagination modes', () => {
     it('uses skip/take and returns a total in offset mode', async () => {
       count.mockResolvedValue(42);

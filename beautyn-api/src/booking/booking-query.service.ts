@@ -93,7 +93,7 @@ export class BookingQueryService {
       where: { id: bookingId, salonId },
       include: this.include,
     });
-    return booking ? this.mapBooking(booking as unknown as BookingWithRelations, { includeHistory }) : null;
+    return booking ? this.mapBooking(booking as unknown as BookingWithRelations, { includeHistory, includeClient: true }) : null;
   }
 
   async listForClient(params: {
@@ -253,7 +253,7 @@ export class BookingQueryService {
       ]);
       return {
         items: (rows as unknown as BookingWithRelations[]).map((b) =>
-          this.mapBooking(b, { includeHistory }),
+          this.mapBooking(b, { includeHistory, includeClient: true }),
         ),
         // No next_cursor in offset mode: mixing the two is what the guard above prevents.
         limit,
@@ -275,7 +275,7 @@ export class BookingQueryService {
     const nextCursor = items.length > take ? items[take].id : undefined;
     const slice = items.slice(0, take) as unknown as BookingWithRelations[];
     return {
-      items: slice.map((b) => this.mapBooking(b, { includeHistory })),
+      items: slice.map((b) => this.mapBooking(b, { includeHistory, includeClient: true })),
       next_cursor: nextCursor,
       limit: take,
     };
@@ -317,8 +317,19 @@ export class BookingQueryService {
     return Math.min(limit, MAX_PAGE_SIZE);
   }
 
-  private mapBooking(booking: BookingWithRelations, opts?: { includeHistory?: boolean }): BookingDto {
+  /**
+   * `includeClient` is off by default because this mapper is shared with the client
+   * app's own bookings endpoints. The snapshot is the CRM's record of who the booking
+   * is for, which is not always the account holder reading it — a widget booking made
+   * on someone else's behalf, for instance — and BEA-68 is scoped to the owner panel.
+   * Only the salon-facing paths opt in. Same shape as `includeHistory` below.
+   */
+  private mapBooking(
+    booking: BookingWithRelations,
+    opts?: { includeHistory?: boolean; includeClient?: boolean },
+  ): BookingDto {
     const includeHistory = opts?.includeHistory !== false;
+    const includeClient = opts?.includeClient === true;
     const easyweek = this.mapEasyweek(booking);
     const altegio = this.mapAltegio(booking);
     return {
@@ -344,7 +355,7 @@ export class BookingQueryService {
             photo_url: booking.worker.photoUrl,
           }
         : null,
-      client: this.mapClient(booking),
+      client: includeClient ? this.mapClient(booking) : undefined,
       status: booking.status,
       datetime: booking.datetime.toISOString(),
       end_datetime: booking.endDatetime ? booking.endDatetime.toISOString() : null,
