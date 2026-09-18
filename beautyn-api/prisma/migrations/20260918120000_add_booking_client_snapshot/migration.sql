@@ -19,14 +19,29 @@ CREATE INDEX "bookings_salon_datetime_idx" ON "bookings" ("salon_id", "datetime"
 -- altegio_booking_client, whose details_id chains 1:1:1 back to bookings.id. Note the
 -- guard: that table always has a row (the mapper writes all-nulls when Altegio sent no
 -- client), so presence of a row is not evidence of a client.
+--
+-- Two details mirror the runtime mapping in booking-handler.service.ts, so back-filled
+-- rows and freshly synced ones agree:
+--   • display_name is only preferred when it is non-blank. Plain COALESCE would pick an
+--     empty string over a populated name/surname, losing the CRM name — and, because the
+--     row would then look empty, mislabel it 'user' in pass 3/3.
+--   • Altegio sends bare digits ("380950000001"); `toE164` supplies the leading +. Doing
+--     the same here keeps historical and new rows in one format, which matters because
+--     the sync lookback will never revisit older bookings.
 UPDATE "bookings" b
-SET "client_name"   = NULLIF(TRIM(COALESCE(c."display_name", CONCAT_WS(' ', c."name", c."surname"))), ''),
-    "client_phone"  = NULLIF(TRIM(c."phone"), ''),
+SET "client_name"   = NULLIF(TRIM(COALESCE(NULLIF(TRIM(c."display_name"), ''),
+                                           CONCAT_WS(' ', c."name", c."surname"))), ''),
+    "client_phone"  = CASE
+                        WHEN TRIM(c."phone") ~ '^[0-9]{6,}$' THEN '+' || TRIM(c."phone")
+                        ELSE NULLIF(TRIM(c."phone"), '')
+                      END,
     "client_email"  = NULLIF(TRIM(c."email"), ''),
     "client_source" = 'altegio'
 FROM "altegio_booking_client" c
 WHERE c."details_id" = b."id"
-  AND COALESCE(c."display_name", c."name", c."surname", c."phone", c."email") IS NOT NULL;
+  AND COALESCE(NULLIF(TRIM(c."display_name"), ''), NULLIF(TRIM(c."name"), ''),
+               NULLIF(TRIM(c."surname"), ''), NULLIF(TRIM(c."phone"), ''),
+               NULLIF(TRIM(c."email"), '')) IS NOT NULL;
 
 -- Back-fill 2/3 — EasyWeek. We never mapped the customer onto a column, but the untouched
 -- booking payload was always kept in crm_payload and it carries `customer`
@@ -35,7 +50,11 @@ UPDATE "bookings" b
 SET "client_name"   = NULLIF(TRIM(CONCAT_WS(' ',
                         b."crm_payload"->'customer'->>'first_name',
                         b."crm_payload"->'customer'->>'last_name')), ''),
-    "client_phone"  = NULLIF(TRIM(b."crm_payload"->'customer'->>'phone'), ''),
+    "client_phone"  = CASE
+                        WHEN TRIM(b."crm_payload"->'customer'->>'phone') ~ '^[0-9]{6,}$'
+                          THEN '+' || TRIM(b."crm_payload"->'customer'->>'phone')
+                        ELSE NULLIF(TRIM(b."crm_payload"->'customer'->>'phone'), '')
+                      END,
     "client_email"  = NULLIF(TRIM(b."crm_payload"->'customer'->>'email'), ''),
     "client_source" = 'easyweek'
 WHERE b."crm_type" = 'EASYWEEK'
@@ -45,7 +64,10 @@ WHERE b."crm_type" = 'EASYWEEK'
 -- Only touches rows the two passes above left entirely empty.
 UPDATE "bookings" b
 SET "client_name"   = NULLIF(TRIM(CONCAT_WS(' ', u."name", u."second_name")), ''),
-    "client_phone"  = NULLIF(TRIM(u."phone"), ''),
+    "client_phone"  = CASE
+                        WHEN TRIM(u."phone") ~ '^[0-9]{6,}$' THEN '+' || TRIM(u."phone")
+                        ELSE NULLIF(TRIM(u."phone"), '')
+                      END,
     "client_email"  = NULLIF(TRIM(u."email"), ''),
     "client_source" = 'user'
 FROM "users" u

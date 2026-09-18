@@ -72,6 +72,22 @@ describe('normalizePagination', () => {
     ).toBe(20);
   });
 
+  it.each([
+    ['page', 0.5, 1, 'page'],
+    ['limit', 0.9, 20, 'limit'],
+  ])(
+    'falls back when a fractional %s would floor to zero',
+    (_label, value, expected, field) => {
+      // 0.5 is positive but floors to 0. Returning it would mean `take: 0` —
+      // an always-empty page that looks like a valid request.
+      const result =
+        field === 'page'
+          ? normalizePagination(value, 10)
+          : normalizePagination(1, value, { defaultLimit: 20 });
+      expect(result[field as 'page' | 'limit']).toBe(expected);
+    },
+  );
+
   it('floors fractional input instead of passing it to Prisma', () => {
     expect(normalizePagination(2.9, 10.7)).toEqual({
       page: 2,

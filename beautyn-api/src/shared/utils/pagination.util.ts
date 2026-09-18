@@ -47,7 +47,10 @@ function toPositiveInt(
   value: number | string | null | undefined,
 ): number | null {
   if (value === null || value === undefined || value === '') return null;
-  const parsed = Number(value);
-  if (!Number.isFinite(parsed) || parsed <= 0) return null;
-  return Math.floor(parsed);
+  // Floor before the range check, not after: a fraction below 1 is positive but
+  // floors to 0, and returning that would hand Prisma `take: 0` — an always-empty
+  // page — while looking like a valid value.
+  const parsed = Math.floor(Number(value));
+  if (!Number.isFinite(parsed) || parsed < 1) return null;
+  return parsed;
 }
