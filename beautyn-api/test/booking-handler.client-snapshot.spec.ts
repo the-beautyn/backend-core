@@ -34,6 +34,19 @@ describe('BookingHandlerService — client snapshot', () => {
       expect(call('toE164', 'ext. 4417')).toBe('ext. 4417');
     });
 
+    it('drops free text too long for the column instead of failing the write', () => {
+      // CRM phone fields sometimes hold notes rather than a number. `client_phone`
+      // is VARCHAR(30); letting a longer value through would fail the INSERT and
+      // abort the booking write — and, on a sync run, the job.
+      const notes = 'call after 5pm, ask for John or Mary';
+      expect(notes.length).toBeGreaterThan(30);
+      expect(call('toE164', notes)).toBeNull();
+    });
+
+    it('keeps a short unparseable value, which still fits', () => {
+      expect(call('toE164', 'ext. 4417')).toBe('ext. 4417');
+    });
+
     it('treats blank and non-string input as absent', () => {
       expect(call('toE164', '   ')).toBeNull();
       expect(call('toE164', null)).toBeNull();

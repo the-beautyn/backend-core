@@ -397,7 +397,11 @@ export class BookingHandlerService {
    * parsing fails, so a caller cannot tell success from failure.
    *
    * An unparseable value keeps the CRM's own string. A slightly malformed number
-   * is more use to an owner reading the list than an empty cell.
+   * is more use to an owner reading the list than an empty cell — but only up to
+   * the column width: CRM phone fields sometimes hold free text ("call after 5pm,
+   * ask for John"), and `client_phone` is VARCHAR(30), so a longer value would
+   * fail the INSERT and take the booking write — and, on a sync run, the job —
+   * down with it.
    */
   private toE164(raw: unknown): string | null {
     if (typeof raw !== 'string') return null;
@@ -405,8 +409,12 @@ export class BookingHandlerService {
     if (!trimmed) return null;
     const candidate = /^\d{6,}$/.test(trimmed) ? `+${trimmed}` : trimmed;
     const parsed = parsePhoneNumberFromString(candidate);
-    return parsed?.isValid() ? parsed.number : trimmed;
+    if (parsed?.isValid()) return parsed.number;
+    return trimmed.length <= BookingHandlerService.MAX_CLIENT_PHONE_LENGTH ? trimmed : null;
   }
+
+  /** Mirrors `client_phone VARCHAR(30)` in schema.prisma. */
+  private static readonly MAX_CLIENT_PHONE_LENGTH = 30;
 
   private static readonly EMPTY_CLIENT: ClientSnapshot = {
     clientName: null,
