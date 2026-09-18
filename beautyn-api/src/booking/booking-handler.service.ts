@@ -1,6 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import { parsePhoneNumberFromString } from 'libphonenumber-js';
 import { CrmType } from '@crm/shared';
 import type { EasyWeekBooking } from '@crm/provider-core/easyweek/bookings';
 import type { AltegioBooking } from '@crm/provider-core/altegio/bookings';
@@ -9,17 +8,15 @@ import type {
   EasyweekBookingDtoNormalized,
 } from '../crm-integration/core/dto/easyweek-booking.dto';
 import { PrismaService } from '../shared/database/prisma.service';
-
-/**
- * Denormalised client columns on `bookings`. `clientSource` records which origin
- * won: the CRM record, or the account that made the booking.
- */
-type ClientSnapshot = {
-  clientName: string | null;
-  clientPhone: string | null;
-  clientEmail: string | null;
-  clientSource: 'easyweek' | 'altegio' | 'user' | null;
-};
+import {
+  clientFromAltegioClient,
+  clientFromEasyweekCustomer,
+  clientFromRow,
+  EMPTY_CLIENT,
+  hasAnyClientField,
+  resolveClientSnapshot as resolveSnapshot,
+  type ClientSnapshot,
+} from './client-snapshot';
 
 type NormalizedEasyweek = {
   bookingUuid: string;
@@ -74,7 +71,7 @@ export class BookingHandlerService {
     const payload = normalized.raw ?? normalized;
     const shortLink = params.workspaceSlug ? this.buildShortLink(params.workspaceSlug, normalized.bookingUuid) : null;
     const client = await this.resolveClientSnapshot(
-      this.clientFromEasyweekCustomer(normalized.customer ?? null),
+      clientFromEasyweekCustomer(normalized.customer ?? null),
       params.userId ?? null,
     );
 
@@ -164,7 +161,7 @@ export class BookingHandlerService {
     const status = normalized.isCanceled ? 'canceled' : normalized.isCompleted ? 'completed' : 'created';
     const payload = normalized.raw ?? normalized;
     const client = await this.resolveClientSnapshot(
-      this.clientFromEasyweekCustomer(normalized.customer ?? null),
+      clientFromEasyweekCustomer(normalized.customer ?? null),
       existing.userId ?? null,
     );
 
@@ -388,112 +385,23 @@ export class BookingHandlerService {
   }
 
   /**
-   * Best-effort E.164. Altegio sends bare digits ("380950000001") and EasyWeek
-   * already sends E.164, so the only work is supplying the `+` libphonenumber
-   * needs to infer a country — we have no sensible default country to pass.
-   *
-   * Parsed here rather than through `shared/validators/normalize-phone`, which is
-   * shaped for `@Transform`: it returns `unknown` and echoes its input back when
-   * parsing fails, so a caller cannot tell success from failure.
-   *
-   * An unparseable value keeps the CRM's own string. A slightly malformed number
-   * is more use to an owner reading the list than an empty cell — but only up to
-   * the column width: CRM phone fields sometimes hold free text ("call after 5pm,
-   * ask for John"), and `client_phone` is VARCHAR(30), so a longer value would
-   * fail the INSERT and take the booking write — and, on a sync run, the job —
-   * down with it.
-   */
-  private toE164(raw: unknown): string | null {
-    if (typeof raw !== 'string') return null;
-    const trimmed = raw.trim();
-    if (!trimmed) return null;
-    const candidate = /^\d{6,}$/.test(trimmed) ? `+${trimmed}` : trimmed;
-    const parsed = parsePhoneNumberFromString(candidate);
-    if (parsed?.isValid()) return parsed.number;
-    return trimmed.length <= BookingHandlerService.MAX_CLIENT_PHONE_LENGTH ? trimmed : null;
-  }
-
-  /** Mirrors `client_phone VARCHAR(30)` in schema.prisma. */
-  private static readonly MAX_CLIENT_PHONE_LENGTH = 30;
-
-  private static readonly EMPTY_CLIENT: ClientSnapshot = {
-    clientName: null,
-    clientPhone: null,
-    clientEmail: null,
-    clientSource: null,
-  };
-
-  private cleanName(...parts: Array<string | null | undefined>): string | null {
-    const joined = parts.filter(Boolean).join(' ').trim();
-    return joined || null;
-  }
-
-  private hasAnyClientField(snapshot: ClientSnapshot): boolean {
-    return Boolean(snapshot.clientName || snapshot.clientPhone || snapshot.clientEmail);
-  }
-
-  private clientFromEasyweekCustomer(customer: EasyweekBookingCustomerDto | null): ClientSnapshot {
-    if (!customer) return BookingHandlerService.EMPTY_CLIENT;
-    return {
-      clientName: this.cleanName(customer.firstName, customer.lastName),
-      clientPhone: this.toE164(customer.phone),
-      clientEmail: customer.email?.trim() || null,
-      clientSource: 'easyweek',
-    };
-  }
-
-  private clientFromAltegioClient(client: any): ClientSnapshot {
-    if (!client) return BookingHandlerService.EMPTY_CLIENT;
-    return {
-      clientName: client.displayName?.trim() || this.cleanName(client.name, client.surname),
-      clientPhone: this.toE164(client.phone),
-      clientEmail: client.email?.trim() || null,
-      clientSource: 'altegio',
-    };
-  }
-
-  /**
-   * The client to store on the booking row: what the CRM said, falling back to the
-   * account that booked when the CRM told us nothing. `Booking.userId` is a bare
-   * column with no Prisma relation, so the fallback is its own read.
-   *
-   * Returns all-nulls rather than throwing — a booking with no identifiable client
-   * is a normal state, not an error.
+   * The client to store on the booking row. The precedence rules live in
+   * `client-snapshot.ts` so the back-fill script produces byte-identical results;
+   * all this adds is the account read, since `Booking.userId` is a bare column with
+   * no Prisma relation to follow.
    */
   private async resolveClientSnapshot(
     fromCrm: ClientSnapshot,
     userId: string | null | undefined,
   ): Promise<ClientSnapshot> {
-    if (this.hasAnyClientField(fromCrm)) return fromCrm;
-    if (!userId) return BookingHandlerService.EMPTY_CLIENT;
+    if (hasAnyClientField(fromCrm)) return fromCrm;
+    if (!userId) return EMPTY_CLIENT;
 
     const user = await this.prisma.users.findUnique({
       where: { id: userId },
       select: { name: true, secondName: true, phone: true, email: true },
     });
-    if (!user) return BookingHandlerService.EMPTY_CLIENT;
-
-    const fromAccount: ClientSnapshot = {
-      clientName: this.cleanName(user.name, user.secondName),
-      clientPhone: this.toE164(user.phone),
-      clientEmail: user.email?.trim() || null,
-      clientSource: 'user',
-    };
-    return this.hasAnyClientField(fromAccount) ? fromAccount : BookingHandlerService.EMPTY_CLIENT;
-  }
-
-  /**
-   * The stored client columns, shaped like a `ClientSnapshot` so the existing-state
-   * snapshot carries the same keys as the incoming one. Asymmetry here would make
-   * every booking compare as changed, forever.
-   */
-  private clientFromRow(row: any): ClientSnapshot {
-    return {
-      clientName: row?.clientName ?? null,
-      clientPhone: row?.clientPhone ?? null,
-      clientEmail: row?.clientEmail ?? null,
-      clientSource: row?.clientSource ?? null,
-    };
+    return resolveSnapshot(fromCrm, user);
   }
 
   /**
@@ -633,7 +541,7 @@ export class BookingHandlerService {
         serviceIds: this.normalizeJsonArray(existing.serviceIds),
         shortLink: existing.shortLink ?? null,
         crmPayload: existing.crmPayload ?? null,
-        ...this.clientFromRow(existing),
+        ...clientFromRow(existing),
       },
     });
 
@@ -667,7 +575,7 @@ export class BookingHandlerService {
     // `mapAltegioClient` returns an all-nulls object rather than null when Altegio
     // sent no client, so the fallback is driven by content, not by presence.
     const clientSnapshot = await this.resolveClientSnapshot(
-      this.clientFromAltegioClient(mappedClient),
+      clientFromAltegioClient(mappedClient),
       args.userId,
     );
 
@@ -728,7 +636,7 @@ export class BookingHandlerService {
         serviceIds: this.normalizeJsonArray(existing.serviceIds),
         shortLink: existing.shortLink ?? null,
         crmPayload: existing.crmPayload ?? null,
-        ...this.clientFromRow(existing),
+        ...clientFromRow(existing),
       },
     });
 

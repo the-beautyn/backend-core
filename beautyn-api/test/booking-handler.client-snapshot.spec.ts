@@ -1,4 +1,9 @@
 import { BookingHandlerService } from '../src/booking/booking-handler.service';
+import {
+  clientFromAltegioClient,
+  clientFromEasyweekCustomer,
+  toE164,
+} from '../src/booking/client-snapshot';
 
 // BEA-68 denormalises the booking's client onto the row. The value comes from the CRM
 // record when it has one and from the account that booked when it does not, and it
@@ -22,16 +27,16 @@ describe('BookingHandlerService — client snapshot', () => {
     it('adds the + Altegio omits, so bare digits become E.164', () => {
       // Altegio sends "380950000001"; libphonenumber cannot infer a country without
       // the +, and there is no sensible default country to pass it.
-      expect(call('toE164', '380950000001')).toBe('+380950000001');
+      expect(toE164('380950000001')).toBe('+380950000001');
     });
 
     it('leaves an already-E.164 EasyWeek number alone', () => {
-      expect(call('toE164', '+380950000001')).toBe('+380950000001');
+      expect(toE164('+380950000001')).toBe('+380950000001');
     });
 
     it('keeps an unparseable value rather than dropping it', () => {
       // A malformed number still tells an owner something; an empty cell does not.
-      expect(call('toE164', 'ext. 4417')).toBe('ext. 4417');
+      expect(toE164('ext. 4417')).toBe('ext. 4417');
     });
 
     it('drops free text too long for the column instead of failing the write', () => {
@@ -40,17 +45,26 @@ describe('BookingHandlerService — client snapshot', () => {
       // abort the booking write — and, on a sync run, the job.
       const notes = 'call after 5pm, ask for John or Mary';
       expect(notes.length).toBeGreaterThan(30);
-      expect(call('toE164', notes)).toBeNull();
+      expect(toE164(notes)).toBeNull();
     });
 
-    it('keeps a short unparseable value, which still fits', () => {
-      expect(call('toE164', 'ext. 4417')).toBe('ext. 4417');
+    // These are exactly the inputs where a SQL back-fill drifted from the runtime:
+    // a regex cannot tell a valid international number from a short numeric string,
+    // so the back-fill now runs this same function instead of approximating it.
+    it.each([
+      ['380950000001', '+380950000001'],
+      ['380671234567', '+380671234567'],
+      ['123456', '123456'],
+      ['0501234567', '0501234567'],
+      ['1234567890', '1234567890'],
+    ])('classifies %s the same way everywhere', (input, expected) => {
+      expect(toE164(input)).toBe(expected);
     });
 
     it('treats blank and non-string input as absent', () => {
-      expect(call('toE164', '   ')).toBeNull();
-      expect(call('toE164', null)).toBeNull();
-      expect(call('toE164', 42)).toBeNull();
+      expect(toE164('   ')).toBeNull();
+      expect(toE164(null)).toBeNull();
+      expect(toE164(42)).toBeNull();
     });
   });
 
@@ -66,7 +80,7 @@ describe('BookingHandlerService — client snapshot', () => {
     };
 
     it('joins the name and keeps phone/email, tagged easyweek', () => {
-      expect(call('clientFromEasyweekCustomer', customer)).toEqual({
+      expect(clientFromEasyweekCustomer(customer)).toEqual({
         clientName: 'First Customer',
         clientPhone: '+380950000001',
         clientEmail: 'first@customer.com',
@@ -75,7 +89,7 @@ describe('BookingHandlerService — client snapshot', () => {
     });
 
     it('copes with a half-filled customer', () => {
-      const snapshot = call('clientFromEasyweekCustomer', {
+      const snapshot = clientFromEasyweekCustomer({
         firstName: 'Solo',
       });
       expect(snapshot.clientName).toBe('Solo');
@@ -84,14 +98,14 @@ describe('BookingHandlerService — client snapshot', () => {
     });
 
     it('is empty when there is no customer at all', () => {
-      expect(call('clientFromEasyweekCustomer', null).clientSource).toBeNull();
+      expect(clientFromEasyweekCustomer(null).clientSource).toBeNull();
     });
   });
 
   describe('from an Altegio client', () => {
     it('prefers display_name and normalises the phone', () => {
       expect(
-        call('clientFromAltegioClient', {
+        clientFromAltegioClient({
           displayName: 'Ivan Petrenko',
           name: 'Ivan',
           surname: 'Petrenko',
@@ -107,7 +121,7 @@ describe('BookingHandlerService — client snapshot', () => {
     });
 
     it('falls back to name + surname when there is no display name', () => {
-      const snapshot = call('clientFromAltegioClient', {
+      const snapshot = clientFromAltegioClient({
         name: 'Ivan',
         surname: 'Petrenko',
       });
@@ -124,7 +138,7 @@ describe('BookingHandlerService — client snapshot', () => {
     };
 
     it('keeps the CRM client and never touches the users table', async () => {
-      const fromCrm = call('clientFromAltegioClient', {
+      const fromCrm = clientFromAltegioClient({
         displayName: 'Ivan',
         phone: '380501234567',
       });
@@ -137,7 +151,7 @@ describe('BookingHandlerService — client snapshot', () => {
 
     it('falls back to the account when the CRM gave nothing', async () => {
       usersFindUnique.mockResolvedValue(account);
-      const empty = call('clientFromEasyweekCustomer', null);
+      const empty = clientFromEasyweekCustomer(null);
 
       const resolved = await call('resolveClientSnapshot', empty, 'user-1');
 
@@ -153,7 +167,7 @@ describe('BookingHandlerService — client snapshot', () => {
       // mapAltegioClient returns an object of nulls rather than null when Altegio
       // sent no client, so the fallback has to be driven by content, not presence.
       usersFindUnique.mockResolvedValue(account);
-      const allNulls = call('clientFromAltegioClient', {
+      const allNulls = clientFromAltegioClient({
         displayName: null,
         name: null,
         surname: null,
@@ -170,7 +184,7 @@ describe('BookingHandlerService — client snapshot', () => {
     it('returns an empty snapshot when there is neither a CRM client nor an account', async () => {
       const resolved = await call(
         'resolveClientSnapshot',
-        call('clientFromEasyweekCustomer', null),
+        clientFromEasyweekCustomer(null),
         null,
       );
       expect(resolved).toEqual({
@@ -191,7 +205,7 @@ describe('BookingHandlerService — client snapshot', () => {
       });
       const resolved = await call(
         'resolveClientSnapshot',
-        call('clientFromEasyweekCustomer', null),
+        clientFromEasyweekCustomer(null),
         'user-1',
       );
       expect(resolved.clientSource).toBeNull();
