@@ -1,4 +1,12 @@
-import { BadGatewayException, BadRequestException, HttpException, HttpStatus, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  BadGatewayException,
+  BadRequestException,
+  HttpException,
+  HttpStatus,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../../shared/database/prisma.service';
 import { CrmError, CrmType, ErrorKind } from '@crm/shared';
 import { AccountRegistryService } from '@crm/account-registry';
@@ -59,7 +67,9 @@ export class CrmIntegrationService {
       });
       if (existing) {
         if (existing.ownerUserId && existing.ownerUserId !== userId) {
-          throw new BadRequestException('Altegio salon already linked to another user');
+          throw new BadRequestException(
+            'Altegio salon already linked to another user',
+          );
         }
         if (!existing.ownerUserId) {
           await this.prisma.salon.update({
@@ -72,18 +82,27 @@ export class CrmIntegrationService {
       }
 
       const salon = await this.prisma.salon.create({
-        data: { ownerUserId: userId, externalSalonId: ext, provider: CrmType.ALTEGIO },
+        data: {
+          ownerUserId: userId,
+          externalSalonId: ext,
+          provider: CrmType.ALTEGIO,
+        },
         select: { id: true },
       });
 
       // Persist non-secret account identifiers in Account Registry
-      await this.accounts.setAltegio(salon.id, { externalSalonId: Number(ext) });
+      await this.accounts.setAltegio(salon.id, {
+        externalSalonId: Number(ext),
+      });
 
       // If global env tokens are configured, persist them as per-salon tokens
       const envBearer = process.env.ALTEGIO_BEARER?.trim();
       const envUser = process.env.ALTEGIO_USER?.trim();
       if (envBearer && envUser) {
-        await this.tokens.store(salon.id, CrmType.ALTEGIO, { accessToken: envBearer, userToken: envUser });
+        await this.tokens.store(salon.id, CrmType.ALTEGIO, {
+          accessToken: envBearer,
+          userToken: envUser,
+        });
       }
       salonIds.push(salon.id);
     }
@@ -116,7 +135,9 @@ export class CrmIntegrationService {
       });
       if (existing) {
         if (existing.ownerUserId && existing.ownerUserId !== userId) {
-          throw new BadRequestException('EasyWeek salon already linked to another user');
+          throw new BadRequestException(
+            'EasyWeek salon already linked to another user',
+          );
         }
         if (!existing.ownerUserId || !existing.bookingUrl) {
           await this.prisma.salon.update({
@@ -127,18 +148,39 @@ export class CrmIntegrationService {
             },
           });
         }
+        // The owner just typed a key and a workspace for this salon; they win
+        // over whatever an earlier link left behind. Both stores upsert. Skipping
+        // this on adoption meant a re-linked salon kept a stale (often revoked)
+        // key and every sync after onboarding failed with "EasyWeek unauthorized".
+        await this.accounts.setEasyWeek(existing.id, {
+          workspaceSlug,
+          locationId: ext,
+        });
+        await this.tokens.store(existing.id, CrmType.EASYWEEK, {
+          apiKey: authToken,
+        });
         salonIds.push(existing.id);
         continue;
       }
 
       const salon = await this.prisma.salon.create({
-        data: { ownerUserId: userId, externalSalonId: ext, provider: CrmType.EASYWEEK, bookingUrl },
+        data: {
+          ownerUserId: userId,
+          externalSalonId: ext,
+          provider: CrmType.EASYWEEK,
+          bookingUrl,
+        },
         select: { id: true },
       });
       // Persist non-secret identifiers
-      await this.accounts.setEasyWeek(salon.id, { workspaceSlug, locationId: ext });
+      await this.accounts.setEasyWeek(salon.id, {
+        workspaceSlug,
+        locationId: ext,
+      });
       // Store secret/API key in Token Storage
-      await this.tokens.store(salon.id, CrmType.EASYWEEK, { apiKey: authToken });
+      await this.tokens.store(salon.id, CrmType.EASYWEEK, {
+        apiKey: authToken,
+      });
       salonIds.push(salon.id);
     }
     return { salonIds };
@@ -146,8 +188,14 @@ export class CrmIntegrationService {
 
   //** CRM Sync Scheduler **//
 
-  async enqueueInitialSync(salonId: string, provider: CrmType): Promise<{ jobId: string }> {
-    const jobId = await this.scheduler.scheduleSync({ salonId, provider }, { type: 'initial' });
+  async enqueueInitialSync(
+    salonId: string,
+    provider: CrmType,
+  ): Promise<{ jobId: string }> {
+    const jobId = await this.scheduler.scheduleSync(
+      { salonId, provider },
+      { type: 'initial' },
+    );
     return { jobId };
   }
 
@@ -169,25 +217,45 @@ export class CrmIntegrationService {
     return this.adapter.pullSalon(salonId, provider);
   }
 
-  async enqueueSalonSync(salonId: string, provider?: CrmType): Promise<{ jobId: string }> {
-    const resolvedProvider = provider ?? (await this.resolveSalonProvider(salonId));
-    const jobId = await this.scheduler.scheduleSync({ salonId, provider: resolvedProvider }, { type: 'salon' });
+  async enqueueSalonSync(
+    salonId: string,
+    provider?: CrmType,
+  ): Promise<{ jobId: string }> {
+    const resolvedProvider =
+      provider ?? (await this.resolveSalonProvider(salonId));
+    const jobId = await this.scheduler.scheduleSync(
+      { salonId, provider: resolvedProvider },
+      { type: 'salon' },
+    );
     return { jobId };
   }
 
   // --- Booking flow passthrough ---
-  async bookServices(salonId: string, provider: CrmType, args?: { serviceIds?: number[]; staffId?: number; datetime?: string }) {
+  async bookServices(
+    salonId: string,
+    provider: CrmType,
+    args?: { serviceIds?: number[]; staffId?: number; datetime?: string },
+  ) {
     return this.adapter.bookServices(salonId, provider, args);
   }
 
-  async bookStaff(salonId: string, provider: CrmType, args?: { serviceIds?: number[]; datetime?: string }) {
+  async bookStaff(
+    salonId: string,
+    provider: CrmType,
+    args?: { serviceIds?: number[]; datetime?: string },
+  ) {
     return this.adapter.bookStaff(salonId, provider, args);
   }
 
   async bookDates(
     salonId: string,
     provider: CrmType,
-    args?: { serviceIds?: number[]; staffId?: number; dateFrom?: string; dateTo?: string },
+    args?: {
+      serviceIds?: number[];
+      staffId?: number;
+      dateFrom?: string;
+      dateTo?: string;
+    },
   ) {
     return this.adapter.bookDates(salonId, provider, args);
   }
@@ -204,18 +272,27 @@ export class CrmIntegrationService {
     return this.adapter.createRecord(salonId, provider, payload);
   }
 
-  async fetchEasyweekBookingDetails(params: { bookingUuid: string; salonId: string }): Promise<EasyweekBookingDtoNormalized> {
+  async fetchEasyweekBookingDetails(params: {
+    bookingUuid: string;
+    salonId: string;
+  }): Promise<EasyweekBookingDtoNormalized> {
     const { bookingUuid, salonId } = params;
     if (!bookingUuid || !salonId) {
       throw new BadRequestException('bookingUuid and salonId are required');
     }
-    const salon = await this.prisma.salon.findUnique({ where: { id: salonId }, select: { provider: true } });
+    const salon = await this.prisma.salon.findUnique({
+      where: { id: salonId },
+      select: { provider: true },
+    });
     if (!salon || salon.provider !== CrmType.EASYWEEK) {
       throw new BadRequestException('Salon is not linked to EasyWeek');
     }
 
     try {
-      const res = await this.adapter.fetchEasyWeekBookingDetails(salonId, bookingUuid);
+      const res = await this.adapter.fetchEasyWeekBookingDetails(
+        salonId,
+        bookingUuid,
+      );
       return {
         bookingUuid: res.uuid,
         locationUuid: res.locationUuid ?? null,
@@ -251,9 +328,16 @@ export class CrmIntegrationService {
 
   //*** Bookings ***//
 
-  async enqueueBookingsSync(salonId: string, provider?: CrmType): Promise<{ jobId: string }> {
-    const resolvedProvider = provider ?? (await this.resolveSalonProvider(salonId));
-    const jobId = await this.scheduler.scheduleSync({ salonId, provider: resolvedProvider }, { type: 'bookings' });
+  async enqueueBookingsSync(
+    salonId: string,
+    provider?: CrmType,
+  ): Promise<{ jobId: string }> {
+    const resolvedProvider =
+      provider ?? (await this.resolveSalonProvider(salonId));
+    const jobId = await this.scheduler.scheduleSync(
+      { salonId, provider: resolvedProvider },
+      { type: 'bookings' },
+    );
     return { jobId };
   }
 
@@ -261,9 +345,15 @@ export class CrmIntegrationService {
   // single salon failing to enqueue does not abort the rest. Draft salons (no externalSalonId) are
   // skipped. The SLOW lane also refreshes the catalog (categories/services/workers/salon) — those
   // run on their own queues/workers, isolated from the fast bookings lane. Fast = bookings-only.
-  async dispatchLane(lane: Lane): Promise<{ enqueued: number; catalog: number; total: number }> {
+  async dispatchLane(
+    lane: Lane,
+  ): Promise<{ enqueued: number; catalog: number; total: number }> {
     const salons = await this.prisma.salon.findMany({
-      where: { deletedAt: null, provider: { not: null }, externalSalonId: { not: null } },
+      where: {
+        deletedAt: null,
+        provider: { not: null },
+        externalSalonId: { not: null },
+      },
       select: { id: true, provider: true },
     });
     const includeCatalog = lane === 'slow';
@@ -273,7 +363,10 @@ export class CrmIntegrationService {
       if (!s.provider) continue;
       const provider = s.provider as CrmType;
       try {
-        await this.scheduler.scheduleSync({ salonId: s.id, provider, lane }, { type: 'bookings' });
+        await this.scheduler.scheduleSync(
+          { salonId: s.id, provider, lane },
+          { type: 'bookings' },
+        );
         enqueued += 1;
       } catch (e) {
         this.log.warn('Failed to enqueue bookings lane job', {
@@ -285,10 +378,22 @@ export class CrmIntegrationService {
       if (includeCatalog) {
         try {
           // Own queues (crm-categories/services/workers/salons) — no lane/priority needed.
-          await this.scheduler.scheduleSync({ salonId: s.id, provider }, { type: 'categories' });
-          await this.scheduler.scheduleSync({ salonId: s.id, provider }, { type: 'services' });
-          await this.scheduler.scheduleSync({ salonId: s.id, provider }, { type: 'workers' });
-          await this.scheduler.scheduleSync({ salonId: s.id, provider }, { type: 'salon' });
+          await this.scheduler.scheduleSync(
+            { salonId: s.id, provider },
+            { type: 'categories' },
+          );
+          await this.scheduler.scheduleSync(
+            { salonId: s.id, provider },
+            { type: 'services' },
+          );
+          await this.scheduler.scheduleSync(
+            { salonId: s.id, provider },
+            { type: 'workers' },
+          );
+          await this.scheduler.scheduleSync(
+            { salonId: s.id, provider },
+            { type: 'salon' },
+          );
           catalog += 1;
         } catch (e) {
           this.log.warn('Failed to enqueue catalog sync jobs', {
@@ -298,7 +403,12 @@ export class CrmIntegrationService {
         }
       }
     }
-    this.log.info('Sync lane fan-out', { lane, enqueued, catalog, total: salons.length });
+    this.log.info('Sync lane fan-out', {
+      lane,
+      enqueued,
+      catalog,
+      total: salons.length,
+    });
     return { enqueued, catalog, total: salons.length };
   }
 
@@ -308,7 +418,12 @@ export class CrmIntegrationService {
 
   async listAltegioRecords(
     salonId: string,
-    params: { startDate?: string; endDate?: string; withDeleted?: boolean; count?: number },
+    params: {
+      startDate?: string;
+      endDate?: string;
+      withDeleted?: boolean;
+      count?: number;
+    },
   ) {
     return this.adapter.listAltegioRecords(salonId, params);
   }
@@ -319,12 +434,21 @@ export class CrmIntegrationService {
 
   //*** Services ***//
 
-  async enqueueServicesSync(salonId: string, provider: CrmType): Promise<{ jobId: string }> {
-    const jobId = await this.scheduler.scheduleSync({ salonId, provider }, { type: 'services' });
+  async enqueueServicesSync(
+    salonId: string,
+    provider: CrmType,
+  ): Promise<{ jobId: string }> {
+    const jobId = await this.scheduler.scheduleSync(
+      { salonId, provider },
+      { type: 'services' },
+    );
     return { jobId };
   }
 
-  async pullServices(salonId: string, provider: CrmType): Promise<Page<ServiceData>> {
+  async pullServices(
+    salonId: string,
+    provider: CrmType,
+  ): Promise<Page<ServiceData>> {
     return this.adapter.pullServices(salonId, provider);
   }
 
@@ -345,18 +469,31 @@ export class CrmIntegrationService {
     return this.adapter.updateService(salonId, provider, externalId, patch);
   }
 
-  async deleteService(salonId: string, provider: CrmType, externalId: string): Promise<void> {
+  async deleteService(
+    salonId: string,
+    provider: CrmType,
+    externalId: string,
+  ): Promise<void> {
     await this.adapter.deleteService(salonId, provider, externalId);
   }
 
   //*** Categories ***//
 
-  async enqueueCategoriesSync(salonId: string, provider: CrmType): Promise<{ jobId: string }> {
-    const jobId = await this.scheduler.scheduleSync({ salonId, provider }, { type: 'categories' });
+  async enqueueCategoriesSync(
+    salonId: string,
+    provider: CrmType,
+  ): Promise<{ jobId: string }> {
+    const jobId = await this.scheduler.scheduleSync(
+      { salonId, provider },
+      { type: 'categories' },
+    );
     return { jobId };
   }
 
-  async pullCategories(salonId: string, provider: CrmType): Promise<Page<CategoryData>> {
+  async pullCategories(
+    salonId: string,
+    provider: CrmType,
+  ): Promise<Page<CategoryData>> {
     return this.adapter.pullCategories(salonId, provider);
   }
 
@@ -377,37 +514,66 @@ export class CrmIntegrationService {
     return this.adapter.updateCategory(salonId, provider, externalId, patch);
   }
 
-  async deleteCategory(salonId: string, provider: CrmType, externalId: string): Promise<void> {
+  async deleteCategory(
+    salonId: string,
+    provider: CrmType,
+    externalId: string,
+  ): Promise<void> {
     await this.adapter.deleteCategory(salonId, provider, externalId);
   }
 
   //*** Workers ***//
 
-  async enqueueWorkersSync(salonId: string, provider: CrmType): Promise<{ jobId: string }> {
-    const jobId = await this.scheduler.scheduleSync({ salonId, provider }, { type: 'workers' });
+  async enqueueWorkersSync(
+    salonId: string,
+    provider: CrmType,
+  ): Promise<{ jobId: string }> {
+    const jobId = await this.scheduler.scheduleSync(
+      { salonId, provider },
+      { type: 'workers' },
+    );
     return { jobId };
   }
 
-  async pullWorkers(salonId: string, provider: CrmType): Promise<Page<WorkerData>> {
+  async pullWorkers(
+    salonId: string,
+    provider: CrmType,
+  ): Promise<Page<WorkerData>> {
     return this.adapter.pullWorkers(salonId, provider);
   }
 
-  async createWorker(salonId: string, provider: CrmType, data: WorkerCreateInput): Promise<WorkerData> {
+  async createWorker(
+    salonId: string,
+    provider: CrmType,
+    data: WorkerCreateInput,
+  ): Promise<WorkerData> {
     return this.adapter.createWorker(salonId, provider, data);
   }
 
-  async updateWorker(salonId: string, provider: CrmType, externalId: string, patch: WorkerUpdateInput): Promise<WorkerData> {
+  async updateWorker(
+    salonId: string,
+    provider: CrmType,
+    externalId: string,
+    patch: WorkerUpdateInput,
+  ): Promise<WorkerData> {
     return this.adapter.updateWorker(salonId, provider, externalId, patch);
   }
 
-  async deleteWorker(salonId: string, provider: CrmType, externalId: string): Promise<void> {
+  async deleteWorker(
+    salonId: string,
+    provider: CrmType,
+    externalId: string,
+  ): Promise<void> {
     await this.adapter.deleteWorker(salonId, provider, externalId);
   }
 
   //*** Helpers ***//
 
   async resolveSalonProvider(salonId: string): Promise<CrmType> {
-    const salon = await this.prisma.salon.findUnique({ where: { id: salonId }, select: { provider: true } });
+    const salon = await this.prisma.salon.findUnique({
+      where: { id: salonId },
+      select: { provider: true },
+    });
     if (!salon?.provider) {
       throw new BadRequestException('Salon is not linked to a CRM provider');
     }
@@ -432,5 +598,4 @@ export class CrmIntegrationService {
     }
     throw e;
   }
-
 }
