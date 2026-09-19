@@ -299,6 +299,7 @@ MVP
 - Method/Path: GET `/api/v1/company/{company_id}/staff`
 - Headers: `Accept`, `Authorization`, `User`
 - Data we use: `id`, `name`, `specialization`, `avatar` (and/or `avatar_big`), `email?`, `phone?`, `services_links[]`, `grid_settings`, `is_bookable`
+- ⚠️ Live responses (checked 2026-09-19) return the staff card's `email` and `phone` as empty strings. The contacts live on the linked account `user { phone, email }`, present only once the member has an Altegio login (`user_id` set), and the HR card `employee.phone`. Provider Core reads the card first, then `user`, then `employee`.
 
 Sample request
 

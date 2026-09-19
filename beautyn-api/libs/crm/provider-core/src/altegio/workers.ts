@@ -58,8 +58,11 @@ function mapWorker(raw: any, ctx: AltegioContext): WorkerData {
     position: raw?.specialization ?? undefined,
     description: ctx.stripHtml?.(raw?.description) ?? undefined,
     photoUrl: raw?.avatar_big || raw?.avatar || undefined,
-    email: raw?.email || undefined,
-    phone: raw?.phone || undefined,
+    // The staff card's own `email`/`phone` come back as empty strings; the
+    // contacts live on the linked account (`user`, present once the member
+    // has an Altegio login) and, for the phone, on the HR card (`employee`).
+    email: raw?.email || raw?.user?.email || undefined,
+    phone: raw?.phone || raw?.user?.phone || raw?.employee?.phone || undefined,
     isActive: raw?.is_bookable ?? !(raw?.hidden || raw?.fired),
     updatedAtIso: raw?.updated_at ?? raw?.updatedAt ?? undefined,
   };
