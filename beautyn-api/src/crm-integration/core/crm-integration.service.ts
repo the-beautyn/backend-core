@@ -118,15 +118,21 @@ export class CrmIntegrationService {
         if (existing.ownerUserId && existing.ownerUserId !== userId) {
           throw new BadRequestException('EasyWeek salon already linked to another user');
         }
-        if (!existing.ownerUserId || !existing.bookingUrl) {
-          await this.prisma.salon.update({
-            where: { id: existing.id },
-            data: {
-              ...(existing.ownerUserId ? {} : { ownerUserId: userId }),
-              ...(existing.bookingUrl ? {} : { bookingUrl }),
-            },
-          });
-        }
+        // The owner just typed a key, a workspace and (maybe) a widget URL for
+        // this salon; they win over whatever an earlier link left behind, and
+        // the booking URL must follow the workspace the salon now syncs against.
+        // Both stores upsert. Skipping this on adoption meant a re-linked salon
+        // kept a stale (often revoked) key and every sync after onboarding
+        // failed with "EasyWeek unauthorized".
+        await this.prisma.salon.update({
+          where: { id: existing.id },
+          data: {
+            ...(existing.ownerUserId ? {} : { ownerUserId: userId }),
+            bookingUrl,
+          },
+        });
+        await this.accounts.setEasyWeek(existing.id, { workspaceSlug, locationId: ext });
+        await this.tokens.store(existing.id, CrmType.EASYWEEK, { apiKey: authToken });
         salonIds.push(existing.id);
         continue;
       }

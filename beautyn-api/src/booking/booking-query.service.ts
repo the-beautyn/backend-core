@@ -148,6 +148,7 @@ export class BookingQueryService {
     base: Prisma.BookingWhereInput,
     params: { status?: string; from?: Date; to?: Date },
     now: Date,
+    options: { cancelledWindowOn?: 'datetime' | 'cancelledAt' } = {},
   ): Prisma.BookingWhereInput {
     const notCancelled = { notIn: BookingQueryService.CANCELLED_STATUSES };
     const attended: Prisma.BookingWhereInput = { altegioDetails: { is: { attendance: 1 } } };
@@ -176,15 +177,24 @@ export class BookingQueryService {
     // window (and so cursor paging operates over the right set). This top-level `datetime`
     // constraint is ANDed with each bucket's own AND/OR; those reference datetime only inside
     // nested objects, so there's no key collision.
-    const dateRange: Prisma.BookingWhereInput =
+    const window =
       params.from || params.to
         ? {
-            datetime: {
-              ...(params.from ? { gte: params.from } : {}),
-              ...(params.to ? { lte: params.to } : {}),
-            },
+            ...(params.from ? { gte: params.from } : {}),
+            ...(params.to ? { lte: params.to } : {}),
           }
-        : {};
+        : null;
+    const dateRange: Prisma.BookingWhereInput = window ? { datetime: window } : {};
+    // The cancelled bucket is about *when the owner lost the booking*, and the
+    // panel orders it by cancelledAt — so its window can bound cancelledAt too,
+    // or a booking cancelled yesterday for an appointment next month would fall
+    // outside "last 7 days". Opt-in per caller: the client app still windows on
+    // the appointment date and re-sorts by cancelledAt itself.
+    const cancelledRange: Prisma.BookingWhereInput = window
+      ? options.cancelledWindowOn === 'cancelledAt'
+        ? { cancelledAt: window }
+        : { datetime: window }
+      : {};
 
     switch (params.status) {
       case 'created':
@@ -202,7 +212,7 @@ export class BookingQueryService {
           OR: [...endInPast, attended],
         };
       case 'canceled':
-        return { ...base, ...dateRange, status: { in: BookingQueryService.CANCELLED_STATUSES } };
+        return { ...base, ...cancelledRange, status: { in: BookingQueryService.CANCELLED_STATUSES } };
       default:
         return {
           ...base,
@@ -237,10 +247,20 @@ export class BookingQueryService {
       throw new BadRequestException('Use either page or cursor, not both');
     }
 
-    // Same bucket logic as the client app's tabs — see buildBucketWhere.
-    const where = this.buildBucketWhere({ salonId: params.salonId }, params, new Date());
+    // Same bucket logic as the client app's tabs — see buildBucketWhere. The
+    // cancelled bucket alone windows on cancelledAt, to match its ordering below.
+    const isCancelledBucket = params.status === 'canceled';
+    const where = this.buildBucketWhere({ salonId: params.salonId }, params, new Date(), {
+      cancelledWindowOn: isCancelledBucket ? 'cancelledAt' : 'datetime',
+    });
     const includeHistory = params.includeHistory ?? true;
-    const orderBy: Prisma.BookingOrderByWithRelationInput[] = [{ datetime: 'desc' }, { id: 'desc' }];
+    // Скасовані reads newest cancellation first; the appointment date is only a
+    // tiebreak there. The owner list is paginated server-side, so this cannot be
+    // left to the client the way the app's cursor-walked list leaves it. Legacy
+    // rows without a stamp (none since the BEA back-fill) sort last, not first.
+    const orderBy: Prisma.BookingOrderByWithRelationInput[] = isCancelledBucket
+      ? [{ cancelledAt: { sort: 'desc', nulls: 'last' } }, { datetime: 'desc' }, { id: 'desc' }]
+      : [{ datetime: 'desc' }, { id: 'desc' }];
 
     if (params.page !== undefined) {
       const { page, limit, skip } = normalizePagination(params.page, params.limit, {
@@ -332,6 +352,7 @@ export class BookingQueryService {
     const includeClient = opts?.includeClient === true;
     const easyweek = this.mapEasyweek(booking);
     const altegio = this.mapAltegio(booking);
+    const totalPrice = this.computeTotalPrice(easyweek, altegio);
     return {
       id: booking.id,
       salon_id: booking.salonId,
@@ -360,8 +381,10 @@ export class BookingQueryService {
       datetime: booking.datetime.toISOString(),
       end_datetime: booking.endDatetime ? booking.endDatetime.toISOString() : null,
       service_names: this.computeServiceNames(easyweek, altegio),
-      total_price: this.computeTotalPrice(easyweek, altegio),
-      currency: this.computeCurrency(easyweek),
+      total_price: totalPrice,
+      // A currency without an amount is noise: an Altegio booking whose
+      // services are all zero-cost has the UAH rule but nothing to label.
+      currency: totalPrice == null ? null : this.computeCurrency(easyweek, altegio),
       duration_minutes: this.computeDurationMinutes(booking, easyweek, altegio),
       comment: booking.comment ?? null,
       crm_type: booking.crmType ?? null,
@@ -417,8 +440,14 @@ export class BookingQueryService {
     return alSum > 0 ? alSum : null;
   }
 
-  private computeCurrency(ew?: BookingProviderEasyweekDto): string | null {
-    return (ew?.ordered_services ?? []).find((s) => !!s.currency)?.currency ?? null;
+  // EasyWeek states the currency per ordered service. Altegio does not carry one
+  // on the record at all; its services sync assumes UAH (provider-core
+  // altegio/services.ts), so a priced Altegio booking is UAH by the same rule —
+  // otherwise the owner panel showed a bare number in the Сума column.
+  private computeCurrency(ew?: BookingProviderEasyweekDto, al?: BookingProviderAltegioDto): string | null {
+    const fromEasyweek = (ew?.ordered_services ?? []).find((s) => !!s.currency)?.currency;
+    if (fromEasyweek) return fromEasyweek;
+    return (al?.services ?? []).length ? 'UAH' : null;
   }
 
   // The booking window (end - start) is the most reliable duration source, so we

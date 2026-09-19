@@ -413,6 +413,8 @@ model Booking {
   // The owner list orders by datetime desc within a salon and now also counts
   // over the same filter for `total`; without this both are a salon-wide scan.
   @@index([salonId, datetime(sort: Desc)], map: "bookings_salon_datetime_idx")
+  // The owner panel's cancelled tab filters and orders by cancelled_at (BEA-67).
+  @@index([salonId, cancelledAt(sort: Desc)], map: "bookings_salon_cancelled_at_idx")
   @@unique([crmType, crmRecordId], map: "bookings_crm_type_record_unique")
   @@map("bookings")
 }

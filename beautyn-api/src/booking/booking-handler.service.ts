@@ -75,7 +75,7 @@ export class BookingHandlerService {
       params.userId ?? null,
     );
 
-    const incoming = this.buildEasyweekIncomingState({
+    const incoming = await this.buildEasyweekIncomingState({
       salonId: params.salonId,
       userId: params.userId ?? null,
       status,
@@ -105,6 +105,8 @@ export class BookingHandlerService {
           crmType: CrmType.EASYWEEK,
           crmRecordId: normalized.bookingUuid,
           crmCompanyId: normalized.locationUuid ?? null,
+          crmStaffId: incoming.crmStaffId,
+          workerId: incoming.workerId,
           comment: normalized.comment ?? null,
           crmPayload: payload,
           ...client,
@@ -165,7 +167,7 @@ export class BookingHandlerService {
       existing.userId ?? null,
     );
 
-    const incoming = this.buildEasyweekIncomingState({
+    const incoming = await this.buildEasyweekIncomingState({
       salonId: existing.salonId,
       userId: existing.userId ?? null,
       status,
@@ -199,6 +201,8 @@ export class BookingHandlerService {
           datetime: start,
           endDatetime: end ?? null,
           crmCompanyId: normalized.locationUuid ?? null,
+          crmStaffId: incoming.crmStaffId,
+          workerId: incoming.workerId,
           comment: normalized.comment ?? null,
           crmPayload: payload,
           ...client,
@@ -468,7 +472,7 @@ export class BookingHandlerService {
     };
   }
 
-  private buildEasyweekIncomingState(args: {
+  private async buildEasyweekIncomingState(args: {
     salonId: string;
     userId: string | null;
     status: string;
@@ -489,6 +493,12 @@ export class BookingHandlerService {
     const mappedOrder = this.mapEasyweekOrder(args.order);
     const mappedLinks = this.mapEasyweekLinks(args.links);
     const mappedServices = this.mapEasyweekOrderedServices(args.orderedServices);
+    // EasyWeek names the master per ordered service (`staffer.uuid`), and that
+    // uuid is what the workers sync stores as Worker.crmWorkerId. One booking
+    // can in principle span services with different staffers; the first one
+    // stands for the booking, which is also how the panel shows it.
+    const crmStaffId = this.extractEasyweekStafferUuid(args.orderedServices);
+    const workerId = crmStaffId ? await this.resolveWorkerId(args.salonId, crmStaffId) : null;
 
     const snapshot = this.normalizeSnapshot({
       booking: {
@@ -501,7 +511,10 @@ export class BookingHandlerService {
         crmType: CrmType.EASYWEEK,
         crmRecordId: args.crmRecordId,
         crmCompanyId: args.crmCompanyId ?? null,
-        crmStaffId: null,
+        crmStaffId,
+        // In the snapshot so a booking that only gained a resolvable worker
+        // (e.g. after the workers sync caught up) is detected as changed.
+        workerId,
         crmServiceIds: null,
         serviceIds: null,
         shortLink: args.shortLink ?? null,
@@ -515,6 +528,8 @@ export class BookingHandlerService {
 
     return {
       snapshot,
+      crmStaffId,
+      workerId,
       rawPayload: args.crmPayload ?? null,
       duration: mappedDuration,
       order: mappedOrder,
@@ -537,6 +552,7 @@ export class BookingHandlerService {
         crmRecordId: existing.crmRecordId ?? null,
         crmCompanyId: existing.crmCompanyId ?? null,
         crmStaffId: existing.crmStaffId ?? null,
+        workerId: existing.workerId ?? null,
         crmServiceIds: this.normalizeJsonArray(existing.crmServiceIds),
         serviceIds: this.normalizeJsonArray(existing.serviceIds),
         shortLink: existing.shortLink ?? null,
@@ -546,6 +562,14 @@ export class BookingHandlerService {
     });
 
     return { snapshot };
+  }
+
+  private extractEasyweekStafferUuid(orderedServices: any[]): string | null {
+    for (const svc of Array.isArray(orderedServices) ? orderedServices : []) {
+      const uuid = svc?.staffer?.uuid ?? svc?.staffer_uuid ?? svc?.stafferUuid ?? null;
+      if (uuid) return String(uuid);
+    }
+    return null;
   }
 
   private async buildAltegioIncomingState(args: {
@@ -563,7 +587,7 @@ export class BookingHandlerService {
   }) {
     const staffId = args.crmStaffId;
     const serviceExternalIds = this.extractAltegioServiceIds(args.booking?.services);
-    const workerId = staffId ? await this.resolveWorkerId(CrmType.ALTEGIO, staffId) : null;
+    const workerId = staffId ? await this.resolveWorkerId(args.salonId, staffId) : null;
     const serviceIds = serviceExternalIds.length ? await this.resolveServiceIds(CrmType.ALTEGIO, serviceExternalIds) : [];
 
     const mappedDetails = this.mapAltegioDetails(args.booking?.raw ?? args.booking ?? null);
@@ -948,12 +972,17 @@ export class BookingHandlerService {
       .map((id) => String(id));
   }
 
-  private async resolveWorkerId(provider: CrmType, externalId: string): Promise<string | null> {
-    const mapping = await this.prisma.workerMapping.findUnique({
-      where: { provider_externalId: { provider, externalId } },
-      select: { workerId: true },
+  // The CRM's staff id is the worker's `crmWorkerId` in the same salon — the
+  // workers sync writes it there. (A `WorkerMapping` table exists in the schema
+  // but nothing has ever written to it, so resolving through it left every
+  // synced booking without a worker and the owner panel's Майстер column empty.)
+  // Scoped to the salon because staff ids are only unique per CRM company.
+  private async resolveWorkerId(salonId: string, crmStaffId: string): Promise<string | null> {
+    const worker = await this.prisma.worker.findFirst({
+      where: { salonId, crmWorkerId: crmStaffId },
+      select: { id: true },
     });
-    return mapping?.workerId ?? null;
+    return worker?.id ?? null;
   }
 
   private async resolveServiceIds(provider: CrmType, externalIds: string[]): Promise<string[]> {

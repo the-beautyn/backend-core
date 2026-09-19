@@ -230,19 +230,22 @@ describe('BookingHandlerService — client snapshot', () => {
       duration: null,
     };
 
-    const snapshotWith = (client: Record<string, unknown>) =>
-      call('buildEasyweekIncomingState', { ...baseArgs, client }).snapshot;
+    // The builder resolves the staffer to a worker, hence async. No staffer in
+    // these args, so the worker lookup is never reached.
+    const snapshotWith = async (client: Record<string, unknown>) =>
+      (await call('buildEasyweekIncomingState', { ...baseArgs, client }))
+        .snapshot;
 
-    it('notices a client-only change', () => {
+    it('notices a client-only change', async () => {
       // Without the client in the snapshot, renaming a client in the CRM would
       // compare equal and the sync would skip the write entirely.
-      const before = snapshotWith({
+      const before = await snapshotWith({
         clientName: 'First Customer',
         clientPhone: '+380950000001',
         clientEmail: null,
         clientSource: 'easyweek',
       });
-      const after = snapshotWith({
+      const after = await snapshotWith({
         clientName: 'Renamed Customer',
         clientPhone: '+380950000001',
         clientEmail: null,
@@ -252,7 +255,7 @@ describe('BookingHandlerService — client snapshot', () => {
       expect(after).not.toEqual(before);
     });
 
-    it('builds incoming and existing snapshots with matching client keys', () => {
+    it('builds incoming and existing snapshots with matching client keys', async () => {
       // Asymmetry here would make every booking compare as changed, forever.
       const client = {
         clientName: 'First Customer',
@@ -260,7 +263,7 @@ describe('BookingHandlerService — client snapshot', () => {
         clientEmail: 'first@customer.com',
         clientSource: 'easyweek',
       };
-      const incoming = snapshotWith(client);
+      const incoming = await snapshotWith(client);
       const existing = call('buildEasyweekExistingState', {
         salonId: baseArgs.salonId,
         userId: null,
@@ -272,6 +275,7 @@ describe('BookingHandlerService — client snapshot', () => {
         crmRecordId: baseArgs.crmRecordId,
         crmCompanyId: null,
         crmStaffId: null,
+        workerId: null,
         crmServiceIds: null,
         serviceIds: null,
         shortLink: null,

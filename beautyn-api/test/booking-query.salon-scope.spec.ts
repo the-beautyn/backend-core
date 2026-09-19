@@ -78,6 +78,50 @@ describe('BookingQueryService.listForSalon scope translation', () => {
     expect(where.status).toEqual({ notIn: CANCELLED });
   });
 
+  describe('cancelled bucket (owner panel)', () => {
+    const from = new Date('2026-06-01T00:00:00Z');
+    const to = new Date('2026-06-30T23:59:59Z');
+
+    // The panel's Скасовані tab is "what did I lose recently", so both the
+    // window and the order follow the cancellation, not the appointment.
+    it('windows on cancelledAt rather than the appointment date', async () => {
+      const where = await salonWhere('canceled', { from, to });
+      expect(where.cancelledAt).toEqual({ gte: from, lte: to });
+      expect(where.datetime).toBeUndefined();
+      expect(where.status).toEqual({ in: CANCELLED });
+    });
+
+    it('orders by cancelledAt desc with nulls last, then appointment', async () => {
+      await service.listForSalon({ salonId, status: 'canceled' } as any);
+      expect(findMany.mock.calls.at(-1)![0].orderBy).toEqual([
+        { cancelledAt: { sort: 'desc', nulls: 'last' } },
+        { datetime: 'desc' },
+        { id: 'desc' },
+      ]);
+    });
+
+    it('leaves every other bucket ordered by appointment date', async () => {
+      await service.listForSalon({ salonId, status: 'created' } as any);
+      expect(findMany.mock.calls.at(-1)![0].orderBy).toEqual([
+        { datetime: 'desc' },
+        { id: 'desc' },
+      ]);
+    });
+
+    it('applies the same window to the count, so the total matches the page', async () => {
+      await service.listForSalon({
+        salonId,
+        status: 'canceled',
+        from,
+        to,
+        page: 1,
+      } as any);
+      expect(count.mock.calls.at(-1)![0].where).toEqual(
+        findMany.mock.calls.at(-1)![0].where,
+      );
+    });
+  });
+
   // The DoD line this ticket exists for: an owner's Активні tab must hold exactly the
   // rows the client app calls upcoming. Asserting the two `where` objects are identical
   // apart from their base key is stronger than checking each shape independently — it
@@ -97,9 +141,82 @@ describe('BookingQueryService.listForSalon scope translation', () => {
       expect(clientWhere.userId).toBe(userId);
       delete ownerWhere.salonId;
       delete clientWhere.userId;
+      if (status === 'canceled') {
+        // The one deliberate divergence: the owner windows the cancelled bucket
+        // on cancelledAt (see the cancelled-bucket describe above), the client
+        // app still on the appointment date. The bound itself must be identical.
+        expect(ownerWhere.cancelledAt).toEqual(clientWhere.datetime);
+        delete ownerWhere.cancelledAt;
+        delete clientWhere.datetime;
+      }
       expect(ownerWhere).toEqual(clientWhere);
     },
   );
+
+  describe('currency', () => {
+    const base = {
+      id: 'b1',
+      salonId,
+      datetime: new Date('2026-06-15T10:00:00Z'),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      status: 'created',
+      history: [],
+    };
+
+    it('reads it off EasyWeek ordered services', async () => {
+      findMany.mockResolvedValue([
+        {
+          ...base,
+          easyweekDetails: {
+            orderedServices: [{ price: 30000, currency: 'UAH' }],
+          },
+        },
+      ]);
+      const res = await service.listForSalon({ salonId });
+      expect(res.items[0].currency).toBe('UAH');
+    });
+
+    // Altegio records carry no currency; the services sync assumes UAH for them
+    // and the booking follows the same rule, so the panel can label the amount.
+    it('assumes UAH for a priced Altegio booking', async () => {
+      findMany.mockResolvedValue([
+        {
+          ...base,
+          altegioDetails: {
+            services: [
+              { title: 'Beard trimming', cost: 25000, costToPay: 25000 },
+            ],
+          },
+        },
+      ]);
+      const res = await service.listForSalon({ salonId });
+      expect(res.items[0].total_price).toBe(25000);
+      expect(res.items[0].currency).toBe('UAH');
+    });
+
+    it('stays null for an Altegio booking whose services are all free', async () => {
+      // A currency with no amount would label nothing; keep the pair consistent.
+      findMany.mockResolvedValue([
+        {
+          ...base,
+          altegioDetails: {
+            services: [{ title: 'Consultation', cost: 0, costToPay: 0 }],
+          },
+        },
+      ]);
+      const res = await service.listForSalon({ salonId });
+      expect(res.items[0].total_price).toBeNull();
+      expect(res.items[0].currency).toBeNull();
+    });
+
+    it('stays null when there is nothing priced', async () => {
+      findMany.mockResolvedValue([{ ...base }]);
+      const res = await service.listForSalon({ salonId });
+      expect(res.items[0].total_price).toBeNull();
+      expect(res.items[0].currency).toBeNull();
+    });
+  });
 
   describe('client snapshot exposure', () => {
     const row = {
