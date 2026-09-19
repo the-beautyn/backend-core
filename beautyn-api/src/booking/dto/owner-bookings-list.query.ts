@@ -33,7 +33,8 @@ export class OwnerBookingsListQueryDto {
 
   @ApiProperty({
     required: false,
-    description: 'ISO-8601 lower bound on datetime',
+    description:
+      'ISO-8601 lower bound on datetime (on cancelled_at when status=canceled)',
   })
   @IsOptional()
   @IsISO8601()
@@ -41,7 +42,8 @@ export class OwnerBookingsListQueryDto {
 
   @ApiProperty({
     required: false,
-    description: 'ISO-8601 upper bound on datetime',
+    description:
+      'ISO-8601 upper bound on datetime (on cancelled_at when status=canceled)',
   })
   @IsOptional()
   @IsISO8601()
