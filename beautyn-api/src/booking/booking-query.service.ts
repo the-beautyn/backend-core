@@ -464,7 +464,7 @@ export class BookingQueryService {
         : null,
       service_names: this.computeServiceNames(easyweek, altegio),
       total_price: this.computeTotalPrice(easyweek, altegio),
-      currency: this.computeCurrency(easyweek),
+      currency: this.computeCurrency(easyweek, altegio),
       duration_minutes: this.computeDurationMinutes(booking, easyweek, altegio),
       comment: booking.comment ?? null,
       crm_type: booking.crmType ?? null,
@@ -529,10 +529,19 @@ export class BookingQueryService {
     return alSum > 0 ? alSum : null;
   }
 
-  private computeCurrency(ew?: BookingProviderEasyweekDto): string | null {
-    return (
-      (ew?.ordered_services ?? []).find((s) => !!s.currency)?.currency ?? null
-    );
+  // EasyWeek states the currency per ordered service. Altegio does not carry one
+  // on the record at all; its services sync assumes UAH (provider-core
+  // altegio/services.ts), so a priced Altegio booking is UAH by the same rule —
+  // otherwise the owner panel showed a bare number in the Сума column.
+  private computeCurrency(
+    ew?: BookingProviderEasyweekDto,
+    al?: BookingProviderAltegioDto,
+  ): string | null {
+    const fromEasyweek = (ew?.ordered_services ?? []).find(
+      (s) => !!s.currency,
+    )?.currency;
+    if (fromEasyweek) return fromEasyweek;
+    return (al?.services ?? []).length ? 'UAH' : null;
   }
 
   // The booking window (end - start) is the most reliable duration source, so we

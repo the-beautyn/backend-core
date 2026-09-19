@@ -153,6 +153,56 @@ describe('BookingQueryService.listForSalon scope translation', () => {
     },
   );
 
+  describe('currency', () => {
+    const base = {
+      id: 'b1',
+      salonId,
+      datetime: new Date('2026-06-15T10:00:00Z'),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      status: 'created',
+      history: [],
+    };
+
+    it('reads it off EasyWeek ordered services', async () => {
+      findMany.mockResolvedValue([
+        {
+          ...base,
+          easyweekDetails: {
+            orderedServices: [{ price: 30000, currency: 'UAH' }],
+          },
+        },
+      ]);
+      const res = await service.listForSalon({ salonId });
+      expect(res.items[0].currency).toBe('UAH');
+    });
+
+    // Altegio records carry no currency; the services sync assumes UAH for them
+    // and the booking follows the same rule, so the panel can label the amount.
+    it('assumes UAH for a priced Altegio booking', async () => {
+      findMany.mockResolvedValue([
+        {
+          ...base,
+          altegioDetails: {
+            services: [
+              { title: 'Beard trimming', cost: 25000, costToPay: 25000 },
+            ],
+          },
+        },
+      ]);
+      const res = await service.listForSalon({ salonId });
+      expect(res.items[0].total_price).toBe(25000);
+      expect(res.items[0].currency).toBe('UAH');
+    });
+
+    it('stays null when there is nothing priced', async () => {
+      findMany.mockResolvedValue([{ ...base }]);
+      const res = await service.listForSalon({ salonId });
+      expect(res.items[0].total_price).toBeNull();
+      expect(res.items[0].currency).toBeNull();
+    });
+  });
+
   describe('client snapshot exposure', () => {
     const row = {
       id: 'b1',
