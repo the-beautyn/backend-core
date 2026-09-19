@@ -2,12 +2,7 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { Prisma, Booking } from '@prisma/client';
 import { PrismaService } from '../shared/database/prisma.service';
 import { normalizePagination } from '../shared/utils/pagination.util';
-import {
-  BookingDto,
-  BookingListResponseDto,
-  BookingProviderAltegioDto,
-  BookingProviderEasyweekDto,
-} from './dto/booking.response.dto';
+import { BookingDto, BookingListResponseDto, BookingProviderAltegioDto, BookingProviderEasyweekDto } from './dto/booking.response.dto';
 
 /** Shared by both pagination modes so cursor and offset never disagree on limits. */
 const DEFAULT_PAGE_SIZE = 20;
@@ -23,20 +18,11 @@ type BookingWithRelations = Booking & {
     coverImageUrl: string | null;
     timezone: string | null;
   } | null;
-  worker: {
-    id: string;
-    firstName: string;
-    lastName: string;
-    photoUrl: string | null;
-  } | null;
+  worker: { id: string; firstName: string; lastName: string; photoUrl: string | null } | null;
   easyweekDetails: {
     bookingId: string;
     links: Array<{ type: string | null; url: string }>;
-    duration: {
-      value: number | null;
-      label: string | null;
-      iso8601: string | null;
-    } | null;
+    duration: { value: number | null; label: string | null; iso8601: string | null } | null;
     orderedServices: Array<any>;
     order: any | null;
     rawPayload?: Prisma.JsonValue | null;
@@ -65,9 +51,7 @@ export class BookingQueryService {
         timezone: true,
       },
     },
-    worker: {
-      select: { id: true, firstName: true, lastName: true, photoUrl: true },
-    },
+    worker: { select: { id: true, firstName: true, lastName: true, photoUrl: true } },
     easyweekDetails: {
       include: {
         links: true,
@@ -96,36 +80,20 @@ export class BookingQueryService {
 
   constructor(private readonly prisma: PrismaService) {}
 
-  async getForClient(
-    bookingId: string,
-    userId: string,
-  ): Promise<BookingDto | null> {
+  async getForClient(bookingId: string, userId: string): Promise<BookingDto | null> {
     const booking = await this.prisma.booking.findFirst({
       where: { id: bookingId, userId },
       include: this.include,
     });
-    return booking
-      ? this.mapBooking(booking as unknown as BookingWithRelations, {
-          includeHistory: false,
-        })
-      : null;
+    return booking ? this.mapBooking(booking as unknown as BookingWithRelations, { includeHistory: false }) : null;
   }
 
-  async getForSalon(
-    bookingId: string,
-    salonId: string,
-    includeHistory = true,
-  ): Promise<BookingDto | null> {
+  async getForSalon(bookingId: string, salonId: string, includeHistory = true): Promise<BookingDto | null> {
     const booking = await this.prisma.booking.findFirst({
       where: { id: bookingId, salonId },
       include: this.include,
     });
-    return booking
-      ? this.mapBooking(booking as unknown as BookingWithRelations, {
-          includeHistory,
-          includeClient: true,
-        })
-      : null;
+    return booking ? this.mapBooking(booking as unknown as BookingWithRelations, { includeHistory, includeClient: true }) : null;
   }
 
   async listForClient(params: {
@@ -138,13 +106,8 @@ export class BookingQueryService {
     sort?: 'datetime_asc' | 'datetime_desc';
   }): Promise<BookingListResponseDto> {
     const take = this.clampTake(params.limit);
-    const direction: Prisma.SortOrder =
-      params.sort === 'datetime_asc' ? 'asc' : 'desc';
-    const where = this.buildBucketWhere(
-      { userId: params.userId },
-      params,
-      new Date(),
-    );
+    const direction: Prisma.SortOrder = params.sort === 'datetime_asc' ? 'asc' : 'desc';
+    const where = this.buildBucketWhere({ userId: params.userId }, params, new Date());
 
     // All buckets (incl. cancelled) are returned ordered by appointment datetime.
     // The Cancelled tab is re-ordered by cancelledAt client-side; cancelled_at is
@@ -188,9 +151,7 @@ export class BookingQueryService {
     options: { cancelledWindowOn?: 'datetime' | 'cancelledAt' } = {},
   ): Prisma.BookingWhereInput {
     const notCancelled = { notIn: BookingQueryService.CANCELLED_STATUSES };
-    const attended: Prisma.BookingWhereInput = {
-      altegioDetails: { is: { attendance: 1 } },
-    };
+    const attended: Prisma.BookingWhereInput = { altegioDetails: { is: { attendance: 1 } } };
     // "Not attended" must be NULL-safe: `NOT: { altegioDetails: { is: { attendance: 1 } } }`
     // compiles to `NOT (attendance = 1 AND booking_id IS NOT NULL)`, which evaluates to NULL
     // (→ row dropped) when attendance IS NULL — the state app-created Altegio bookings sit in
@@ -198,8 +159,8 @@ export class BookingQueryService {
     // freshly booked appointment shows in Upcoming immediately, before any reconcile.
     const notAttended: Prisma.BookingWhereInput = {
       OR: [
-        { altegioDetails: { is: null } }, // EasyWeek / no Altegio details row
-        { altegioDetails: { is: { attendance: null } } }, // Altegio, not yet synced
+        { altegioDetails: { is: null } },                       // EasyWeek / no Altegio details row
+        { altegioDetails: { is: { attendance: null } } },       // Altegio, not yet synced
         { altegioDetails: { is: { attendance: { not: 1 } } } }, // Altegio, attendance ≠ 1
       ],
     };
@@ -223,9 +184,7 @@ export class BookingQueryService {
             ...(params.to ? { lte: params.to } : {}),
           }
         : null;
-    const dateRange: Prisma.BookingWhereInput = window
-      ? { datetime: window }
-      : {};
+    const dateRange: Prisma.BookingWhereInput = window ? { datetime: window } : {};
     // The cancelled bucket is about *when the owner lost the booking*, and the
     // panel orders it by cancelledAt — so its window can bound cancelledAt too,
     // or a booking cancelled yesterday for an appointment next month would fall
@@ -253,11 +212,7 @@ export class BookingQueryService {
           OR: [...endInPast, attended],
         };
       case 'canceled':
-        return {
-          ...base,
-          ...cancelledRange,
-          status: { in: BookingQueryService.CANCELLED_STATUSES },
-        };
+        return { ...base, ...cancelledRange, status: { in: BookingQueryService.CANCELLED_STATUSES } };
       default:
         return {
           ...base,
@@ -295,44 +250,25 @@ export class BookingQueryService {
     // Same bucket logic as the client app's tabs — see buildBucketWhere. The
     // cancelled bucket alone windows on cancelledAt, to match its ordering below.
     const isCancelledBucket = params.status === 'canceled';
-    const where = this.buildBucketWhere(
-      { salonId: params.salonId },
-      params,
-      new Date(),
-      {
-        cancelledWindowOn: isCancelledBucket ? 'cancelledAt' : 'datetime',
-      },
-    );
+    const where = this.buildBucketWhere({ salonId: params.salonId }, params, new Date(), {
+      cancelledWindowOn: isCancelledBucket ? 'cancelledAt' : 'datetime',
+    });
     const includeHistory = params.includeHistory ?? true;
     // Скасовані reads newest cancellation first; the appointment date is only a
     // tiebreak there. The owner list is paginated server-side, so this cannot be
     // left to the client the way the app's cursor-walked list leaves it. Legacy
     // rows without a stamp (none since the BEA back-fill) sort last, not first.
     const orderBy: Prisma.BookingOrderByWithRelationInput[] = isCancelledBucket
-      ? [
-          { cancelledAt: { sort: 'desc', nulls: 'last' } },
-          { datetime: 'desc' },
-          { id: 'desc' },
-        ]
+      ? [{ cancelledAt: { sort: 'desc', nulls: 'last' } }, { datetime: 'desc' }, { id: 'desc' }]
       : [{ datetime: 'desc' }, { id: 'desc' }];
 
     if (params.page !== undefined) {
-      const { page, limit, skip } = normalizePagination(
-        params.page,
-        params.limit,
-        {
-          defaultLimit: DEFAULT_PAGE_SIZE,
-          maxLimit: MAX_PAGE_SIZE,
-        },
-      );
+      const { page, limit, skip } = normalizePagination(params.page, params.limit, {
+        defaultLimit: DEFAULT_PAGE_SIZE,
+        maxLimit: MAX_PAGE_SIZE,
+      });
       const [rows, total] = await this.prisma.$transaction([
-        this.prisma.booking.findMany({
-          where,
-          include: this.include,
-          skip,
-          take: limit,
-          orderBy,
-        }),
+        this.prisma.booking.findMany({ where, include: this.include, skip, take: limit, orderBy }),
         this.prisma.booking.count({ where }),
       ]);
       return {
@@ -359,20 +295,14 @@ export class BookingQueryService {
     const nextCursor = items.length > take ? items[take].id : undefined;
     const slice = items.slice(0, take) as unknown as BookingWithRelations[];
     return {
-      items: slice.map((b) =>
-        this.mapBooking(b, { includeHistory, includeClient: true }),
-      ),
+      items: slice.map((b) => this.mapBooking(b, { includeHistory, includeClient: true })),
       next_cursor: nextCursor,
       limit: take,
     };
   }
 
   async getByIds(ids: string[]): Promise<BookingDto[]> {
-    const unique = Array.from(
-      new Set(
-        (ids ?? []).filter((id) => typeof id === 'string' && id.length > 0),
-      ),
-    );
+    const unique = Array.from(new Set((ids ?? []).filter((id) => typeof id === 'string' && id.length > 0)));
     if (!unique.length) return [];
 
     const bookings = await this.prisma.booking.findMany({
@@ -380,14 +310,9 @@ export class BookingQueryService {
       include: this.include,
     });
     const mapped = new Map<string, BookingDto>(
-      (bookings as unknown as BookingWithRelations[]).map((b) => [
-        b.id,
-        this.mapBooking(b),
-      ]),
+      (bookings as unknown as BookingWithRelations[]).map((b) => [b.id, this.mapBooking(b)]),
     );
-    return unique
-      .map((id) => mapped.get(id))
-      .filter((b): b is BookingDto => !!b);
+    return unique.map((id) => mapped.get(id)).filter((b): b is BookingDto => !!b);
   }
 
   /**
@@ -436,14 +361,8 @@ export class BookingQueryService {
             id: booking.salon.id,
             name: booking.salon.name ?? null,
             address_line: booking.salon.addressLine ?? null,
-            latitude:
-              booking.salon.latitude != null
-                ? Number(booking.salon.latitude)
-                : null,
-            longitude:
-              booking.salon.longitude != null
-                ? Number(booking.salon.longitude)
-                : null,
+            latitude: booking.salon.latitude != null ? Number(booking.salon.latitude) : null,
+            longitude: booking.salon.longitude != null ? Number(booking.salon.longitude) : null,
             cover_image_url: booking.salon.coverImageUrl ?? null,
             timezone: booking.salon.timezone ?? null,
           }
@@ -460,15 +379,12 @@ export class BookingQueryService {
       client: includeClient ? this.mapClient(booking) : undefined,
       status: booking.status,
       datetime: booking.datetime.toISOString(),
-      end_datetime: booking.endDatetime
-        ? booking.endDatetime.toISOString()
-        : null,
+      end_datetime: booking.endDatetime ? booking.endDatetime.toISOString() : null,
       service_names: this.computeServiceNames(easyweek, altegio),
       total_price: totalPrice,
       // A currency without an amount is noise: an Altegio booking whose
       // services are all zero-cost has the UAH rule but nothing to label.
-      currency:
-        totalPrice == null ? null : this.computeCurrency(easyweek, altegio),
+      currency: totalPrice == null ? null : this.computeCurrency(easyweek, altegio),
       duration_minutes: this.computeDurationMinutes(booking, easyweek, altegio),
       comment: booking.comment ?? null,
       crm_type: booking.crmType ?? null,
@@ -480,9 +396,7 @@ export class BookingQueryService {
       short_link: booking.shortLink ?? null,
       created_at: booking.createdAt.toISOString(),
       updated_at: booking.updatedAt.toISOString(),
-      cancelled_at: booking.cancelledAt
-        ? booking.cancelledAt.toISOString()
-        : null,
+      cancelled_at: booking.cancelledAt ? booking.cancelledAt.toISOString() : null,
       provider_specific: {
         easyweek,
         altegio,
@@ -505,13 +419,9 @@ export class BookingQueryService {
     ew?: BookingProviderEasyweekDto,
     al?: BookingProviderAltegioDto,
   ): string[] {
-    const ewNames = (ew?.ordered_services ?? [])
-      .map((s) => s.name)
-      .filter((n): n is string => !!n);
+    const ewNames = (ew?.ordered_services ?? []).map((s) => s.name).filter((n): n is string => !!n);
     if (ewNames.length) return ewNames;
-    return (al?.services ?? [])
-      .map((s) => s.title)
-      .filter((t): t is string => !!t);
+    return (al?.services ?? []).map((s) => s.title).filter((t): t is string => !!t);
   }
 
   private computeTotalPrice(
@@ -526,10 +436,7 @@ export class BookingQueryService {
       );
       if (sum > 0) return sum;
     }
-    const alSum = (al?.services ?? []).reduce(
-      (acc, s) => acc + (s.cost_to_pay ?? s.cost ?? 0),
-      0,
-    );
+    const alSum = (al?.services ?? []).reduce((acc, s) => acc + (s.cost_to_pay ?? s.cost ?? 0), 0);
     return alSum > 0 ? alSum : null;
   }
 
@@ -537,13 +444,8 @@ export class BookingQueryService {
   // on the record at all; its services sync assumes UAH (provider-core
   // altegio/services.ts), so a priced Altegio booking is UAH by the same rule —
   // otherwise the owner panel showed a bare number in the Сума column.
-  private computeCurrency(
-    ew?: BookingProviderEasyweekDto,
-    al?: BookingProviderAltegioDto,
-  ): string | null {
-    const fromEasyweek = (ew?.ordered_services ?? []).find(
-      (s) => !!s.currency,
-    )?.currency;
+  private computeCurrency(ew?: BookingProviderEasyweekDto, al?: BookingProviderAltegioDto): string | null {
+    const fromEasyweek = (ew?.ordered_services ?? []).find((s) => !!s.currency)?.currency;
     if (fromEasyweek) return fromEasyweek;
     return (al?.services ?? []).length ? 'UAH' : null;
   }
@@ -562,8 +464,7 @@ export class BookingQueryService {
     if (ew?.duration) {
       const fromIso = this.iso8601ToMinutes(ew.duration.iso8601 ?? null);
       if (fromIso != null) return fromIso;
-      if (ew.duration.value != null)
-        return this.secondsToMinutes(ew.duration.value);
+      if (ew.duration.value != null) return this.secondsToMinutes(ew.duration.value);
     }
     const ewServicesSum = (ew?.ordered_services ?? []).reduce(
       (acc, s) => acc + (s.duration_value ?? 0),
@@ -571,8 +472,7 @@ export class BookingQueryService {
     );
     if (ewServicesSum > 0) return this.secondsToMinutes(ewServicesSum);
     const alLength = al?.seance_length ?? al?.length ?? null;
-    if (alLength != null && alLength > 0)
-      return this.secondsToMinutes(alLength);
+    if (alLength != null && alLength > 0) return this.secondsToMinutes(alLength);
     return null;
   }
 
@@ -582,9 +482,7 @@ export class BookingQueryService {
 
   private iso8601ToMinutes(iso: string | null): number | null {
     if (!iso) return null;
-    const match = /^P(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?)?$/.exec(
-      iso,
-    );
+    const match = /^P(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?)?$/.exec(iso);
     if (!match) return null;
     const [, d, h, m, s] = match;
     const total =
@@ -595,9 +493,7 @@ export class BookingQueryService {
     return total > 0 ? total : null;
   }
 
-  private mapEasyweek(
-    booking: BookingWithRelations,
-  ): BookingProviderEasyweekDto | undefined {
+  private mapEasyweek(booking: BookingWithRelations): BookingProviderEasyweekDto | undefined {
     const details = booking.easyweekDetails;
     if (!details) return undefined;
     const raw = (details as any)?.rawPayload ?? {};
@@ -623,9 +519,7 @@ export class BookingQueryService {
       ordered_services: (details.orderedServices || []).map((svc: any) => ({
         external_uuid: svc.externalUuid ?? null,
         reserved_on: svc.reservedOn ? svc.reservedOn.toISOString() : null,
-        reserved_until: svc.reservedUntil
-          ? svc.reservedUntil.toISOString()
-          : null,
+        reserved_until: svc.reservedUntil ? svc.reservedUntil.toISOString() : null,
         timezone: svc.timezone ?? null,
         quantity: svc.quantity ?? null,
         name: svc.name ?? null,
@@ -658,9 +552,7 @@ export class BookingQueryService {
     };
   }
 
-  private mapAltegio(
-    booking: BookingWithRelations,
-  ): BookingProviderAltegioDto | undefined {
+  private mapAltegio(booking: BookingWithRelations): BookingProviderAltegioDto | undefined {
     const details = booking.altegioDetails as any;
     if (!details) return undefined;
     return {
@@ -668,9 +560,7 @@ export class BookingQueryService {
       company_id: details.companyId ?? null,
       staff_id: details.staffId ?? null,
       client_id: details.clientId ?? null,
-      datetime: details.datetime
-        ? new Date(details.datetime).toISOString()
-        : null,
+      datetime: details.datetime ? new Date(details.datetime).toISOString() : null,
       date: details.date ? new Date(details.date).toISOString() : null,
       comment: details.comment ?? null,
       attendance: details.attendance ?? null,
@@ -718,9 +608,7 @@ export class BookingQueryService {
             company_id: doc.companyId ?? null,
             number: doc.number ?? null,
             comment: doc.comment ?? null,
-            date_created: doc.dateCreated
-              ? new Date(doc.dateCreated).toISOString()
-              : null,
+            date_created: doc.dateCreated ? new Date(doc.dateCreated).toISOString() : null,
           }))
         : undefined,
       goods_transactions: Array.isArray(details.goodsTransactions)
@@ -732,9 +620,7 @@ export class BookingQueryService {
             company_id: tx.companyId ?? null,
             number: tx.number ?? null,
             comment: tx.comment ?? null,
-            date_created: tx.dateCreated
-              ? new Date(tx.dateCreated).toISOString()
-              : null,
+            date_created: tx.dateCreated ? new Date(tx.dateCreated).toISOString() : null,
           }))
         : undefined,
     };

@@ -1,8 +1,4 @@
-import {
-  BadRequestException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { CrmType } from '@crm/shared';
 import type { EasyWeekBooking } from '@crm/provider-core/easyweek/bookings';
@@ -57,21 +53,11 @@ export class BookingHandlerService {
   }): Promise<{ booking: any; changed: boolean }> {
     const normalized = this.normalizeEasyweekInput(params.booking);
     if (!normalized?.bookingUuid || !normalized.startTime) {
-      throw new BadRequestException(
-        'EasyWeek booking is missing id or start time',
-      );
+      throw new BadRequestException('EasyWeek booking is missing id or start time');
     }
 
-    const bookingKey = {
-      crmType_crmRecordId: {
-        crmType: CrmType.EASYWEEK,
-        crmRecordId: normalized.bookingUuid,
-      },
-    };
-    const existing = await this.prisma.booking.findUnique({
-      where: bookingKey,
-      select: { id: true },
-    });
+    const bookingKey = { crmType_crmRecordId: { crmType: CrmType.EASYWEEK, crmRecordId: normalized.bookingUuid } };
+    const existing = await this.prisma.booking.findUnique({ where: bookingKey, select: { id: true } });
     if (existing?.id) {
       return this.handleEasyweekBooking({ booking: params.booking });
     }
@@ -81,15 +67,9 @@ export class BookingHandlerService {
       throw new BadRequestException('EasyWeek booking start_time is invalid');
     }
     const end = this.toDate(normalized.endTime ?? null);
-    const status = normalized.isCanceled
-      ? 'canceled'
-      : normalized.isCompleted
-        ? 'completed'
-        : 'created';
+    const status = normalized.isCanceled ? 'canceled' : normalized.isCompleted ? 'completed' : 'created';
     const payload = normalized.raw ?? normalized;
-    const shortLink = params.workspaceSlug
-      ? this.buildShortLink(params.workspaceSlug, normalized.bookingUuid)
-      : null;
+    const shortLink = params.workspaceSlug ? this.buildShortLink(params.workspaceSlug, normalized.bookingUuid) : null;
     const client = await this.resolveClientSnapshot(
       clientFromEasyweekCustomer(normalized.customer ?? null),
       params.userId ?? null,
@@ -107,9 +87,7 @@ export class BookingHandlerService {
       shortLink,
       crmPayload: payload,
       links: Array.isArray(normalized.links) ? normalized.links : [],
-      orderedServices: Array.isArray(normalized.orderedServices)
-        ? normalized.orderedServices
-        : [],
+      orderedServices: Array.isArray(normalized.orderedServices) ? normalized.orderedServices : [],
       order: normalized.order ?? null,
       duration: normalized.duration ?? null,
       client,
@@ -157,32 +135,18 @@ export class BookingHandlerService {
     return { booking: created, changed: true };
   }
 
-  async handleEasyweekBooking(params: {
-    booking: EasyWeekBooking | EasyweekBookingDtoNormalized;
-  }): Promise<{ booking: any; changed: boolean }> {
+  async handleEasyweekBooking(params: { booking: EasyWeekBooking | EasyweekBookingDtoNormalized }): Promise<{ booking: any; changed: boolean }> {
     const normalized = this.normalizeEasyweekInput(params.booking);
     if (!normalized?.bookingUuid || !normalized.startTime) {
-      throw new BadRequestException(
-        'EasyWeek booking is missing id or start time',
-      );
+      throw new BadRequestException('EasyWeek booking is missing id or start time');
     }
 
-    const bookingKey = {
-      crmType_crmRecordId: {
-        crmType: CrmType.EASYWEEK,
-        crmRecordId: normalized.bookingUuid,
-      },
-    };
+    const bookingKey = { crmType_crmRecordId: { crmType: CrmType.EASYWEEK, crmRecordId: normalized.bookingUuid } };
     const existing = await this.prisma.booking.findUnique({
       where: bookingKey,
       include: {
         easyweekDetails: {
-          include: {
-            links: true,
-            duration: true,
-            orderedServices: true,
-            order: true,
-          },
+          include: { links: true, duration: true, orderedServices: true, order: true },
         },
       },
     });
@@ -196,11 +160,7 @@ export class BookingHandlerService {
       throw new BadRequestException('EasyWeek booking start_time is invalid');
     }
     const end = this.toDate(normalized.endTime ?? null);
-    const status = normalized.isCanceled
-      ? 'canceled'
-      : normalized.isCompleted
-        ? 'completed'
-        : 'created';
+    const status = normalized.isCanceled ? 'canceled' : normalized.isCompleted ? 'completed' : 'created';
     const payload = normalized.raw ?? normalized;
     const client = await this.resolveClientSnapshot(
       clientFromEasyweekCustomer(normalized.customer ?? null),
@@ -219,9 +179,7 @@ export class BookingHandlerService {
       shortLink: existing.shortLink ?? null,
       crmPayload: payload,
       links: Array.isArray(normalized.links) ? normalized.links : [],
-      orderedServices: Array.isArray(normalized.orderedServices)
-        ? normalized.orderedServices
-        : [],
+      orderedServices: Array.isArray(normalized.orderedServices) ? normalized.orderedServices : [],
       order: normalized.order ?? null,
       duration: normalized.duration ?? null,
       client,
@@ -239,11 +197,7 @@ export class BookingHandlerService {
         data: {
           userId: existing.userId ?? null,
           status,
-          cancelledAt: this.resolveCancelledAt(
-            existing.status,
-            existing.cancelledAt,
-            status,
-          ),
+          cancelledAt: this.resolveCancelledAt(existing.status, existing.cancelledAt, status),
           datetime: start,
           endDatetime: end ?? null,
           crmCompanyId: normalized.locationUuid ?? null,
@@ -267,10 +221,7 @@ export class BookingHandlerService {
           version: nextVersion,
           remoteUpdatedAt: normalized.raw?.updated_at ?? null,
           payload: incoming.snapshot as any,
-          diffFromPrev: this.diff(
-            existingSnapshot.snapshot,
-            incoming.snapshot,
-          ) as any,
+          diffFromPrev: this.diff(existingSnapshot.snapshot, incoming.snapshot) as any,
         },
       });
     });
@@ -284,27 +235,18 @@ export class BookingHandlerService {
     userId?: string | null;
   }): Promise<{ booking: any; changed: boolean }> {
     const crmRecordId = this.extractAltegioRecordId(params.booking);
-    const bookingKey = {
-      crmType_crmRecordId: { crmType: CrmType.ALTEGIO, crmRecordId },
-    };
-    const existing = await this.prisma.booking.findUnique({
-      where: bookingKey,
-      select: { id: true },
-    });
+    const bookingKey = { crmType_crmRecordId: { crmType: CrmType.ALTEGIO, crmRecordId } };
+    const existing = await this.prisma.booking.findUnique({ where: bookingKey, select: { id: true } });
     if (existing?.id) {
       return this.handleAltegioBooking({ booking: params.booking });
     }
 
-    const start = this.toDate(
-      params.booking?.datetime ?? params.booking?.date ?? null,
-    );
+    const start = this.toDate(params.booking?.datetime ?? params.booking?.date ?? null);
     if (!start) {
       throw new BadRequestException('Altegio booking datetime is invalid');
     }
     const durationMin = this.resolveDurationMin(params.booking);
-    const end = durationMin
-      ? new Date(start.getTime() + durationMin * 60 * 1000)
-      : null;
+    const end = durationMin ? new Date(start.getTime() + durationMin * 60 * 1000) : null;
     const status = params.booking?.isDeleted ? 'deleted' : 'created';
     const payload = params.booking?.raw ?? params.booking ?? null;
 
@@ -317,9 +259,7 @@ export class BookingHandlerService {
       comment: params.booking?.comment ?? null,
       crmRecordId,
       crmCompanyId: params.booking?.companyId ?? null,
-      crmStaffId: params.booking?.staffId
-        ? String(params.booking.staffId)
-        : null,
+      crmStaffId: params.booking?.staffId ? String(params.booking.staffId) : null,
       payload,
       booking: params.booking,
     });
@@ -336,9 +276,7 @@ export class BookingHandlerService {
           crmType: CrmType.ALTEGIO,
           crmRecordId,
           crmCompanyId: params.booking?.companyId ?? null,
-          crmStaffId: params.booking?.staffId
-            ? String(params.booking.staffId)
-            : null,
+          crmStaffId: params.booking?.staffId ? String(params.booking.staffId) : null,
           workerId: incoming.workerId ?? null,
           crmServiceIds: incoming.crmServiceIds ?? Prisma.DbNull,
           serviceIds: incoming.serviceIds ?? Prisma.DbNull,
@@ -367,24 +305,14 @@ export class BookingHandlerService {
     return { booking: created, changed: true };
   }
 
-  async handleAltegioBooking(params: {
-    booking: AltegioBooking;
-  }): Promise<{ booking: any; changed: boolean }> {
+  async handleAltegioBooking(params: { booking: AltegioBooking }): Promise<{ booking: any; changed: boolean }> {
     const crmRecordId = this.extractAltegioRecordId(params.booking);
-    const bookingKey = {
-      crmType_crmRecordId: { crmType: CrmType.ALTEGIO, crmRecordId },
-    };
+    const bookingKey = { crmType_crmRecordId: { crmType: CrmType.ALTEGIO, crmRecordId } };
     const existing = await this.prisma.booking.findUnique({
       where: bookingKey,
       include: {
         altegioDetails: {
-          include: {
-            staff: true,
-            client: true,
-            services: true,
-            documents: true,
-            goodsTransactions: true,
-          },
+          include: { staff: true, client: true, services: true, documents: true, goodsTransactions: true },
         },
       },
     });
@@ -393,16 +321,12 @@ export class BookingHandlerService {
       throw new NotFoundException('Booking not found');
     }
 
-    const start = this.toDate(
-      params.booking?.datetime ?? params.booking?.date ?? null,
-    );
+    const start = this.toDate(params.booking?.datetime ?? params.booking?.date ?? null);
     if (!start) {
       throw new BadRequestException('Altegio booking datetime is invalid');
     }
     const durationMin = this.resolveDurationMin(params.booking);
-    const end = durationMin
-      ? new Date(start.getTime() + durationMin * 60 * 1000)
-      : null;
+    const end = durationMin ? new Date(start.getTime() + durationMin * 60 * 1000) : null;
     const status = params.booking?.isDeleted ? 'deleted' : 'created';
     const payload = params.booking?.raw ?? params.booking ?? null;
 
@@ -415,9 +339,7 @@ export class BookingHandlerService {
       comment: params.booking?.comment ?? null,
       crmRecordId,
       crmCompanyId: params.booking?.companyId ?? null,
-      crmStaffId: params.booking?.staffId
-        ? String(params.booking.staffId)
-        : null,
+      crmStaffId: params.booking?.staffId ? String(params.booking.staffId) : null,
       payload,
       booking: params.booking,
     });
@@ -434,17 +356,11 @@ export class BookingHandlerService {
         data: {
           userId: existing.userId ?? null,
           status,
-          cancelledAt: this.resolveCancelledAt(
-            existing.status,
-            existing.cancelledAt,
-            status,
-          ),
+          cancelledAt: this.resolveCancelledAt(existing.status, existing.cancelledAt, status),
           datetime: start,
           endDatetime: end,
           crmCompanyId: params.booking?.companyId ?? null,
-          crmStaffId: params.booking?.staffId
-            ? String(params.booking.staffId)
-            : null,
+          crmStaffId: params.booking?.staffId ? String(params.booking.staffId) : null,
           workerId: incoming.workerId ?? null,
           crmServiceIds: incoming.crmServiceIds ?? Prisma.DbNull,
           serviceIds: incoming.serviceIds ?? Prisma.DbNull,
@@ -464,10 +380,7 @@ export class BookingHandlerService {
           version: nextVersion,
           remoteUpdatedAt: params.booking?.raw?.last_change_date ?? null,
           payload: incoming.snapshot as any,
-          diffFromPrev: this.diff(
-            existingSnapshot.snapshot,
-            incoming.snapshot,
-          ) as any,
+          diffFromPrev: this.diff(existingSnapshot.snapshot, incoming.snapshot) as any,
         },
       });
     });
@@ -513,9 +426,7 @@ export class BookingHandlerService {
     };
   }
 
-  private normalizeEasyweekInput(
-    input: EasyWeekBooking | EasyweekBookingDtoNormalized,
-  ): NormalizedEasyweek {
+  private normalizeEasyweekInput(input: EasyWeekBooking | EasyweekBookingDtoNormalized): NormalizedEasyweek {
     if ((input as EasyweekBookingDtoNormalized)?.bookingUuid) {
       const dto = input as EasyweekBookingDtoNormalized;
       return {
@@ -581,17 +492,13 @@ export class BookingHandlerService {
     const mappedDuration = this.mapEasyweekDuration(args.duration);
     const mappedOrder = this.mapEasyweekOrder(args.order);
     const mappedLinks = this.mapEasyweekLinks(args.links);
-    const mappedServices = this.mapEasyweekOrderedServices(
-      args.orderedServices,
-    );
+    const mappedServices = this.mapEasyweekOrderedServices(args.orderedServices);
     // EasyWeek names the master per ordered service (`staffer.uuid`), and that
     // uuid is what the workers sync stores as Worker.crmWorkerId. One booking
     // can in principle span services with different staffers; the first one
     // stands for the booking, which is also how the panel shows it.
     const crmStaffId = this.extractEasyweekStafferUuid(args.orderedServices);
-    const workerId = crmStaffId
-      ? await this.resolveWorkerId(args.salonId, crmStaffId)
-      : null;
+    const workerId = crmStaffId ? await this.resolveWorkerId(args.salonId, crmStaffId) : null;
 
     const snapshot = this.normalizeSnapshot({
       booking: {
@@ -659,8 +566,7 @@ export class BookingHandlerService {
 
   private extractEasyweekStafferUuid(orderedServices: any[]): string | null {
     for (const svc of Array.isArray(orderedServices) ? orderedServices : []) {
-      const uuid =
-        svc?.staffer?.uuid ?? svc?.staffer_uuid ?? svc?.stafferUuid ?? null;
+      const uuid = svc?.staffer?.uuid ?? svc?.staffer_uuid ?? svc?.stafferUuid ?? null;
       if (uuid) return String(uuid);
     }
     return null;
@@ -680,36 +586,16 @@ export class BookingHandlerService {
     booking: AltegioBooking;
   }) {
     const staffId = args.crmStaffId;
-    const serviceExternalIds = this.extractAltegioServiceIds(
-      args.booking?.services,
-    );
-    const workerId = staffId
-      ? await this.resolveWorkerId(args.salonId, staffId)
-      : null;
-    const serviceIds = serviceExternalIds.length
-      ? await this.resolveServiceIds(CrmType.ALTEGIO, serviceExternalIds)
-      : [];
+    const serviceExternalIds = this.extractAltegioServiceIds(args.booking?.services);
+    const workerId = staffId ? await this.resolveWorkerId(args.salonId, staffId) : null;
+    const serviceIds = serviceExternalIds.length ? await this.resolveServiceIds(CrmType.ALTEGIO, serviceExternalIds) : [];
 
-    const mappedDetails = this.mapAltegioDetails(
-      args.booking?.raw ?? args.booking ?? null,
-    );
-    const mappedStaff = this.mapAltegioStaff(
-      args.booking?.staff ?? args.booking?.raw?.staff ?? null,
-    );
-    const mappedClient = this.mapAltegioClient(
-      args.booking?.client ?? args.booking?.raw?.client ?? null,
-    );
-    const mappedServices = this.mapAltegioServices(
-      args.booking?.services ?? args.booking?.raw?.services ?? null,
-    );
-    const mappedDocuments = this.mapAltegioDocuments(
-      args.booking?.documents ?? args.booking?.raw?.documents ?? null,
-    );
-    const mappedGoods = this.mapAltegioGoods(
-      args.booking?.goodsTransactions ??
-        args.booking?.raw?.goods_transactions ??
-        null,
-    );
+    const mappedDetails = this.mapAltegioDetails(args.booking?.raw ?? args.booking ?? null);
+    const mappedStaff = this.mapAltegioStaff(args.booking?.staff ?? args.booking?.raw?.staff ?? null);
+    const mappedClient = this.mapAltegioClient(args.booking?.client ?? args.booking?.raw?.client ?? null);
+    const mappedServices = this.mapAltegioServices(args.booking?.services ?? args.booking?.raw?.services ?? null);
+    const mappedDocuments = this.mapAltegioDocuments(args.booking?.documents ?? args.booking?.raw?.documents ?? null);
+    const mappedGoods = this.mapAltegioGoods(args.booking?.goodsTransactions ?? args.booking?.raw?.goods_transactions ?? null);
     // `mapAltegioClient` returns an all-nulls object rather than null when Altegio
     // sent no client, so the fallback is driven by content, not by presence.
     const clientSnapshot = await this.resolveClientSnapshot(
@@ -781,66 +667,41 @@ export class BookingHandlerService {
     return { snapshot };
   }
 
-  private async persistEasyweekDetails(
-    tx: Prisma.TransactionClient,
-    bookingId: string,
-    state: any,
-  ) {
+  private async persistEasyweekDetails(tx: Prisma.TransactionClient, bookingId: string, state: any) {
     await tx.easyweekBookingDetails.upsert({
       where: { bookingId },
       update: { rawPayload: state.rawPayload ?? null },
       create: { bookingId, rawPayload: state.rawPayload ?? null },
     });
 
-    await tx.easyweekBookingDuration.deleteMany({
-      where: { detailsId: bookingId },
-    });
+    await tx.easyweekBookingDuration.deleteMany({ where: { detailsId: bookingId } });
     if (state.duration) {
       await tx.easyweekBookingDuration.create({
         data: { detailsId: bookingId, ...state.duration },
       });
     }
 
-    await tx.easyweekBookingLink.deleteMany({
-      where: { detailsId: bookingId },
-    });
+    await tx.easyweekBookingLink.deleteMany({ where: { detailsId: bookingId } });
     if (state.links.length) {
-      await tx.easyweekBookingLink.createMany({
-        data: state.links.map((l: any) => ({ detailsId: bookingId, ...l })),
-      });
+      await tx.easyweekBookingLink.createMany({ data: state.links.map((l: any) => ({ detailsId: bookingId, ...l })) });
     }
 
-    await tx.easyweekOrderedService.deleteMany({
-      where: { detailsId: bookingId },
-    });
+    await tx.easyweekOrderedService.deleteMany({ where: { detailsId: bookingId } });
     if (state.orderedServices.length) {
       await tx.easyweekOrderedService.createMany({
-        data: state.orderedServices.map((s: any) => ({
-          detailsId: bookingId,
-          ...s,
-        })),
+        data: state.orderedServices.map((s: any) => ({ detailsId: bookingId, ...s })),
       });
     }
 
-    await tx.easyweekBookingOrder.deleteMany({
-      where: { detailsId: bookingId },
-    });
+    await tx.easyweekBookingOrder.deleteMany({ where: { detailsId: bookingId } });
     if (state.order) {
       await tx.easyweekBookingOrder.create({
-        data: {
-          detailsId: bookingId,
-          payload: state.order.payload ?? Prisma.DbNull,
-          ...state.order,
-        },
+        data: { detailsId: bookingId, payload: state.order.payload ?? Prisma.DbNull, ...state.order },
       });
     }
   }
 
-  private async persistAltegioDetails(
-    tx: Prisma.TransactionClient,
-    bookingId: string,
-    state: any,
-  ) {
+  private async persistAltegioDetails(tx: Prisma.TransactionClient, bookingId: string, state: any) {
     await tx.altegioBookingDetails.upsert({
       where: { bookingId },
       update: state.details,
@@ -859,33 +720,24 @@ export class BookingHandlerService {
       create: { detailsId: bookingId, ...(state.client ?? {}) },
     });
 
-    await tx.altegioBookingService.deleteMany({
-      where: { detailsId: bookingId },
-    });
+    await tx.altegioBookingService.deleteMany({ where: { detailsId: bookingId } });
     if (state.services.length) {
       await tx.altegioBookingService.createMany({
         data: state.services.map((s: any) => ({ detailsId: bookingId, ...s })),
       });
     }
 
-    await tx.altegioBookingDocument.deleteMany({
-      where: { detailsId: bookingId },
-    });
+    await tx.altegioBookingDocument.deleteMany({ where: { detailsId: bookingId } });
     if (state.documents.length) {
       await tx.altegioBookingDocument.createMany({
         data: state.documents.map((d: any) => ({ detailsId: bookingId, ...d })),
       });
     }
 
-    await tx.altegioBookingGoodsTransaction.deleteMany({
-      where: { detailsId: bookingId },
-    });
+    await tx.altegioBookingGoodsTransaction.deleteMany({ where: { detailsId: bookingId } });
     if (state.goodsTransactions.length) {
       await tx.altegioBookingGoodsTransaction.createMany({
-        data: state.goodsTransactions.map((g: any) => ({
-          detailsId: bookingId,
-          ...g,
-        })),
+        data: state.goodsTransactions.map((g: any) => ({ detailsId: bookingId, ...g })),
       });
     }
   }
@@ -936,14 +788,10 @@ export class BookingHandlerService {
           svc.reserved_on ?? svc.reservedOn ?? svc.start_time ?? svc.startTime,
         );
         const reservedUntil = this.toDate(
-          svc.reserved_until ??
-            svc.reservedUntil ??
-            svc.end_time ??
-            svc.endTime,
+          svc.reserved_until ?? svc.reservedUntil ?? svc.end_time ?? svc.endTime,
         );
         const duration = svc.duration ?? {};
-        const originalDuration =
-          svc.original_duration ?? svc.originalDuration ?? {};
+        const originalDuration = svc.original_duration ?? svc.originalDuration ?? {};
         return {
           externalUuid: svc.externalUuid ?? svc.uuid ?? svc.id ?? null,
           timezone: svc.timezone ?? null,
@@ -961,53 +809,34 @@ export class BookingHandlerService {
           originalPriceFormatted: svc.original_price_formatted ?? null,
           durationValue: this.toNumber(svc.durationValue ?? duration.value),
           durationLabel: svc.durationLabel ?? duration.label ?? null,
-          durationIso:
-            svc.durationIso ?? duration.iso_8601 ?? duration.iso ?? null,
-          originalDurationValue: this.toNumber(
-            svc.originalDurationValue ?? originalDuration.value,
-          ),
-          originalDurationLabel:
-            svc.originalDurationLabel ?? originalDuration.label ?? null,
-          originalDurationIso:
-            svc.originalDurationIso ??
-            originalDuration.iso_8601 ??
-            originalDuration.iso ??
-            null,
+          durationIso: svc.durationIso ?? duration.iso_8601 ?? duration.iso ?? null,
+          originalDurationValue: this.toNumber(svc.originalDurationValue ?? originalDuration.value),
+          originalDurationLabel: svc.originalDurationLabel ?? originalDuration.label ?? null,
+          originalDurationIso: svc.originalDurationIso ?? originalDuration.iso_8601 ?? originalDuration.iso ?? null,
         };
       })
       .filter((v): v is NonNullable<typeof v> => !!v);
-    return this.sortByKey(
-      mapped,
-      (s) => `${s.externalUuid ?? ''}|${s.reservedOn ?? ''}|${s.name ?? ''}`,
-    );
+    return this.sortByKey(mapped, (s) => `${s.externalUuid ?? ''}|${s.reservedOn ?? ''}|${s.name ?? ''}`);
   }
 
   private mapAltegioDetails(data: any) {
     if (!data || typeof data !== 'object') return { rawPayload: data ?? null };
     return {
-      crmRecordId: data.id ? String(data.id) : (data.crmRecordId ?? null),
-      companyId: data.company_id
-        ? String(data.company_id)
-        : (data.companyId ?? null),
-      staffId: data.staff_id ? String(data.staff_id) : (data.staffId ?? null),
-      clientId: data.client?.id
-        ? String(data.client.id)
-        : (data.clientId ?? null),
+      crmRecordId: data.id ? String(data.id) : data.crmRecordId ?? null,
+      companyId: data.company_id ? String(data.company_id) : data.companyId ?? null,
+      staffId: data.staff_id ? String(data.staff_id) : data.staffId ?? null,
+      clientId: data.client?.id ? String(data.client.id) : data.clientId ?? null,
       datetime: this.toDate(data.datetime),
       date: this.toDate(data.date),
       createDate: this.toDate(data.create_date),
       comment: data.comment ?? null,
       online: data.online ?? null,
       attendance: this.toNumber(data.attendance),
-      visitAttendance: this.toNumber(
-        data.visit_attendance ?? data.visitAttendance,
-      ),
+      visitAttendance: this.toNumber(data.visit_attendance ?? data.visitAttendance),
       confirmed: this.toNumber(data.confirmed),
       seanceLength: this.toNumber(data.seance_length ?? data.seanceLength),
       length: this.toNumber(data.length),
-      technicalBreak: this.toNumber(
-        data.technical_break_duration ?? data.technicalBreak,
-      ),
+      technicalBreak: this.toNumber(data.technical_break_duration ?? data.technicalBreak),
       smsBefore: this.toNumber(data.sms_before ?? data.smsBefore),
       smsNow: this.toNumber(data.sms_now ?? data.smsNow),
       emailNow: this.toNumber(data.email_now ?? data.emailNow),
@@ -1015,13 +844,9 @@ export class BookingHandlerService {
       masterRequest: this.toNumber(data.master_request ?? data.masterRequest),
       apiId: data.api_id ?? data.apiId ?? null,
       fromUrl: data.from_url ?? data.fromUrl ?? null,
-      reviewRequested: this.toNumber(
-        data.review_requested ?? data.reviewRequested,
-      ),
-      visitId: data.visit_id ? String(data.visit_id) : (data.visitId ?? null),
-      createdUserId: data.created_user_id
-        ? String(data.created_user_id)
-        : (data.createdUserId ?? null),
+      reviewRequested: this.toNumber(data.review_requested ?? data.reviewRequested),
+      visitId: data.visit_id ? String(data.visit_id) : data.visitId ?? null,
+      createdUserId: data.created_user_id ? String(data.created_user_id) : data.createdUserId ?? null,
       deleted: data.deleted ?? null,
       paidFull: this.toNumber(data.paid_full ?? data.paidFull),
       prepaid: data.prepaid ?? null,
@@ -1030,12 +855,8 @@ export class BookingHandlerService {
       lastChangeDate: this.toDate(data.last_change_date ?? data.lastChangeDate),
       customColor: data.custom_color ?? data.customColor ?? null,
       customFontColor: data.custom_font_color ?? data.customFontColor ?? null,
-      smsRemainHours: this.toNumber(
-        data.sms_remain_hours ?? data.smsRemainHours,
-      ),
-      emailRemainHours: this.toNumber(
-        data.email_remain_hours ?? data.emailRemainHours,
-      ),
+      smsRemainHours: this.toNumber(data.sms_remain_hours ?? data.smsRemainHours),
+      emailRemainHours: this.toNumber(data.email_remain_hours ?? data.emailRemainHours),
       bookformId: this.toNumber(data.bookform_id ?? data.bookformId),
       recordFrom: data.record_from ?? data.recordFrom ?? null,
       isMobile: this.toNumber(data.is_mobile ?? data.isMobile),
@@ -1046,21 +867,11 @@ export class BookingHandlerService {
 
   private mapAltegioStaff(staff: any) {
     if (!staff || typeof staff !== 'object') {
-      return {
-        externalId: null,
-        apiId: null,
-        name: null,
-        specialization: null,
-        position: null,
-        avatar: null,
-        avatarBig: null,
-        rating: null,
-        votesCount: null,
-      };
+      return { externalId: null, apiId: null, name: null, specialization: null, position: null, avatar: null, avatarBig: null, rating: null, votesCount: null };
     }
     return {
-      externalId: staff.id ? String(staff.id) : (staff.externalId ?? null),
-      apiId: staff.api_id ? String(staff.api_id) : (staff.apiId ?? null),
+      externalId: staff.id ? String(staff.id) : staff.externalId ?? null,
+      apiId: staff.api_id ? String(staff.api_id) : staff.apiId ?? null,
       name: staff.name ?? null,
       specialization: staff.specialization ?? null,
       position: staff.position ?? null,
@@ -1073,27 +884,10 @@ export class BookingHandlerService {
 
   private mapAltegioClient(client: any) {
     if (!client || typeof client !== 'object') {
-      return {
-        externalId: null,
-        name: null,
-        surname: null,
-        patronymic: null,
-        displayName: null,
-        comment: null,
-        phone: null,
-        card: null,
-        email: null,
-        successVisits: null,
-        failVisits: null,
-        discount: null,
-        sex: null,
-        birthday: null,
-        clientTags: null,
-        customFields: null,
-      };
+      return { externalId: null, name: null, surname: null, patronymic: null, displayName: null, comment: null, phone: null, card: null, email: null, successVisits: null, failVisits: null, discount: null, sex: null, birthday: null, clientTags: null, customFields: null };
     }
     return {
-      externalId: client.id ? String(client.id) : (client.externalId ?? null),
+      externalId: client.id ? String(client.id) : client.externalId ?? null,
       name: client.name ?? null,
       surname: client.surname ?? null,
       patronymic: client.patronymic ?? null,
@@ -1102,9 +896,7 @@ export class BookingHandlerService {
       phone: client.phone ?? null,
       card: client.card ?? null,
       email: client.email ?? null,
-      successVisits: this.toNumber(
-        client.success_visits_count ?? client.successVisits,
-      ),
+      successVisits: this.toNumber(client.success_visits_count ?? client.successVisits),
       failVisits: this.toNumber(client.fail_visits_count ?? client.failVisits),
       discount: this.toNumber(client.discount),
       sex: this.toNumber(client.sex),
@@ -1117,7 +909,7 @@ export class BookingHandlerService {
   private mapAltegioServices(services: any) {
     if (!Array.isArray(services)) return [];
     const mapped = services.map((s: any) => ({
-      externalId: s?.id ? String(s.id) : (s?.externalId ?? null),
+      externalId: s?.id ? String(s.id) : s?.externalId ?? null,
       title: s?.title ?? null,
       // Monetary fields → cents (see toCents). `discount` is a percentage and
       // `amount` is a quantity, so both stay as-is.
@@ -1129,16 +921,13 @@ export class BookingHandlerService {
       firstCost: this.toCents(s?.first_cost ?? s?.firstCost),
       amount: this.toNumber(s?.amount),
     }));
-    return this.sortByKey(
-      mapped,
-      (s) => `${s.externalId ?? ''}|${s.title ?? ''}`,
-    );
+    return this.sortByKey(mapped, (s) => `${s.externalId ?? ''}|${s.title ?? ''}`);
   }
 
   private mapAltegioDocuments(docs: any) {
     if (!Array.isArray(docs)) return [];
     const mapped = docs.map((d: any) => ({
-      externalId: d?.id ? String(d.id) : (d?.externalId ?? null),
+      externalId: d?.id ? String(d.id) : d?.externalId ?? null,
       typeId: this.toNumber(d?.type_id ?? d?.typeId),
       storageId: this.toNumber(d?.storage_id ?? d?.storageId),
       userId: this.toNumber(d?.user_id ?? d?.userId),
@@ -1147,22 +936,18 @@ export class BookingHandlerService {
       comment: d?.comment ?? null,
       dateCreated: this.toDate(d?.date_created ?? d?.dateCreated),
       categoryId: this.toNumber(d?.category_id ?? d?.categoryId),
-      visitId: d?.visit_id ? String(d.visit_id) : (d?.visitId ?? null),
-      recordId: d?.record_id ? String(d.record_id) : (d?.recordId ?? null),
+      visitId: d?.visit_id ? String(d.visit_id) : d?.visitId ?? null,
+      recordId: d?.record_id ? String(d.record_id) : d?.recordId ?? null,
       typeTitle: d?.type_title ?? d?.typeTitle ?? null,
-      isSaleBillPrinted:
-        d?.is_sale_bill_printed ?? d?.isSaleBillPrinted ?? null,
+      isSaleBillPrinted: d?.is_sale_bill_printed ?? d?.isSaleBillPrinted ?? null,
     }));
-    return this.sortByKey(
-      mapped,
-      (d) => `${d.externalId ?? ''}|${d.number ?? ''}`,
-    );
+    return this.sortByKey(mapped, (d) => `${d.externalId ?? ''}|${d.number ?? ''}`);
   }
 
   private mapAltegioGoods(goods: any) {
     if (!Array.isArray(goods)) return [];
     const mapped = goods.map((g: any) => ({
-      externalId: g?.id ? String(g.id) : (g?.externalId ?? null),
+      externalId: g?.id ? String(g.id) : g?.externalId ?? null,
       typeId: this.toNumber(g?.type_id ?? g?.typeId),
       storageId: this.toNumber(g?.storage_id ?? g?.storageId),
       userId: this.toNumber(g?.user_id ?? g?.userId),
@@ -1171,16 +956,12 @@ export class BookingHandlerService {
       comment: g?.comment ?? null,
       dateCreated: this.toDate(g?.date_created ?? g?.dateCreated),
       categoryId: this.toNumber(g?.category_id ?? g?.categoryId),
-      visitId: g?.visit_id ? String(g.visit_id) : (g?.visitId ?? null),
-      recordId: g?.record_id ? String(g.record_id) : (g?.recordId ?? null),
+      visitId: g?.visit_id ? String(g.visit_id) : g?.visitId ?? null,
+      recordId: g?.record_id ? String(g.record_id) : g?.recordId ?? null,
       typeTitle: g?.type_title ?? g?.typeTitle ?? null,
-      isSaleBillPrinted:
-        g?.is_sale_bill_printed ?? g?.isSaleBillPrinted ?? null,
+      isSaleBillPrinted: g?.is_sale_bill_printed ?? g?.isSaleBillPrinted ?? null,
     }));
-    return this.sortByKey(
-      mapped,
-      (d) => `${d.externalId ?? ''}|${d.number ?? ''}`,
-    );
+    return this.sortByKey(mapped, (d) => `${d.externalId ?? ''}|${d.number ?? ''}`);
   }
 
   private extractAltegioServiceIds(services: any): string[] {
@@ -1196,10 +977,7 @@ export class BookingHandlerService {
   // but nothing has ever written to it, so resolving through it left every
   // synced booking without a worker and the owner panel's Майстер column empty.)
   // Scoped to the salon because staff ids are only unique per CRM company.
-  private async resolveWorkerId(
-    salonId: string,
-    crmStaffId: string,
-  ): Promise<string | null> {
+  private async resolveWorkerId(salonId: string, crmStaffId: string): Promise<string | null> {
     const worker = await this.prisma.worker.findFirst({
       where: { salonId, crmWorkerId: crmStaffId },
       select: { id: true },
@@ -1207,34 +985,23 @@ export class BookingHandlerService {
     return worker?.id ?? null;
   }
 
-  private async resolveServiceIds(
-    provider: CrmType,
-    externalIds: string[],
-  ): Promise<string[]> {
+  private async resolveServiceIds(provider: CrmType, externalIds: string[]): Promise<string[]> {
     if (!externalIds.length) return [];
     const mappings = await this.prisma.serviceMapping.findMany({
       where: { provider, externalId: { in: externalIds } },
       select: { serviceId: true },
     });
-    return mappings
-      .map((m: any) => m.serviceId)
-      .filter((id: string | null) => !!id);
+    return mappings.map((m: any) => m.serviceId).filter((id: string | null) => !!id);
   }
 
   private resolveDurationMin(booking: AltegioBooking): number | null {
-    if (typeof booking?.seanceLength === 'number')
-      return Math.round(booking.seanceLength / 60);
-    if (typeof booking?.length === 'number')
-      return Math.round(booking.length / 60);
+    if (typeof booking?.seanceLength === 'number') return Math.round(booking.seanceLength / 60);
+    if (typeof booking?.length === 'number') return Math.round(booking.length / 60);
     return null;
   }
 
   private extractAltegioRecordId(booking: AltegioBooking): string {
-    const externalId =
-      booking?.crmRecordId ??
-      booking?.raw?.id ??
-      booking?.raw?.recordId ??
-      null;
+    const externalId = booking?.crmRecordId ?? booking?.raw?.id ?? booking?.raw?.recordId ?? null;
     if (!externalId) {
       throw new BadRequestException('Altegio booking is missing crmRecordId');
     }
@@ -1282,10 +1049,7 @@ export class BookingHandlerService {
     }
     for (const k of nextKeys) {
       if (!prevKeys.has(k)) added.push(k);
-      else if (
-        JSON.stringify((prev as any)?.[k]) !==
-        JSON.stringify((next as any)?.[k])
-      ) {
+      else if (JSON.stringify((prev as any)?.[k]) !== JSON.stringify((next as any)?.[k])) {
         changed[k] = { prev: (prev as any)?.[k], next: (next as any)?.[k] };
       }
     }
@@ -1296,16 +1060,9 @@ export class BookingHandlerService {
   // tab can be ordered by when it was cancelled (not the appointment date). Preserve
   // the original stamp across later re-syncs of an already-cancelled booking, clear it
   // if the booking is reactivated, and backfill legacy rows that predate the field.
-  private resolveCancelledAt(
-    prevStatus: string | null,
-    prevCancelledAt: Date | null,
-    nextStatus: string,
-  ): Date | null {
-    if (!BookingHandlerService.CANCELLED_STATUSES.includes(nextStatus))
-      return null;
-    const wasCancelled =
-      prevStatus != null &&
-      BookingHandlerService.CANCELLED_STATUSES.includes(prevStatus);
+  private resolveCancelledAt(prevStatus: string | null, prevCancelledAt: Date | null, nextStatus: string): Date | null {
+    if (!BookingHandlerService.CANCELLED_STATUSES.includes(nextStatus)) return null;
+    const wasCancelled = prevStatus != null && BookingHandlerService.CANCELLED_STATUSES.includes(prevStatus);
     if (wasCancelled) return prevCancelledAt ?? new Date();
     return new Date();
   }
