@@ -427,6 +427,7 @@ export class BookingQueryService {
     const includeClient = opts?.includeClient === true;
     const easyweek = this.mapEasyweek(booking);
     const altegio = this.mapAltegio(booking);
+    const totalPrice = this.computeTotalPrice(easyweek, altegio);
     return {
       id: booking.id,
       salon_id: booking.salonId,
@@ -463,8 +464,11 @@ export class BookingQueryService {
         ? booking.endDatetime.toISOString()
         : null,
       service_names: this.computeServiceNames(easyweek, altegio),
-      total_price: this.computeTotalPrice(easyweek, altegio),
-      currency: this.computeCurrency(easyweek, altegio),
+      total_price: totalPrice,
+      // A currency without an amount is noise: an Altegio booking whose
+      // services are all zero-cost has the UAH rule but nothing to label.
+      currency:
+        totalPrice == null ? null : this.computeCurrency(easyweek, altegio),
       duration_minutes: this.computeDurationMinutes(booking, easyweek, altegio),
       comment: booking.comment ?? null,
       crm_type: booking.crmType ?? null,

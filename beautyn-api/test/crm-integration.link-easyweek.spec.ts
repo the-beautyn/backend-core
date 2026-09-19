@@ -79,15 +79,24 @@ describe('CrmIntegrationService.linkEasyWeek', () => {
     });
   });
 
-  it('refreshes the key when the same owner links again', async () => {
+  it('refreshes the key and the booking URL when the same owner links again', async () => {
     prisma.salon.findFirst.mockResolvedValue({
       id: 'salon-old',
       ownerUserId: userId,
-      bookingUrl: 'https://x',
+      bookingUrl: 'https://booking.easyweek.com.ua/old-workspace',
     });
 
-    await link('rotated-key');
-    expect(prisma.salon.update).not.toHaveBeenCalled();
+    await link('rotated-key', 'new-workspace');
+    // The salon now syncs against new-workspace; its public booking link must not
+    // keep sending clients to the old one.
+    expect(prisma.salon.update).toHaveBeenCalledWith({
+      where: { id: 'salon-old' },
+      data: { bookingUrl: 'https://booking.easyweek.com.ua/new-workspace' },
+    });
+    expect(accounts.setEasyWeek).toHaveBeenCalledWith('salon-old', {
+      workspaceSlug: 'new-workspace',
+      locationId: uuid,
+    });
     expect(tokens.store).toHaveBeenCalledWith('salon-old', CrmType.EASYWEEK, {
       apiKey: 'rotated-key',
     });

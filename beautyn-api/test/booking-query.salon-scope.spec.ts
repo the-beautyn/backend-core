@@ -195,6 +195,21 @@ describe('BookingQueryService.listForSalon scope translation', () => {
       expect(res.items[0].currency).toBe('UAH');
     });
 
+    it('stays null for an Altegio booking whose services are all free', async () => {
+      // A currency with no amount would label nothing; keep the pair consistent.
+      findMany.mockResolvedValue([
+        {
+          ...base,
+          altegioDetails: {
+            services: [{ title: 'Consultation', cost: 0, costToPay: 0 }],
+          },
+        },
+      ]);
+      const res = await service.listForSalon({ salonId });
+      expect(res.items[0].total_price).toBeNull();
+      expect(res.items[0].currency).toBeNull();
+    });
+
     it('stays null when there is nothing priced', async () => {
       findMany.mockResolvedValue([{ ...base }]);
       const res = await service.listForSalon({ salonId });
