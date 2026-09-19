@@ -342,8 +342,8 @@ model Worker {
   position     String?  @db.VarChar(160)
   role         String?  @db.VarChar(100)
   description  String?  @db.Text
-  email        String?  @unique @db.VarChar(255)
-  phone        String?  @unique @db.VarChar(30)
+  email        String?  @db.VarChar(255)
+  phone        String?  @db.VarChar(30)
   photoUrl     String?  @map("photo_url")
   workingSchedule Json? @map("work_schedule")
   isActive     Boolean  @default(true) @map("is_active")
