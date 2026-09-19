@@ -95,7 +95,7 @@ export class BookingHandlerService {
       params.userId ?? null,
     );
 
-    const incoming = this.buildEasyweekIncomingState({
+    const incoming = await this.buildEasyweekIncomingState({
       salonId: params.salonId,
       userId: params.userId ?? null,
       status,
@@ -127,6 +127,8 @@ export class BookingHandlerService {
           crmType: CrmType.EASYWEEK,
           crmRecordId: normalized.bookingUuid,
           crmCompanyId: normalized.locationUuid ?? null,
+          crmStaffId: incoming.crmStaffId,
+          workerId: incoming.workerId,
           comment: normalized.comment ?? null,
           crmPayload: payload,
           ...client,
@@ -205,7 +207,7 @@ export class BookingHandlerService {
       existing.userId ?? null,
     );
 
-    const incoming = this.buildEasyweekIncomingState({
+    const incoming = await this.buildEasyweekIncomingState({
       salonId: existing.salonId,
       userId: existing.userId ?? null,
       status,
@@ -245,6 +247,8 @@ export class BookingHandlerService {
           datetime: start,
           endDatetime: end ?? null,
           crmCompanyId: normalized.locationUuid ?? null,
+          crmStaffId: incoming.crmStaffId,
+          workerId: incoming.workerId,
           comment: normalized.comment ?? null,
           crmPayload: payload,
           ...client,
@@ -557,7 +561,7 @@ export class BookingHandlerService {
     };
   }
 
-  private buildEasyweekIncomingState(args: {
+  private async buildEasyweekIncomingState(args: {
     salonId: string;
     userId: string | null;
     status: string;
@@ -580,6 +584,14 @@ export class BookingHandlerService {
     const mappedServices = this.mapEasyweekOrderedServices(
       args.orderedServices,
     );
+    // EasyWeek names the master per ordered service (`staffer.uuid`), and that
+    // uuid is what the workers sync stores as Worker.crmWorkerId. One booking
+    // can in principle span services with different staffers; the first one
+    // stands for the booking, which is also how the panel shows it.
+    const crmStaffId = this.extractEasyweekStafferUuid(args.orderedServices);
+    const workerId = crmStaffId
+      ? await this.resolveWorkerId(args.salonId, crmStaffId)
+      : null;
 
     const snapshot = this.normalizeSnapshot({
       booking: {
@@ -592,7 +604,10 @@ export class BookingHandlerService {
         crmType: CrmType.EASYWEEK,
         crmRecordId: args.crmRecordId,
         crmCompanyId: args.crmCompanyId ?? null,
-        crmStaffId: null,
+        crmStaffId,
+        // In the snapshot so a booking that only gained a resolvable worker
+        // (e.g. after the workers sync caught up) is detected as changed.
+        workerId,
         crmServiceIds: null,
         serviceIds: null,
         shortLink: args.shortLink ?? null,
@@ -606,6 +621,8 @@ export class BookingHandlerService {
 
     return {
       snapshot,
+      crmStaffId,
+      workerId,
       rawPayload: args.crmPayload ?? null,
       duration: mappedDuration,
       order: mappedOrder,
@@ -628,6 +645,7 @@ export class BookingHandlerService {
         crmRecordId: existing.crmRecordId ?? null,
         crmCompanyId: existing.crmCompanyId ?? null,
         crmStaffId: existing.crmStaffId ?? null,
+        workerId: existing.workerId ?? null,
         crmServiceIds: this.normalizeJsonArray(existing.crmServiceIds),
         serviceIds: this.normalizeJsonArray(existing.serviceIds),
         shortLink: existing.shortLink ?? null,
@@ -637,6 +655,15 @@ export class BookingHandlerService {
     });
 
     return { snapshot };
+  }
+
+  private extractEasyweekStafferUuid(orderedServices: any[]): string | null {
+    for (const svc of Array.isArray(orderedServices) ? orderedServices : []) {
+      const uuid =
+        svc?.staffer?.uuid ?? svc?.staffer_uuid ?? svc?.stafferUuid ?? null;
+      if (uuid) return String(uuid);
+    }
+    return null;
   }
 
   private async buildAltegioIncomingState(args: {
