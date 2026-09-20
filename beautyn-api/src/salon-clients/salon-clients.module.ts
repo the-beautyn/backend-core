@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { SharedModule } from '../shared/shared.module';
 import { SalonClientLinker } from './salon-client-linker.service';
+import { SalonClientsRepository } from './salon-clients.repository';
+import { SalonClientsService } from './salon-clients.service';
 
 /**
  * Salon clients (BEA-71): the per-salon people table behind the owner panel's
@@ -9,7 +11,7 @@ import { SalonClientLinker } from './salon-client-linker.service';
  */
 @Module({
   imports: [SharedModule],
-  providers: [SalonClientLinker],
-  exports: [SalonClientLinker],
+  providers: [SalonClientLinker, SalonClientsRepository, SalonClientsService],
+  exports: [SalonClientLinker, SalonClientsService],
 })
 export class SalonClientsModule {}
