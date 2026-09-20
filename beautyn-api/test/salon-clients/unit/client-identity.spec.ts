@@ -254,7 +254,15 @@ describe('client identity', () => {
       });
       expect(identity.name.firstName).toHaveLength(100);
       expect(identity.name.lastName).toHaveLength(100);
-      expect(identity.nameKey!.length).toBeLessThanOrEqual(200);
+      // Two 100-char names plus a space do not fit the key column. A cut key could
+      // collide with another long name and merge two people; no key is the safe answer.
+      expect(identity.nameKey).toBeNull();
+      expect(hasIdentity(identity)).toBe(true); // the CRM id still identifies the person
+    });
+
+    it('keeps a key that fits exactly', () => {
+      expect(buildNameKey({ firstName: 'x'.repeat(99), lastName: 'y'.repeat(100), displayName: null })).toHaveLength(200);
+      expect(buildNameKey({ firstName: 'x'.repeat(100), lastName: 'y'.repeat(100), displayName: null })).toBeNull();
     });
 
     it('drops an identifier, phone or email that cannot be genuine at that length', () => {

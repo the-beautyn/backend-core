@@ -98,6 +98,23 @@ describe('BookingHandlerService — salon client linking', () => {
       expect(linker.recomputeCounters).toHaveBeenCalledWith(expect.anything(), [null]);
     });
 
+    it('keeps the existing link when the update payload carries no client at all', async () => {
+      const existing = {
+        id: 'b1', salonId, userId: null, clientId: 'client-old', status: 'created', version: 1,
+        datetime: new Date(when), endDatetime: null, cancelledAt: null, altegioDetails: null,
+      };
+      const { prisma, model } = fakePrisma({ booking: { findUnique: jest.fn().mockResolvedValue(existing) } });
+      const linker = { ...linkerStub(), link: jest.fn().mockResolvedValue(null) };
+      const service = new BookingHandlerService(prisma, linker as any);
+
+      // A cancellation that arrives without the nested client block.
+      await service.handleAltegioBooking({ booking: { crmRecordId: '101', datetime: when, isDeleted: true, raw: { id: 101 } } as any });
+
+      expect(model('booking').update.mock.calls[0][0].data.clientId).toBe('client-old');
+      // The status changed, so the client's counters are still recomputed.
+      expect(linker.recomputeCounters).toHaveBeenCalledWith(expect.anything(), ['client-old', 'client-old']);
+    });
+
     it('relinks on update and recomputes both the old and the new client', async () => {
       const existing = {
         id: 'b1',

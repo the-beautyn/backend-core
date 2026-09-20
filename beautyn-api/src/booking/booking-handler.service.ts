@@ -220,7 +220,9 @@ export class BookingHandlerService {
 
     const nextVersion = (existing.version ?? 0) + 1;
     await this.prisma.$transaction(async (tx) => {
-      const clientId = await this.clients.link(tx, identity);
+      // A payload variant without a client block (Altegio sometimes omits it) yields no
+      // identity; that says nothing about the person, so the existing link stays.
+      const clientId = (await this.clients.link(tx, identity)) ?? existing.clientId ?? null;
       await tx.booking.update({
         where: { id: existing.id },
         data: {
@@ -389,7 +391,9 @@ export class BookingHandlerService {
 
     const nextVersion = (existing.version ?? 0) + 1;
     await this.prisma.$transaction(async (tx) => {
-      const clientId = await this.clients.link(tx, identity);
+      // A payload variant without a client block (Altegio sometimes omits it) yields no
+      // identity; that says nothing about the person, so the existing link stays.
+      const clientId = (await this.clients.link(tx, identity)) ?? existing.clientId ?? null;
       await tx.booking.update({
         where: { id: existing.id },
         data: {

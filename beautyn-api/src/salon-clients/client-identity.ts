@@ -51,7 +51,7 @@ export const EMPTY_NAME: ClientName = { firstName: null, lastName: null, display
 export const CLIENT_COLUMN_LIMITS = {
   firstName: 100,
   lastName: 100,
-  nameKey: 200,
+  nameKey: 200, // match key: dropped, not cut, when longer
   phone: 30,
   email: 255,
   externalId: 128,
@@ -96,7 +96,9 @@ export function buildNameKey(name: ClientName | null | undefined): string | null
     .split(/\s+/)
     .filter(Boolean)
     .sort();
-  return tokens.length ? cut(tokens.join(' '), CLIENT_COLUMN_LIMITS.nameKey) : null;
+  // Never cut a match key: two long names differing past the limit would collide and
+  // merge two people on a shared phone. No key means steps 3–4 simply do not apply.
+  return tokens.length ? dropIfLonger(tokens.join(' '), CLIENT_COLUMN_LIMITS.nameKey) : null;
 }
 
 export function hasIdentity(identity: ClientIdentity): boolean {
