@@ -44,7 +44,9 @@ export type Assignment = {
  * Two layers keep concurrent syncs from creating one person twice or blanking each
  * other's links, and neither depends on a caller remembering anything:
  *  1. The database: exact identities are unique per salon, so a second row for the same
- *     account / CRM client is refused; `link` re-matches on that conflict.
+ *     account / CRM client cannot exist. Postgres aborts the whole transaction on that
+ *     error, so it is a guarantee, not a recovery path: the linker checks ownership
+ *     before it writes an identifier, and holds the lock so a create cannot race.
  *  2. This class: `assign` is the one entry point for deciding a booking's client, and
  *     it does lock → re-read → match → decide in that order, inside the caller's
  *     transaction. Booking write paths call `assign`; nothing else.
@@ -76,26 +78,17 @@ export class SalonClientLinker {
   }
 
   /**
-   * Match-or-create for an identity, or `null` when it has no usable key. The caller is
-   * expected to hold the salon lock (`assign` does); the unique indexes make a race
-   * survivable anyway: a create that loses the race re-matches, and a fill-only
-   * identifier that already belongs to another row is left unset rather than moved.
+   * Match-or-create for an identity, or `null` when it has no usable key. The caller
+   * holds the salon lock (`assign` does), so the match is authoritative and a create
+   * cannot race. Should a path ever call this unlocked and lose a race, the unique index
+   * refuses the duplicate and the transaction fails — the sync retries it next cycle.
+   * That is the intended failure: a failed write, never a second row for one person.
    */
   async link(db: LinkerDb, identity: ClientIdentity): Promise<string | null> {
     if (!hasIdentity(identity)) return null;
 
     const existing = await this.findMatch(db, identity);
-    if (!existing) {
-      try {
-        return await this.create(db, identity);
-      } catch (err) {
-        if (!isUniqueViolation(err)) throw err;
-        // Someone created this person between our lookup and our insert.
-        const raced = await this.findMatch(db, identity);
-        if (!raced) throw err;
-        return this.update(db, raced, identity);
-      }
-    }
+    if (!existing) return this.create(db, identity);
     return this.update(db, existing, identity);
   }
 
@@ -174,27 +167,44 @@ export class SalonClientLinker {
 
   /**
    * `bookings_count` = non-cancelled linked bookings; `last_visit_at` = latest
-   * non-cancelled booking whose end (or start) is in the past — the same rule as the
-   * owner list's `completed` bucket. Recomputed rather than incremented, so a relink,
-   * a cancellation or a reschedule cannot drift the numbers.
+   * non-cancelled booking that is a past visit — its end (or start) has passed, or
+   * Altegio marked it attended — the same rule as the owner list's `completed` bucket.
+   * Recomputed rather than incremented, so a relink, a cancellation or a reschedule
+   * cannot drift the numbers. Two grouped queries for the whole set, then one update
+   * per client, so a chunk holds the salon lock for a bounded time.
    */
   async recomputeCounters(db: LinkerDb, clientIds: Array<string | null | undefined>, now = new Date()): Promise<void> {
     const unique = Array.from(new Set(clientIds.filter((id): id is string => typeof id === 'string' && id.length > 0)));
+    if (unique.length === 0) return;
+    const active: Prisma.BookingWhereInput = { clientId: { in: unique }, status: { notIn: BOOKING_CANCELLED_STATUSES } };
+    const counts = await db.booking.groupBy({ by: ['clientId'], where: active, _count: { _all: true } });
+    const visits = await db.booking.groupBy({
+      by: ['clientId'],
+      where: { ...active, OR: [{ endDatetime: { lt: now } }, { endDatetime: null, datetime: { lt: now } }] },
+      _max: { datetime: true },
+    });
+    const countBy = new Map(counts.map((c) => [c.clientId, c._count._all]));
+    const visitBy = new Map<string | null, Date | null>(visits.map((v) => [v.clientId, v._max.datetime]));
+    // Altegio can mark a booking attended before its time has passed; those count too.
+    // A separate query, not another OR branch: a relation filter inside groupBy joins
+    // altegio_booking_details, whose own `datetime` makes the aggregate ambiguous.
+    const attendedEarly = await db.booking.findMany({
+      where: {
+        ...active,
+        altegioDetails: { is: { attendance: 1 } },
+        OR: [{ endDatetime: { gte: now } }, { endDatetime: null, datetime: { gte: now } }],
+      },
+      select: { clientId: true, datetime: true },
+    });
+    for (const b of attendedEarly) {
+      const known = visitBy.get(b.clientId);
+      if (!known || b.datetime > known) visitBy.set(b.clientId, b.datetime);
+    }
     for (const clientId of unique) {
-      const active = { clientId, status: { notIn: BOOKING_CANCELLED_STATUSES } };
-      const bookingsCount = await db.booking.count({ where: active });
-      const lastVisit = await db.booking.findFirst({
-        where: {
-          ...active,
-          OR: [{ endDatetime: { lt: now } }, { endDatetime: null, datetime: { lt: now } }],
-        },
-        orderBy: { datetime: 'desc' },
-        select: { datetime: true },
-      });
       // updateMany: a row that vanished between link and recompute must not throw.
       await db.salonClient.updateMany({
         where: { id: clientId },
-        data: { bookingsCount, lastVisitAt: lastVisit?.datetime ?? null },
+        data: { bookingsCount: countBy.get(clientId) ?? 0, lastVisitAt: visitBy.get(clientId) ?? null },
       });
     }
   }
@@ -248,25 +258,38 @@ export class SalonClientLinker {
   }
 
   /**
-   * Apply the merge to a matched row. A fill-only identifier can collide with another
-   * row's — the same person split across two rows that the rule could not bridge (e.g.
-   * one from the app, one from the CRM, spelled differently). The database refuses
-   * that; the identifier is then left unset on this row rather than moved, since rows
-   * are never merged automatically.
+   * Apply the merge to a matched row. A fill-only identifier can already belong to
+   * another row — the same person split across two rows that the rule could not bridge
+   * (one from the app, one from the CRM, spelled differently). The unique index would
+   * refuse that write and abort the transaction, so ownership is checked first and such
+   * an identifier is left unset on this row rather than moved; rows are never merged
+   * automatically.
    */
   private async update(db: LinkerDb, existing: SalonClient, identity: ClientIdentity): Promise<string> {
     const data = await this.merge(db, existing, identity);
     if (!data) return existing.id;
-    try {
+    await this.dropIdentifiersOwnedElsewhere(db, existing, data);
+    if (Object.keys(data).length > 0) {
       await db.salonClient.update({ where: { id: existing.id }, data });
-    } catch (err) {
-      if (!isUniqueViolation(err)) throw err;
-      const { userId: _u, altegioClientId: _a, easyweekCustomerId: _e, ...withoutIdentifiers } = data;
-      if (Object.keys(withoutIdentifiers).length > 0) {
-        await db.salonClient.update({ where: { id: existing.id }, data: withoutIdentifiers });
-      }
     }
     return existing.id;
+  }
+
+  private async dropIdentifiersOwnedElsewhere(
+    db: LinkerDb,
+    existing: SalonClient,
+    data: Prisma.SalonClientUpdateInput,
+  ): Promise<void> {
+    const identifiers = ['userId', 'altegioClientId', 'easyweekCustomerId'] as const;
+    for (const key of identifiers) {
+      const value = data[key];
+      if (typeof value !== 'string') continue;
+      const owner = await db.salonClient.findFirst({
+        where: { salonId: existing.salonId, [key]: value, NOT: { id: existing.id } },
+        select: { id: true },
+      });
+      if (owner) delete data[key];
+    }
   }
 
   // ---- merging ----------------------------------------------------------------------
@@ -321,9 +344,4 @@ export class SalonClientLinker {
     const user = await db.users.findUnique({ where: { id: userId }, select: { avatarUrl: true } });
     return user?.avatarUrl ?? null;
   }
-}
-
-/** Prisma's code for a unique-index violation. */
-export function isUniqueViolation(err: unknown): boolean {
-  return err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002';
 }

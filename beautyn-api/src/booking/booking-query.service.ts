@@ -315,8 +315,10 @@ export class BookingQueryService {
       where: { id: { in: unique } },
       include: this.include,
     });
+    // Only the sync paths (owner "sync now", internal rebase) read by ids; both are
+    // salon-facing, so they carry the client fields like the owner list and get do.
     const mapped = new Map<string, BookingDto>(
-      (bookings as unknown as BookingWithRelations[]).map((b) => [b.id, this.mapBooking(b)]),
+      (bookings as unknown as BookingWithRelations[]).map((b) => [b.id, this.mapBooking(b, { includeClient: true })]),
     );
     return unique.map((id) => mapped.get(id)).filter((b): b is BookingDto => !!b);
   }

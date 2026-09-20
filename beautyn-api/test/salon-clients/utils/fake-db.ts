@@ -32,6 +32,8 @@ export type FakeBookingRow = {
   status: string;
   datetime: Date;
   endDatetime: Date | null;
+  /** Altegio attendance = 1. */
+  attended?: boolean;
 };
 
 const MATCH_COLUMNS = ['salonId', 'userId', 'altegioClientId', 'easyweekCustomerId', 'phone', 'nameKey', 'email', 'id'] as const;
@@ -45,6 +47,7 @@ export function createFakeDb() {
   // Equality on the match columns, plus the one OR shape the stale-visit check uses.
   const matches = (row: FakeClientRow, where: Record<string, any>) =>
     MATCH_COLUMNS.every((col) => !(col in where) || row[col] === where[col]) &&
+    (!where.NOT?.id || row.id !== where.NOT.id) &&
     (!where.OR ||
       where.OR.some((clause: any) =>
         clause.lastVisitAt === null
@@ -99,16 +102,30 @@ export function createFakeDb() {
         const b = bookings.find((x) => x.id === where.id);
         return b ? { clientId: b.clientId } : null;
       }),
-      count: jest.fn(async ({ where }: any) =>
-        bookings.filter((b) => b.clientId === where.clientId && isActive(b)).length,
-      ),
-      findFirst: jest.fn(async ({ where }: any) => {
-        const now: Date = where.OR[0].endDatetime.lt;
-        const past = bookings
-          .filter((b) => b.clientId === where.clientId && isActive(b))
-          .filter((b) => (b.endDatetime ?? b.datetime) < now)
-          .sort((a, b) => b.datetime.getTime() - a.datetime.getTime());
-        return past[0] ? { datetime: past[0].datetime } : null;
+      // The attended-early lookup recomputeCounters issues after the grouped queries.
+      findMany: jest.fn(async ({ where }: any) => {
+        const ids: string[] = where.clientId.in;
+        const now: Date = where.OR[0].endDatetime.gte;
+        return bookings
+          .filter((b) => b.clientId && ids.includes(b.clientId) && isActive(b) && b.attended && (b.endDatetime ?? b.datetime) >= now)
+          .map((b) => ({ clientId: b.clientId, datetime: b.datetime }));
+      }),
+      // The two grouped aggregates recomputeCounters issues: count per client, and max
+      // datetime per client over past bookings.
+      groupBy: jest.fn(async ({ where, _count, _max }: any) => {
+        const ids: string[] = where.clientId.in;
+        const now: Date | null = where.OR ? where.OR[0].endDatetime.lt : null;
+        const isPastVisit = (b: FakeBookingRow) => !now || (b.endDatetime ?? b.datetime) < now;
+        const groups = new Map<string, FakeBookingRow[]>();
+        for (const b of bookings) {
+          if (!b.clientId || !ids.includes(b.clientId) || !isActive(b) || !isPastVisit(b)) continue;
+          groups.set(b.clientId, [...(groups.get(b.clientId) ?? []), b]);
+        }
+        return [...groups].map(([clientId, rows]) => ({
+          clientId,
+          ...(_count ? { _count: { _all: rows.length } } : {}),
+          ...(_max ? { _max: { datetime: rows.reduce((m, b) => (b.datetime > m ? b.datetime : m), rows[0].datetime) } } : {}),
+        }));
       }),
     },
     users: {

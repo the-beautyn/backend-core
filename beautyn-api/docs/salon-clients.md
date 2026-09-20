@@ -32,8 +32,8 @@ never edits them.
 | `first_seen_at` | earliest linked booking |
 | `last_visit_at`, `bookings_count` | see [Counters](#counters) |
 
-Identity columns are indexed but **not unique**: the linker is the single writer and
-serialises per salon, and a CRM data quirk must never fail a booking write.
+The exact identities (`user_id`, `altegio_client_id`, `easyweek_customer_id`) are
+**unique per salon**; name+contact is indexed only. See [the write-path rule](#the-write-path-rule).
 
 ## How a booking finds its client
 
@@ -77,9 +77,11 @@ other's links, and neither depends on a code path remembering anything:
 
 1. **The database refuses duplicates.** `(salon_id, user_id)`, `(salon_id,
    altegio_client_id)` and `(salon_id, easyweek_customer_id)` are unique. Whatever a
-   path forgets, a second row for the same account / CRM client cannot exist; the linker
-   catches the conflict and re-matches. Name+contact is a rule, not an identity (two
-   people may share a phone), so it is indexed but not unique.
+   path forgets, a second row for the same account / CRM client cannot exist. Postgres
+   aborts the transaction on that error, so it is a guarantee rather than a recovery
+   path: the linker checks ownership before writing an identifier, and the lock keeps a
+   create from racing. Name+contact is a rule, not an identity (two people may share a
+   phone), so it is indexed but not unique.
 2. **One gatekeeper decides.** Every booking write path calls
    `SalonClientLinker.assign(tx, { bookingId, identity, mode })` inside its transaction,
    and nothing else. `assign` takes the per-salon advisory lock, re-reads the booking's
@@ -105,8 +107,9 @@ Altegio list reconciliation, the one write that bypasses the handler.
 
 - `bookings_count` — linked bookings whose status is not `canceled`/`deleted`
   (`BOOKING_CANCELLED_STATUSES`), past and future.
-- `last_visit_at` — latest such booking whose end (or start, when there is no end) is in
-  the past — the same rule as the owner list's `completed` bucket.
+- `last_visit_at` — latest such booking that is a past visit: its end (or start, when
+  there is no end) has passed, or Altegio marked it attended — the same rule as the
+  owner list's `completed` bucket.
 
 `last_visit_at` is time-dependent: a booking in the future today is a past visit tomorrow
 with no write in between. The sync re-reads every booking and returns early when nothing

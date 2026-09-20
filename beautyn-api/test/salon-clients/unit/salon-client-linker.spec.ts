@@ -285,41 +285,38 @@ describe('SalonClientLinker', () => {
     });
   });
 
-  // The database's unique indexes are the structural guarantee; the linker must survive
-  // the conflict they raise rather than fail the booking write that triggered it.
-  describe('unique-index conflicts', () => {
-    const conflict = () => new Prisma.PrismaClientKnownRequestError('Unique constraint failed', { code: 'P2002', clientVersion: 'test' });
-
-    it('re-matches when another transaction created the person first', async () => {
-      const db = createFakeDb();
-      const original = db.salonClient.create.getMockImplementation()!;
-      db.salonClient.create.mockImplementationOnce(async (args: any) => {
-        // Simulate the other lane inserting the same person just before us.
-        await original({ data: { ...args.data, displayName: 'Other lane' } });
-        throw conflict();
-      });
-      const id = await linker.link(db, identity({ userId: 'u1' }));
-      expect(db.clients).toHaveLength(1);
-      expect(id).toBe(db.clients[0].id);
-    });
-
-    it('leaves a fill-only identifier unset when another row already owns it', async () => {
+  // The unique indexes are the guarantee. Postgres aborts the transaction on a violation,
+  // so the linker never provokes one: it checks ownership before writing an identifier,
+  // and a create that somehow raced is refused rather than recovered.
+  describe('unique identities', () => {
+    it('leaves a fill-only identifier unset when another row already owns it — without ever hitting the index', async () => {
       const db = createFakeDb();
       await linker.link(db, identity({ altegioClientId: 'A1', name: { firstName: 'Дмитро', lastName: 'Погребняк', displayName: null } })); // CRM row
       const app = (await linker.link(db, identity({ userId: 'u1', name: { firstName: 'Dima', lastName: 'Pohrebniak', displayName: null } })))!; // app row, same person
-      db.salonClient.update.mockImplementationOnce(async () => { throw conflict(); });
+      db.salonClient.update.mockClear();
       // A booking carrying both identities matches the app row by account and would fill A1 onto it.
       const id = await linker.link(db, identity({ userId: 'u1', altegioClientId: 'A1', phone: P, name: { firstName: 'Dima', lastName: 'Pohrebniak', displayName: null } }));
       expect(id).toBe(app);
-      const retry = db.salonClient.update.mock.calls[1][0].data;
-      expect(retry).not.toHaveProperty('altegioClientId');
-      expect(retry).toHaveProperty('phone', P);
+      expect(db.salonClient.update).toHaveBeenCalledTimes(1);
+      const written = db.salonClient.update.mock.calls[0][0].data;
+      expect(written).not.toHaveProperty('altegioClientId');
+      expect(written).toHaveProperty('phone', P);
+      expect(db.clients.filter((c) => c.altegioClientId === 'A1')).toHaveLength(1);
     });
 
-    it('rethrows anything that is not a unique violation', async () => {
+    it('still fills an identifier nobody else owns', async () => {
       const db = createFakeDb();
-      db.salonClient.create.mockImplementationOnce(async () => { throw new Error('connection lost'); });
-      await expect(linker.link(db, identity({ userId: 'u1' }))).rejects.toThrow('connection lost');
+      await linker.link(db, identity({ userId: 'u1', phone: P }));
+      await linker.link(db, identity({ userId: 'u1', altegioClientId: 'A1', phone: P }));
+      expect(db.clients[0].altegioClientId).toBe('A1');
+    });
+
+    it('lets a violation propagate instead of retrying inside a doomed transaction', async () => {
+      const db = createFakeDb();
+      const violation = new Prisma.PrismaClientKnownRequestError('Unique constraint failed', { code: 'P2002', clientVersion: 'test' });
+      db.salonClient.create.mockImplementationOnce(async () => { throw violation; });
+      await expect(linker.link(db, identity({ userId: 'u1' }))).rejects.toBe(violation);
+      expect(db.salonClient.findFirst).toHaveBeenCalledTimes(1); // no re-match attempt
     });
   });
 
@@ -388,6 +385,24 @@ describe('SalonClientLinker', () => {
       );
       await linker.recomputeCounters(db, [id], now);
       expect(db.clients[0]).toMatchObject({ bookingsCount: 3, lastVisitAt: t('2026-06-10T10:00:00Z') });
+    });
+
+    it('counts an attended booking as a visit even before its time has passed', async () => {
+      const db = createFakeDb();
+      const id = (await linker.link(db, identity({ userId: 'u1' })))!;
+      db.bookings.push({ id: 'b1', clientId: id, status: 'created', datetime: t('2026-06-20T10:00:00Z'), endDatetime: null, attended: true });
+      await linker.recomputeCounters(db, [id], now);
+      expect(db.clients[0]).toMatchObject({ bookingsCount: 1, lastVisitAt: t('2026-06-20T10:00:00Z') });
+    });
+
+    it('uses two grouped queries and one attended lookup for the whole set, not two per client', async () => {
+      const db = createFakeDb();
+      const ids = [(await linker.link(db, identity({ userId: 'u1' })))!, (await linker.link(db, identity({ userId: 'u2' })))!];
+      db.booking.groupBy.mockClear();
+      await linker.recomputeCounters(db, ids, now);
+      expect(db.booking.groupBy).toHaveBeenCalledTimes(2);
+      expect(db.booking.findMany).toHaveBeenCalledTimes(1);
+      expect(db.salonClient.updateMany).toHaveBeenCalledTimes(2);
     });
 
     it('zeroes a client whose only booking was cancelled', async () => {
