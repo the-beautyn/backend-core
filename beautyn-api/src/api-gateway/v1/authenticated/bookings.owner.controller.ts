@@ -52,6 +52,7 @@ export class OwnerBookingsController {
       limit: query.limit,
       page: query.page,
       cursor: query.cursor || undefined,
+      clientId: query.client_id || undefined,
       includeHistory: this.hasInclude(query.included, 'history'),
     });
   }

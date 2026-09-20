@@ -242,6 +242,7 @@ export class BookingQueryService {
     cursor?: string;
     page?: number;
     limit?: number;
+    clientId?: string;
     includeHistory?: boolean;
   }): Promise<BookingListResponseDto> {
     if (params.page !== undefined && params.cursor) {
@@ -250,8 +251,12 @@ export class BookingQueryService {
 
     // Same bucket logic as the client app's tabs — see buildBucketWhere. The
     // cancelled bucket alone windows on cancelledAt, to match its ordering below.
+    // The client filter (BEA-71) goes into the base so it composes with every bucket.
     const isCancelledBucket = params.status === 'canceled';
-    const where = this.buildBucketWhere({ salonId: params.salonId }, params, new Date(), {
+    const base: Prisma.BookingWhereInput = params.clientId
+      ? { salonId: params.salonId, clientId: params.clientId }
+      : { salonId: params.salonId };
+    const where = this.buildBucketWhere(base, params, new Date(), {
       cancelledWindowOn: isCancelledBucket ? 'cancelledAt' : 'datetime',
     });
     const includeHistory = params.includeHistory ?? true;
@@ -378,6 +383,8 @@ export class BookingQueryService {
           }
         : null,
       client: includeClient ? this.mapClient(booking) : undefined,
+      // Owner-only like `client`: the salon-client id means nothing to the client app.
+      client_id: includeClient ? (booking.clientId ?? null) : undefined,
       status: booking.status,
       datetime: booking.datetime.toISOString(),
       end_datetime: booking.endDatetime ? booking.endDatetime.toISOString() : null,

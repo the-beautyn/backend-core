@@ -63,6 +63,31 @@ describe('BookingQueryService.listForSalon scope translation', () => {
     expect(where).toEqual({ salonId, status: { in: CANCELLED } });
   });
 
+  // BEA-71: the Client Info modal's history is the owner list filtered to one
+  // client. The filter sits in the base, so it composes with every bucket.
+  describe('client_id filter', () => {
+    const clientId = 'client-1';
+
+    it.each(['created', 'completed', 'canceled', 'some_other_status', undefined])(
+      'narrows the %s bucket to one client',
+      async (status) => {
+        const where = await salonWhere(status, { clientId });
+        expect(where.salonId).toBe(salonId);
+        expect(where.clientId).toBe(clientId);
+      },
+    );
+
+    it('is absent when not requested', async () => {
+      const where = await salonWhere('created');
+      expect('clientId' in where).toBe(false);
+    });
+
+    it('never applies to the client app list', async () => {
+      await service.listForClient({ userId } as any);
+      expect('clientId' in findMany.mock.calls.at(-1)![0].where).toBe(false);
+    });
+  });
+
   it('falls back to a literal status match for anything else', async () => {
     const where = await salonWhere('some_other_status');
     expect(where.status).toBe('some_other_status');
@@ -242,6 +267,21 @@ describe('BookingQueryService.listForSalon scope translation', () => {
         email: 'ivan@example.com',
         source: 'altegio',
       });
+    });
+
+    // BEA-71: the linked salon client, owner-only for the same reason as `client`.
+    it('exposes the linked client id on the owner list and withholds it from the client list', async () => {
+      findMany.mockResolvedValue([{ ...row, clientId: 'client-1' }]);
+      const owner = await service.listForSalon({ salonId });
+      expect(owner.items[0].client_id).toBe('client-1');
+      const client = await service.listForClient({ userId });
+      expect(client.items[0].client_id).toBeUndefined();
+    });
+
+    it('returns a null client id for an unlinked booking on the owner list', async () => {
+      findMany.mockResolvedValue([{ ...row, clientId: null }]);
+      const owner = await service.listForSalon({ salonId });
+      expect(owner.items[0].client_id).toBeNull();
     });
 
     // The mapper is shared with the client app's own bookings endpoints. The
