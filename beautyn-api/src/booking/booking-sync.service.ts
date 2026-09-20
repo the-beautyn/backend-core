@@ -200,10 +200,10 @@ export class BookingSyncService {
     if (purgedFutureIds.length) {
       this.log.info('Cancelling Altegio bookings missing from CRM list', { salonId, lane, count: purgedFutureIds.length });
       // The only booking write that bypasses the handler, so the salon-client counters
-      // have to be maintained here as well (BEA-71) — under the same per-salon lock and
-      // in one transaction, so a handler write cannot slip between the count and the
-      // update and be overwritten with a stale number.
-      await this.prisma.$transaction(async (tx) => {
+      // have to be maintained here as well (BEA-71). The tombstone runs under the salon
+      // lock; the recompute follows in short locked chunks so a bulk purge cannot hold
+      // the lock — and every live booking write for the salon — for one long pass.
+      const purgedClientIds = await this.prisma.$transaction(async (tx) => {
         await this.clients.lockSalon(tx, salonId);
         // The candidates were picked before the lock; a handler may have synced one of
         // them since (updatedAt moves on every write). Such a row is fresher than this
@@ -214,11 +214,9 @@ export class BookingSyncService {
           where: purgeWhere,
           data: { status: 'deleted', cancelledAt: now },
         });
-        await this.clients.recomputeCounters(
-          tx,
-          purged.map((b) => b.clientId),
-        );
+        return purged.map((b) => b.clientId);
       });
+      await this.clients.recomputeCountersLocked(this.prisma, salonId, purgedClientIds);
     }
 
     return this.bookingQuery.getByIds([...touchedIds, ...purgedFutureIds]);

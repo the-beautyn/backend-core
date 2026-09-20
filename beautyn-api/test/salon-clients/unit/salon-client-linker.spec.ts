@@ -1,4 +1,4 @@
-import { SalonClientLinker } from '../../../src/salon-clients/salon-client-linker.service';
+import { COUNTER_CHUNK, SalonClientLinker } from '../../../src/salon-clients/salon-client-linker.service';
 import { buildNameKey, type ClientIdentity } from '../../../src/salon-clients/client-identity';
 import { createFakeDb } from '../utils/fake-db';
 
@@ -238,6 +238,24 @@ describe('SalonClientLinker', () => {
       const db = createFakeDb();
       await linker.refreshLastVisitIfStale(db, booking, now);
       expect(db.salonClient.findFirst).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('recomputeCountersLocked', () => {
+    it('takes the salon lock once per chunk, in its own transaction', async () => {
+      const db = createFakeDb();
+      const ids = Array.from({ length: COUNTER_CHUNK + 1 }, (_, i) => `c${i}`);
+      const prisma = { $transaction: jest.fn(async (cb: (tx: unknown) => Promise<unknown>) => cb(db)) };
+      await linker.recomputeCountersLocked(prisma as any, salonId, [...ids, null, ids[0]]);
+      expect(prisma.$transaction).toHaveBeenCalledTimes(2);
+      expect(db.$executeRaw).toHaveBeenCalledTimes(2);
+      expect(db.salonClient.updateMany).toHaveBeenCalledTimes(COUNTER_CHUNK + 1); // deduped, null dropped
+    });
+
+    it('opens no transaction when there is nothing to recompute', async () => {
+      const prisma = { $transaction: jest.fn() };
+      await linker.recomputeCountersLocked(prisma as any, salonId, [null, undefined]);
+      expect(prisma.$transaction).not.toHaveBeenCalled();
     });
   });
 

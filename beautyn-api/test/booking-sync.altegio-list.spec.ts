@@ -46,7 +46,11 @@ describe('BookingSyncService.rebaseFromCrm — Altegio list reconciliation', () 
       ),
     };
     bookingQuery = { getByIds: jest.fn().mockResolvedValue([]) };
-    clients = { recomputeCounters: jest.fn().mockResolvedValue(undefined), lockSalon: jest.fn().mockResolvedValue(undefined) };
+    clients = {
+      recomputeCounters: jest.fn().mockResolvedValue(undefined),
+      recomputeCountersLocked: jest.fn().mockResolvedValue(undefined),
+      lockSalon: jest.fn().mockResolvedValue(undefined),
+    };
     service = new BookingSyncService(prisma, crm, bookingHandler, bookingQuery, clients);
   });
 
@@ -89,16 +93,17 @@ describe('BookingSyncService.rebaseFromCrm — Altegio list reconciliation', () 
     await service.rebaseFromCrm(salonId);
     const purgeLookup = prisma.booking.findMany.mock.calls[1][0];
     expect(purgeLookup.where.id.in).toEqual(['b2']);
-    expect(clients.recomputeCounters).toHaveBeenCalledWith(prisma, ['client-b2']);
-    // All inside one transaction, under the salon's client lock, so a handler write
-    // cannot land between the count and the update: lock → read → write → recompute.
+    // The tombstone runs in one transaction under the salon's client lock (lock → read
+    // → write); the recompute follows in short locked chunks, not inside that
+    // transaction, so a bulk purge never holds the lock for one long pass.
     expect(prisma.$transaction).toHaveBeenCalledTimes(1);
     expect(clients.lockSalon).toHaveBeenCalledWith(prisma, salonId);
+    expect(clients.recomputeCountersLocked).toHaveBeenCalledWith(prisma, salonId, ['client-b2']);
     const order = [
       clients.lockSalon.mock.invocationCallOrder[0],
       prisma.booking.findMany.mock.invocationCallOrder[1],
       prisma.booking.updateMany.mock.invocationCallOrder[0],
-      clients.recomputeCounters.mock.invocationCallOrder[0],
+      clients.recomputeCountersLocked.mock.invocationCallOrder[0],
     ];
     expect([...order].sort((a, b) => a - b)).toEqual(order);
   });

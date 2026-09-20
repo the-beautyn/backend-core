@@ -14,6 +14,9 @@ export type LinkerDb = Prisma.TransactionClient | PrismaClient;
 
 const OLDEST_FIRST: Prisma.SalonClientOrderByWithRelationInput[] = [{ firstSeenAt: 'asc' }, { id: 'asc' }];
 
+/** Clients recomputed per locked transaction by `recomputeCountersLocked`. */
+export const COUNTER_CHUNK = 200;
+
 /**
  * Resolves a booking's identity to a `salon_clients` row and keeps the per-client
  * counters current (BEA-71). Stateless: every method takes the db handle so the
@@ -113,6 +116,29 @@ export class SalonClientLinker {
   ): Promise<void> {
     if (await this.isLastVisitStale(db, booking, now)) {
       await this.recomputeCounters(db, [booking.clientId], now);
+    }
+  }
+
+  /**
+   * Recompute many clients of one salon without holding its lock for the whole pass:
+   * one short locked transaction per chunk of `COUNTER_CHUNK`. Correct against
+   * concurrent booking writes (each chunk reads current state under the lock) while
+   * live syncs for the salon only ever wait for one chunk. For the bulk paths — the
+   * back-fill's final pass and the Altegio purge; per-booking writes recompute inline.
+   */
+  async recomputeCountersLocked(
+    prisma: PrismaClient,
+    salonId: string,
+    clientIds: Array<string | null | undefined>,
+    now = new Date(),
+  ): Promise<void> {
+    const unique = Array.from(new Set(clientIds.filter((id): id is string => typeof id === 'string' && id.length > 0)));
+    for (let i = 0; i < unique.length; i += COUNTER_CHUNK) {
+      const chunk = unique.slice(i, i + COUNTER_CHUNK);
+      await prisma.$transaction(async (tx) => {
+        await this.lockSalon(tx, salonId);
+        await this.recomputeCounters(tx, chunk, now);
+      });
     }
   }
 

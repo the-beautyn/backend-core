@@ -30,7 +30,6 @@ import { SalonClientLinker } from '../src/salon-clients/salon-client-linker.serv
  */
 
 const BATCH_SIZE = 500;
-const COUNTER_CHUNK = 200;
 
 type Counts = { linked: number; relinked: number; unchanged: number; noIdentity: number };
 
@@ -115,15 +114,9 @@ async function main() {
     if (!dryRun) {
       for (const salonId of touchedSalons) {
         const rows = await prisma.salonClient.findMany({ where: { salonId }, select: { id: true } });
-        for (let i = 0; i < rows.length; i += COUNTER_CHUNK) {
-          const chunk = rows.slice(i, i + COUNTER_CHUNK).map((r) => r.id);
-          // One short locked transaction per chunk: correct against concurrent booking
-          // writes without holding the salon's lock for the whole pass.
-          await prisma.$transaction(async (tx) => {
-            await linker.lockSalon(tx, salonId);
-            await linker.recomputeCounters(tx, chunk);
-          });
-        }
+        // Short locked transactions per chunk: correct against concurrent booking
+        // writes without holding the salon's lock for the whole pass.
+        await linker.recomputeCountersLocked(prisma, salonId, rows.map((r) => r.id));
         clients += rows.length;
       }
     }
