@@ -38,7 +38,9 @@ export class SalonClientLinker {
     // unique constraint to stop two transactions creating the same person twice.
     // Serialise linking per salon; the lock is released at commit. Outside a
     // transaction (back-fill) it is acquired and released immediately — harmless.
-    await db.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${'salon_client:' + identity.salonId}))`;
+    // $executeRaw, not $queryRaw: the function returns void, which Prisma cannot
+    // deserialize as a result column.
+    await db.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${'salon_client:' + identity.salonId}))`;
 
     const existing = await this.findMatch(db, identity);
     if (!existing) {

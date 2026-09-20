@@ -34,18 +34,18 @@ describe('SalonClientLinker', () => {
       const db = createFakeDb();
       const id = await linker.link(db, identity({ nameKey: null, name: { firstName: null, lastName: null, displayName: null }, phone: P }));
       expect(id).toBeNull();
-      expect(db.$queryRaw).not.toHaveBeenCalled();
+      expect(db.$executeRaw).not.toHaveBeenCalled();
       expect(db.salonClient.create).not.toHaveBeenCalled();
     });
 
     it('takes the per-salon advisory lock before looking anything up', async () => {
       const db = createFakeDb();
       await linker.link(db, identity({ userId: 'u1' }));
-      expect(db.$queryRaw).toHaveBeenCalledTimes(1);
-      const [strings, ...values] = db.$queryRaw.mock.calls[0];
+      expect(db.$executeRaw).toHaveBeenCalledTimes(1);
+      const [strings, ...values] = db.$executeRaw.mock.calls[0];
       expect(strings.join('?')).toContain('pg_advisory_xact_lock(hashtext(?))');
       expect(values).toEqual([`salon_client:${salonId}`]);
-      expect(db.$queryRaw.mock.invocationCallOrder[0]).toBeLessThan(db.salonClient.findFirst.mock.invocationCallOrder[0]);
+      expect(db.$executeRaw.mock.invocationCallOrder[0]).toBeLessThan(db.salonClient.findFirst.mock.invocationCallOrder[0]);
     });
 
     // Scenario 1: app first, then the CRM sync returns the same booking with a card.

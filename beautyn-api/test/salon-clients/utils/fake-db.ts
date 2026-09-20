@@ -55,7 +55,7 @@ export function createFakeDb() {
     bookings,
     /** Seed store for `users.findUnique`. */
     accounts,
-    $queryRaw: jest.fn().mockResolvedValue([]),
+    $executeRaw: jest.fn().mockResolvedValue(1),
     salonClient: {
       findFirst: jest.fn(async ({ where }: any) => [...clients].sort(oldestFirst).find((r) => matches(r, where)) ?? null),
       create: jest.fn(async ({ data }: any) => {
