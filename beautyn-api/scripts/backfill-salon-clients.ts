@@ -24,6 +24,12 @@ import { SalonClientLinker } from '../src/salon-clients/salon-client-linker.serv
  * --dry-run evaluates every booking's identity and reports what would be eligible; it
  * cannot tell a would-be-new row from a would-be-match without writing, so it does not.
  *
+ * Connects over DIRECT_URL when set. From a laptop against a remote database each
+ * per-booking transaction is several round trips under the salon lock; through the
+ * transaction pooler (pgbouncer, pool of one) that overran Prisma's 5 s default and
+ * died with P2028 "Transaction not found". The direct connection plus a generous
+ * transaction budget is what a one-off admin script wants.
+ *
  * Usage:
  *   npm run backfill:clients:local
  *   npm run backfill:clients:dev -- --dry-run
@@ -39,7 +45,10 @@ async function main() {
   const dryRun = process.argv.includes('--dry-run');
   const mode = process.argv.includes('--relink') ? ('write' as const) : ('attach' as const);
   const salonArg = process.argv.find((a) => a.startsWith('--salon='))?.slice('--salon='.length);
-  const prisma = new PrismaClient();
+  const prisma = new PrismaClient({
+    datasourceUrl: process.env.DIRECT_URL ?? process.env.DATABASE_URL,
+    transactionOptions: { maxWait: 15_000, timeout: 120_000 },
+  });
   const linker = new SalonClientLinker();
   const counts: Counts = { linked: 0, relinked: 0, unchanged: 0, noIdentity: 0 };
   const touchedSalons = new Set<string>();
