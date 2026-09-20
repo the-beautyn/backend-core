@@ -44,8 +44,10 @@ export class SalonClientsRepository {
       { displayName: { contains: query, mode: 'insensitive' } },
       { email: { contains: query, mode: 'insensitive' } },
     ];
-    const digits = query.replace(/\D/g, '').replace(/^0/, '');
-    if (digits.length >= 3) clauses.push({ phone: { contains: digits } });
+    // Three digits typed is enough to start matching; "095" is a national prefix,
+    // so the minimum is checked before the leading 0 is dropped.
+    const digits = query.replace(/\D/g, '');
+    if (digits.length >= 3) clauses.push({ phone: { contains: digits.replace(/^0/, '') } });
     return clauses;
   }
 

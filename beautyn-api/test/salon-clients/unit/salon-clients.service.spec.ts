@@ -52,6 +52,7 @@ describe('SalonClients list and get', () => {
       ['national format', '0950000012', '950000012'],
       ['spaced international', '+380 95 000', '38095000'],
       ['partial digits', '095 000', '95000'],
+      ['just the national prefix', '095', '95'],
     ])('matches the phone by digits — %s', async (_label, q, digits) => {
       await service.list(salonId, { q });
       expect(lastQuery().where.OR).toContainEqual({ phone: { contains: digits } });
