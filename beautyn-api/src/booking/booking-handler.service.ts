@@ -8,6 +8,7 @@ import type {
   EasyweekBookingDtoNormalized,
 } from '../crm-integration/core/dto/easyweek-booking.dto';
 import { PrismaService } from '../shared/database/prisma.service';
+import { BOOKING_CANCELLED_STATUSES } from './booking-status';
 import {
   clientFromAltegioClient,
   clientFromEasyweekCustomer,
@@ -39,9 +40,8 @@ type NormalizedEasyweek = {
 
 @Injectable()
 export class BookingHandlerService {
-  // EasyWeek cancels to 'canceled'; Altegio soft-deletes to 'deleted'. Both are
-  // the cancelled state for cancelledAt stamping. Mirrors BookingQueryService.
-  private static readonly CANCELLED_STATUSES = ['canceled', 'deleted'];
+  // Shared with BookingQueryService and the salon-client counters — see booking-status.ts.
+  private static readonly CANCELLED_STATUSES = BOOKING_CANCELLED_STATUSES;
 
   constructor(private readonly prisma: PrismaService) {}
 

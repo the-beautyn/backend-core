@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { Prisma, Booking } from '@prisma/client';
 import { PrismaService } from '../shared/database/prisma.service';
+import { BOOKING_CANCELLED_STATUSES } from './booking-status';
 import { normalizePagination } from '../shared/utils/pagination.util';
 import { BookingDto, BookingListResponseDto, BookingProviderAltegioDto, BookingProviderEasyweekDto } from './dto/booking.response.dto';
 
@@ -74,9 +75,9 @@ export class BookingQueryService {
     },
   } satisfies Prisma.BookingInclude;
 
-  // EasyWeek cancels to 'canceled'; Altegio soft-deletes to 'deleted'. Both belong in the
-  // Cancelled tab and must be excluded from upcoming/past.
-  private static readonly CANCELLED_STATUSES = ['canceled', 'deleted'];
+  // Both belong in the Cancelled tab and must be excluded from upcoming/past.
+  // Shared with the handler and the salon-client counters — see booking-status.ts.
+  private static readonly CANCELLED_STATUSES = BOOKING_CANCELLED_STATUSES;
 
   constructor(private readonly prisma: PrismaService) {}
 
