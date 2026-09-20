@@ -8,6 +8,8 @@ import type {
   EasyweekBookingDtoNormalized,
 } from '../crm-integration/core/dto/easyweek-booking.dto';
 import { PrismaService } from '../shared/database/prisma.service';
+import { SalonClientLinker } from '../salon-clients/salon-client-linker.service';
+import { identityFromSources, type ClientIdentity } from '../salon-clients/client-identity';
 import { BOOKING_CANCELLED_STATUSES } from './booking-status';
 import {
   clientFromAltegioClient,
@@ -18,6 +20,9 @@ import {
   resolveClientSnapshot as resolveSnapshot,
   type ClientSnapshot,
 } from './client-snapshot';
+
+/** The account columns the snapshot fallback and the client identity both read. */
+type AccountRow = { name: string | null; secondName: string | null; phone: string | null; email: string | null };
 
 type NormalizedEasyweek = {
   bookingUuid: string;
@@ -43,7 +48,10 @@ export class BookingHandlerService {
   // Shared with BookingQueryService and the salon-client counters — see booking-status.ts.
   private static readonly CANCELLED_STATUSES = BOOKING_CANCELLED_STATUSES;
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly clients: SalonClientLinker,
+  ) {}
 
   async createEasyweekBooking(params: {
     salonId: string;
@@ -70,10 +78,18 @@ export class BookingHandlerService {
     const status = normalized.isCanceled ? 'canceled' : normalized.isCompleted ? 'completed' : 'created';
     const payload = normalized.raw ?? normalized;
     const shortLink = params.workspaceSlug ? this.buildShortLink(params.workspaceSlug, normalized.bookingUuid) : null;
-    const client = await this.resolveClientSnapshot(
+    const { snapshot: client, account } = await this.resolveClientSnapshot(
       clientFromEasyweekCustomer(normalized.customer ?? null),
       params.userId ?? null,
     );
+    const identity = identityFromSources({
+      salonId: params.salonId,
+      userId: params.userId ?? null,
+      snapshot: client,
+      easyweekCustomer: normalized.customer ?? null,
+      account,
+      bookingDatetime: start,
+    });
 
     const incoming = await this.buildEasyweekIncomingState({
       salonId: params.salonId,
@@ -94,10 +110,12 @@ export class BookingHandlerService {
     });
 
     const created = await this.prisma.$transaction(async (tx) => {
+      const clientId = await this.clients.link(tx, identity);
       const booking = await tx.booking.create({
         data: {
           salonId: params.salonId,
           userId: params.userId ?? null,
+          clientId,
           status,
           cancelledAt: this.resolveCancelledAt(null, null, status),
           datetime: start,
@@ -129,6 +147,7 @@ export class BookingHandlerService {
         },
       });
 
+      await this.clients.recomputeCounters(tx, [clientId]);
       return booking;
     });
 
@@ -162,10 +181,18 @@ export class BookingHandlerService {
     const end = this.toDate(normalized.endTime ?? null);
     const status = normalized.isCanceled ? 'canceled' : normalized.isCompleted ? 'completed' : 'created';
     const payload = normalized.raw ?? normalized;
-    const client = await this.resolveClientSnapshot(
+    const { snapshot: client, account } = await this.resolveClientSnapshot(
       clientFromEasyweekCustomer(normalized.customer ?? null),
       existing.userId ?? null,
     );
+    const identity = identityFromSources({
+      salonId: existing.salonId,
+      userId: existing.userId ?? null,
+      snapshot: client,
+      easyweekCustomer: normalized.customer ?? null,
+      account,
+      bookingDatetime: start,
+    });
 
     const incoming = await this.buildEasyweekIncomingState({
       salonId: existing.salonId,
@@ -187,15 +214,18 @@ export class BookingHandlerService {
 
     const existingSnapshot = this.buildEasyweekExistingState(existing);
     if (this.isEqual(existingSnapshot.snapshot, incoming.snapshot)) {
+      await this.attachClientIfMissing(existing, identity);
       return { booking: existing, changed: false };
     }
 
     const nextVersion = (existing.version ?? 0) + 1;
     await this.prisma.$transaction(async (tx) => {
+      const clientId = await this.clients.link(tx, identity);
       await tx.booking.update({
         where: { id: existing.id },
         data: {
           userId: existing.userId ?? null,
+          clientId,
           status,
           cancelledAt: this.resolveCancelledAt(existing.status, existing.cancelledAt, status),
           datetime: start,
@@ -224,6 +254,8 @@ export class BookingHandlerService {
           diffFromPrev: this.diff(existingSnapshot.snapshot, incoming.snapshot) as any,
         },
       });
+
+      await this.clients.recomputeCounters(tx, [clientId, existing.clientId]);
     });
 
     return { booking: existing, changed: true };
@@ -264,11 +296,14 @@ export class BookingHandlerService {
       booking: params.booking,
     });
 
+    const identity = this.altegioIdentity(params.salonId, params.userId ?? null, incoming, start);
     const created = await this.prisma.$transaction(async (tx) => {
+      const clientId = await this.clients.link(tx, identity);
       const booking = await tx.booking.create({
         data: {
           salonId: params.salonId,
           userId: params.userId ?? null,
+          clientId,
           status,
           cancelledAt: this.resolveCancelledAt(null, null, status),
           datetime: start,
@@ -299,6 +334,7 @@ export class BookingHandlerService {
         },
       });
 
+      await this.clients.recomputeCounters(tx, [clientId]);
       return booking;
     });
 
@@ -344,17 +380,21 @@ export class BookingHandlerService {
       booking: params.booking,
     });
 
+    const identity = this.altegioIdentity(existing.salonId, existing.userId ?? null, incoming, start);
     const existingSnapshot = this.buildAltegioExistingState(existing);
     if (this.isEqual(existingSnapshot.snapshot, incoming.snapshot)) {
+      await this.attachClientIfMissing(existing, identity);
       return { booking: existing, changed: false };
     }
 
     const nextVersion = (existing.version ?? 0) + 1;
     await this.prisma.$transaction(async (tx) => {
+      const clientId = await this.clients.link(tx, identity);
       await tx.booking.update({
         where: { id: existing.id },
         data: {
           userId: existing.userId ?? null,
+          clientId,
           status,
           cancelledAt: this.resolveCancelledAt(existing.status, existing.cancelledAt, status),
           datetime: start,
@@ -383,6 +423,8 @@ export class BookingHandlerService {
           diffFromPrev: this.diff(existingSnapshot.snapshot, incoming.snapshot) as any,
         },
       });
+
+      await this.clients.recomputeCounters(tx, [clientId, existing.clientId]);
     });
 
     return { booking: existing, changed: true };
@@ -392,20 +434,56 @@ export class BookingHandlerService {
    * The client to store on the booking row. The precedence rules live in
    * `client-snapshot.ts` so the back-fill script produces byte-identical results;
    * all this adds is the account read, since `Booking.userId` is a bare column with
-   * no Prisma relation to follow.
+   * no Prisma relation to follow. The account is handed back as well: the salon-client
+   * identity needs its structured name, and one read is enough.
    */
   private async resolveClientSnapshot(
     fromCrm: ClientSnapshot,
     userId: string | null | undefined,
-  ): Promise<ClientSnapshot> {
-    if (hasAnyClientField(fromCrm)) return fromCrm;
-    if (!userId) return EMPTY_CLIENT;
+  ): Promise<{ snapshot: ClientSnapshot; account: AccountRow | null }> {
+    if (hasAnyClientField(fromCrm)) return { snapshot: fromCrm, account: null };
+    if (!userId) return { snapshot: EMPTY_CLIENT, account: null };
 
     const user = await this.prisma.users.findUnique({
       where: { id: userId },
       select: { name: true, secondName: true, phone: true, email: true },
     });
-    return resolveSnapshot(fromCrm, user);
+    return { snapshot: resolveSnapshot(fromCrm, user), account: user };
+  }
+
+  private altegioIdentity(
+    salonId: string,
+    userId: string | null,
+    incoming: { clientSnapshot: ClientSnapshot; client: any; account: AccountRow | null },
+    bookingDatetime: Date,
+  ): ClientIdentity {
+    return identityFromSources({
+      salonId,
+      userId,
+      snapshot: incoming.clientSnapshot,
+      altegioClient: incoming.client,
+      account: incoming.account,
+      bookingDatetime,
+    });
+  }
+
+  /**
+   * Rows written before BEA-71 have no client, and an unchanged sync returns before
+   * the write that would give them one. Attach it here, without a booking version —
+   * nothing about the booking itself changed. Makes rows synced after deploy correct
+   * ahead of the back-fill.
+   */
+  private async attachClientIfMissing(
+    existing: { id: string; clientId: string | null },
+    identity: ClientIdentity,
+  ): Promise<void> {
+    if (existing.clientId) return;
+    await this.prisma.$transaction(async (tx) => {
+      const clientId = await this.clients.link(tx, identity);
+      if (!clientId) return;
+      await tx.booking.update({ where: { id: existing.id }, data: { clientId } });
+      await this.clients.recomputeCounters(tx, [clientId]);
+    });
   }
 
   /**
@@ -598,7 +676,7 @@ export class BookingHandlerService {
     const mappedGoods = this.mapAltegioGoods(args.booking?.goodsTransactions ?? args.booking?.raw?.goods_transactions ?? null);
     // `mapAltegioClient` returns an all-nulls object rather than null when Altegio
     // sent no client, so the fallback is driven by content, not by presence.
-    const clientSnapshot = await this.resolveClientSnapshot(
+    const { snapshot: clientSnapshot, account } = await this.resolveClientSnapshot(
       clientFromAltegioClient(mappedClient),
       args.userId,
     );
@@ -629,6 +707,7 @@ export class BookingHandlerService {
     return {
       snapshot,
       clientSnapshot,
+      account,
       details: mappedDetails,
       staff: mappedStaff,
       client: mappedClient,

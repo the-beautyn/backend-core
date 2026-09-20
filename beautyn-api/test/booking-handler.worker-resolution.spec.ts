@@ -11,7 +11,7 @@ describe('BookingHandlerService.resolveWorkerId', () => {
 
   beforeEach(() => {
     findFirst = jest.fn();
-    service = new BookingHandlerService({ worker: { findFirst } } as any);
+    service = new BookingHandlerService({ worker: { findFirst } } as any, { link: jest.fn().mockResolvedValue(null), recomputeCounters: jest.fn() } as any);
   });
 
   const resolve = (staffId: string) =>
@@ -82,7 +82,7 @@ describe('BookingHandlerService.buildEasyweekIncomingState — staffer', () => {
 
   beforeEach(() => {
     findFirst = jest.fn();
-    service = new BookingHandlerService({ worker: { findFirst } } as any);
+    service = new BookingHandlerService({ worker: { findFirst } } as any, { link: jest.fn().mockResolvedValue(null), recomputeCounters: jest.fn() } as any);
   });
 
   it('resolves the staffer uuid to the salon worker and puts both in the snapshot', async () => {
