@@ -116,8 +116,10 @@ describe('BookingHandlerService — salon client linking', () => {
 
       expect(model('booking').update.mock.calls[0][0].data.clientId).toBe('client-from-other-lane');
       expect(linker.recomputeCounters).toHaveBeenCalledWith(expect.anything(), ['client-from-other-lane', 'client-from-other-lane']);
-      // The re-read happens after the lock is taken (link runs first).
-      expect(linker.link.mock.invocationCallOrder[0]).toBeLessThan(findUnique.mock.invocationCallOrder[1]);
+      // The lock is taken explicitly before the re-read — link() alone would have
+      // returned before locking, since this payload has no identity.
+      expect(linker.lockSalon).toHaveBeenCalledWith(expect.anything(), salonId);
+      expect(linker.lockSalon.mock.invocationCallOrder[0]).toBeLessThan(findUnique.mock.invocationCallOrder[1]);
     });
 
     it('keeps the existing link when the update payload carries no client at all', async () => {

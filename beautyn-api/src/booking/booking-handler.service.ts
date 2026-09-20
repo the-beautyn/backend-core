@@ -464,6 +464,9 @@ export class BookingHandlerService {
     bookingId: string,
     identity: ClientIdentity,
   ): Promise<{ clientId: string | null; previousClientId: string | null }> {
+    // Explicitly, not via link(): link() returns before locking when there is no usable
+    // identity, and the re-read below must be under the lock in that case too.
+    await this.clients.lockSalon(tx, identity.salonId);
     const linked = await this.clients.link(tx, identity);
     const current = await tx.booking.findUnique({ where: { id: bookingId }, select: { clientId: true } });
     const previousClientId = current?.clientId ?? null;

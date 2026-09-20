@@ -163,6 +163,14 @@ describe('SalonClientLinker', () => {
       expect(db.clients[0]).toMatchObject({ phone: '+380950000002', email: 'ivan@example.com' });
     });
 
+    it('drops the key on merge when a stored name component was cut to its column', async () => {
+      const db = createFakeDb();
+      await linker.link(db, identity({ userId: 'u1', phone: P }));
+      await linker.link(db, identity({ userId: 'u1', name: { firstName: 'x'.repeat(100), lastName: 'Петренко', displayName: null } }));
+      expect(db.clients[0].firstName).toHaveLength(100);
+      expect(db.clients[0].nameKey).toBeNull();
+    });
+
     it('recomputes the name key after a rename', async () => {
       const db = createFakeDb();
       await linker.link(db, identity({ userId: 'u1', phone: P }));

@@ -1,6 +1,7 @@
 import {
   buildNameKey,
   hasIdentity,
+  nameKeyFor,
   identityFromBookingRow,
   identityFromSources,
   isE164,
@@ -260,9 +261,25 @@ describe('client identity', () => {
       expect(hasIdentity(identity)).toBe(true); // the CRM id still identifies the person
     });
 
-    it('keeps a key that fits exactly', () => {
-      expect(buildNameKey({ firstName: 'x'.repeat(99), lastName: 'y'.repeat(100), displayName: null })).toHaveLength(200);
-      expect(buildNameKey({ firstName: 'x'.repeat(100), lastName: 'y'.repeat(100), displayName: null })).toBeNull();
+    it('keeps a key whose components are within their columns', () => {
+      expect(nameKeyFor({ firstName: 'x'.repeat(99), lastName: 'y'.repeat(99), displayName: null })).toHaveLength(199);
+    });
+
+    // A name cut to its column would collide with every other name sharing its first
+    // 100 characters; a component at or beyond the width therefore yields no key —
+    // both for an incoming long name and for a stored value that was cut.
+    it('gives no key when a component is at or beyond its column width, even if the joined key would fit', () => {
+      const identity = identityFromSources({
+        salonId: 's1',
+        userId: null,
+        snapshot: { clientName: 'n', clientPhone: '+380950000001', clientEmail: null, clientSource: 'altegio' },
+        altegioClient: { externalId: '1', name: 'x'.repeat(150), surname: 'Іван' },
+        bookingDatetime: when,
+      });
+      expect(identity.name.firstName).toHaveLength(100);
+      expect(identity.nameKey).toBeNull();
+      expect(nameKeyFor({ firstName: 'x'.repeat(100), lastName: 'Іван', displayName: null })).toBeNull();
+      expect(buildNameKey({ firstName: 'x'.repeat(200), lastName: null, displayName: null })).toBeNull(); // the joined-length guard still holds
     });
 
     it('drops an identifier, phone or email that cannot be genuine at that length', () => {

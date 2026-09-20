@@ -101,6 +101,29 @@ export function buildNameKey(name: ClientName | null | undefined): string | null
   return tokens.length ? dropIfLonger(tokens.join(' '), CLIENT_COLUMN_LIMITS.nameKey) : null;
 }
 
+/** The name as stored: first/last cut to their columns (display name is unbounded TEXT). */
+export function boundName(name: ClientName): ClientName {
+  return {
+    firstName: cut(name.firstName, CLIENT_COLUMN_LIMITS.firstName),
+    lastName: cut(name.lastName, CLIENT_COLUMN_LIMITS.lastName),
+    displayName: name.displayName,
+  };
+}
+
+/**
+ * The match key for a name, or null when the name cannot safely be one. A component at
+ * or beyond its column width is treated as truncated — whether it arrived that long or
+ * is a stored value that was cut — because two names differing only past the cut would
+ * share a key and merge two people on a shared phone. Always use this, never
+ * `buildNameKey` directly, for anything that is matched on.
+ */
+export function nameKeyFor(name: ClientName | null | undefined): string | null {
+  if (!name) return null;
+  if ((name.firstName?.length ?? 0) >= CLIENT_COLUMN_LIMITS.firstName) return null;
+  if ((name.lastName?.length ?? 0) >= CLIENT_COLUMN_LIMITS.lastName) return null;
+  return buildNameKey(name);
+}
+
 export function hasIdentity(identity: ClientIdentity): boolean {
   if (identity.userId || identity.altegioClientId || identity.easyweekCustomerId) return true;
   if (!identity.nameKey) return false;
@@ -135,23 +158,23 @@ const trimOrNull = (v: unknown): string | null => (typeof v === 'string' && v.tr
 
 export function nameFromEasyweekCustomer(customer: EasyweekCustomerLike): ClientName {
   if (!customer) return EMPTY_NAME;
-  const firstName = cut(trimOrNull(customer.firstName), CLIENT_COLUMN_LIMITS.firstName);
-  const lastName = cut(trimOrNull(customer.lastName), CLIENT_COLUMN_LIMITS.lastName);
+  const firstName = trimOrNull(customer.firstName);
+  const lastName = trimOrNull(customer.lastName);
   return { firstName, lastName, displayName: cleanName(firstName, lastName) };
 }
 
 export function nameFromAltegioClient(client: AltegioClientLike): ClientName {
   if (!client) return EMPTY_NAME;
-  const firstName = cut(trimOrNull(client.name), CLIENT_COLUMN_LIMITS.firstName);
-  const lastName = cut(trimOrNull(client.surname), CLIENT_COLUMN_LIMITS.lastName);
+  const firstName = trimOrNull(client.name);
+  const lastName = trimOrNull(client.surname);
   const displayName = trimOrNull(client.displayName ?? client.display_name) ?? cleanName(firstName, lastName);
   return { firstName, lastName, displayName };
 }
 
 export function nameFromAccount(account: AccountLike): ClientName {
   if (!account) return EMPTY_NAME;
-  const firstName = cut(trimOrNull(account.name), CLIENT_COLUMN_LIMITS.firstName);
-  const lastName = cut(trimOrNull(account.secondName), CLIENT_COLUMN_LIMITS.lastName);
+  const firstName = trimOrNull(account.name);
+  const lastName = trimOrNull(account.secondName);
   return { firstName, lastName, displayName: cleanName(firstName, lastName) };
 }
 
@@ -194,27 +217,27 @@ export function identityFromSources(args: {
   account?: AccountLike;
   bookingDatetime: Date;
 }): ClientIdentity {
-  let name: ClientName;
+  let raw: ClientName;
   switch (args.snapshot.clientSource) {
     case 'easyweek':
-      name = nameFromEasyweekCustomer(args.easyweekCustomer);
+      raw = nameFromEasyweekCustomer(args.easyweekCustomer);
       break;
     case 'altegio':
-      name = nameFromAltegioClient(args.altegioClient);
+      raw = nameFromAltegioClient(args.altegioClient);
       break;
     case 'user':
-      name = nameFromAccount(args.account);
+      raw = nameFromAccount(args.account);
       break;
     default:
-      name = EMPTY_NAME;
+      raw = EMPTY_NAME;
   }
   return {
     salonId: args.salonId,
     userId: args.userId ?? null,
     altegioClientId: altegioClientExternalId(args.altegioClient),
     easyweekCustomerId: dropIfLonger(trimOrNull(args.easyweekCustomer?.uuid), CLIENT_COLUMN_LIMITS.externalId),
-    name,
-    nameKey: buildNameKey(name),
+    name: boundName(raw),
+    nameKey: nameKeyFor(raw),
     phone: dropIfLonger(args.snapshot.clientPhone ?? null, CLIENT_COLUMN_LIMITS.phone),
     email: dropIfLonger(normalizeEmail(args.snapshot.clientEmail), CLIENT_COLUMN_LIMITS.email),
     bookingDatetime: args.bookingDatetime,

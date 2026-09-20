@@ -2,8 +2,8 @@ import { Injectable } from '@nestjs/common';
 import { Prisma, PrismaClient, SalonClient } from '@prisma/client';
 import { BOOKING_CANCELLED_STATUSES } from '../booking/booking-status';
 import {
-  buildNameKey,
   hasIdentity,
+  nameKeyFor,
   isE164,
   isPlausibleEmail,
   type ClientIdentity,
@@ -216,7 +216,7 @@ export class SalonClientLinker {
       firstName,
       lastName,
       displayName,
-      nameKey: buildNameKey({ firstName, lastName, displayName }),
+      nameKey: nameKeyFor({ firstName, lastName, displayName }),
       // A good number is never replaced by the CRM's free-text fallback.
       phone: identity.phone && (isE164(identity.phone) || !existing.phone) ? identity.phone : existing.phone,
       email: identity.email ?? existing.email,
