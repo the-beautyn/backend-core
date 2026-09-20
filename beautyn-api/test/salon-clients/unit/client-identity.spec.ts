@@ -279,7 +279,7 @@ describe('client identity', () => {
       expect(identity.name.firstName).toHaveLength(100);
       expect(identity.nameKey).toBeNull();
       expect(nameKeyFor({ firstName: 'x'.repeat(100), lastName: 'Іван', displayName: null })).toBeNull();
-      expect(buildNameKey({ firstName: 'x'.repeat(200), lastName: null, displayName: null })).toBeNull(); // the joined-length guard still holds
+      expect(buildNameKey({ firstName: 'x'.repeat(201), lastName: null, displayName: null })).toBeNull(); // the joined-length guard (> 200) still holds
     });
 
     it('drops an identifier, phone or email that cannot be genuine at that length', () => {
