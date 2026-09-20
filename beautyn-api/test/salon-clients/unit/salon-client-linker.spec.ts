@@ -186,6 +186,16 @@ describe('SalonClientLinker', () => {
       expect(db.clients[0].phone).toBe(P);
     });
 
+    it('does not replace a good email with junk, but fills an empty one', async () => {
+      const db = createFakeDb();
+      await linker.link(db, identity({ userId: 'u1', email: 'ivan@example.com' }));
+      await linker.link(db, identity({ userId: 'u1', email: 'none' }));
+      expect(db.clients[0].email).toBe('ivan@example.com');
+      await linker.link(db, identity({ userId: 'u2' }));
+      await linker.link(db, identity({ userId: 'u2', email: 'n/a' }));
+      expect(db.clients[1].email).toBe('n/a');
+    });
+
     it('does fill a missing phone with whatever the CRM has', async () => {
       const db = createFakeDb();
       await linker.link(db, identity({ userId: 'u1' }));

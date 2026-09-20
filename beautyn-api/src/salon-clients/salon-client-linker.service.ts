@@ -317,9 +317,10 @@ export class SalonClientLinker {
       lastName,
       displayName,
       nameKey: nameKeyFor({ firstName, lastName, displayName }),
-      // A good number is never replaced by the CRM's free-text fallback.
+      // A good number or address is never replaced by CRM junk ("call after 5pm", "none");
+      // junk only fills an empty field, where it is still more use to an owner than a dash.
       phone: identity.phone && (isE164(identity.phone) || !existing.phone) ? identity.phone : existing.phone,
-      email: identity.email ?? existing.email,
+      email: identity.email && (isPlausibleEmail(identity.email) || !existing.email) ? identity.email : existing.email,
       avatarUrl: existing.avatarUrl,
       firstSeenAt:
         identity.bookingDatetime < existing.firstSeenAt ? identity.bookingDatetime : existing.firstSeenAt,

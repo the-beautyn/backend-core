@@ -465,7 +465,9 @@ model SalonClient {
   // Exact identities are unique per salon: the database itself refuses a second row
   // for the same account / CRM client, whatever a code path forgot to lock. NULLs are
   // distinct in Postgres unique indexes, so rows without that identifier never clash.
-  // The linker catches the conflict (P2002) and re-matches instead of failing a booking.
+  // Postgres aborts the transaction on a violation, so the linker never provokes one:
+  // it holds the salon lock across match and create and checks identifier ownership
+  // before writing. A violation that still happened fails the write; the sync retries.
   @@unique([salonId, userId], map: "salon_clients_salon_user_unique")
   @@unique([salonId, altegioClientId], map: "salon_clients_salon_altegio_unique")
   @@unique([salonId, easyweekCustomerId], map: "salon_clients_salon_easyweek_unique")
