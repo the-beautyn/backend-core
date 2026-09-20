@@ -98,6 +98,28 @@ describe('BookingHandlerService — salon client linking', () => {
       expect(linker.recomputeCounters).toHaveBeenCalledWith(expect.anything(), [null]);
     });
 
+    it('falls back to the link a concurrent sync wrote, not the one read before the lock', async () => {
+      // Both lanes read the row unlinked; the other one linked it while this one waited
+      // on the salon lock, and this payload has no client block.
+      const existing = {
+        id: 'b1', salonId, userId: null, clientId: null, status: 'created', version: 1,
+        datetime: new Date(when), endDatetime: null, cancelledAt: null, altegioDetails: null,
+      };
+      const findUnique = jest.fn()
+        .mockResolvedValueOnce(existing) // the pre-transaction read
+        .mockResolvedValueOnce({ clientId: 'client-from-other-lane' }); // the re-read under the lock
+      const { prisma, model } = fakePrisma({ booking: { findUnique } });
+      const linker = { ...linkerStub(), link: jest.fn().mockResolvedValue(null) };
+      const service = new BookingHandlerService(prisma, linker as any);
+
+      await service.handleAltegioBooking({ booking: { crmRecordId: '101', datetime: when, isDeleted: true, raw: { id: 101 } } as any });
+
+      expect(model('booking').update.mock.calls[0][0].data.clientId).toBe('client-from-other-lane');
+      expect(linker.recomputeCounters).toHaveBeenCalledWith(expect.anything(), ['client-from-other-lane', 'client-from-other-lane']);
+      // The re-read happens after the lock is taken (link runs first).
+      expect(linker.link.mock.invocationCallOrder[0]).toBeLessThan(findUnique.mock.invocationCallOrder[1]);
+    });
+
     it('keeps the existing link when the update payload carries no client at all', async () => {
       const existing = {
         id: 'b1', salonId, userId: null, clientId: 'client-old', status: 'created', version: 1,
@@ -107,7 +129,8 @@ describe('BookingHandlerService — salon client linking', () => {
       const linker = { ...linkerStub(), link: jest.fn().mockResolvedValue(null) };
       const service = new BookingHandlerService(prisma, linker as any);
 
-      // A cancellation that arrives without the nested client block.
+      // A cancellation that arrives without the nested client block. (findUnique also
+      // serves the locked re-read, returning the same row with clientId 'client-old'.)
       await service.handleAltegioBooking({ booking: { crmRecordId: '101', datetime: when, isDeleted: true, raw: { id: 101 } } as any });
 
       expect(model('booking').update.mock.calls[0][0].data.clientId).toBe('client-old');

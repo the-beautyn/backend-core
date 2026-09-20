@@ -220,9 +220,7 @@ export class BookingHandlerService {
 
     const nextVersion = (existing.version ?? 0) + 1;
     await this.prisma.$transaction(async (tx) => {
-      // A payload variant without a client block (Altegio sometimes omits it) yields no
-      // identity; that says nothing about the person, so the existing link stays.
-      const clientId = (await this.clients.link(tx, identity)) ?? existing.clientId ?? null;
+      const { clientId, previousClientId } = await this.resolveClientLink(tx, existing.id, identity);
       await tx.booking.update({
         where: { id: existing.id },
         data: {
@@ -257,7 +255,7 @@ export class BookingHandlerService {
         },
       });
 
-      await this.clients.recomputeCounters(tx, [clientId, existing.clientId]);
+      await this.clients.recomputeCounters(tx, [clientId, previousClientId]);
     });
 
     return { booking: existing, changed: true };
@@ -391,9 +389,7 @@ export class BookingHandlerService {
 
     const nextVersion = (existing.version ?? 0) + 1;
     await this.prisma.$transaction(async (tx) => {
-      // A payload variant without a client block (Altegio sometimes omits it) yields no
-      // identity; that says nothing about the person, so the existing link stays.
-      const clientId = (await this.clients.link(tx, identity)) ?? existing.clientId ?? null;
+      const { clientId, previousClientId } = await this.resolveClientLink(tx, existing.id, identity);
       await tx.booking.update({
         where: { id: existing.id },
         data: {
@@ -428,7 +424,7 @@ export class BookingHandlerService {
         },
       });
 
-      await this.clients.recomputeCounters(tx, [clientId, existing.clientId]);
+      await this.clients.recomputeCounters(tx, [clientId, previousClientId]);
     });
 
     return { booking: existing, changed: true };
@@ -453,6 +449,25 @@ export class BookingHandlerService {
       select: { name: true, secondName: true, phone: true, email: true },
     });
     return { snapshot: resolveSnapshot(fromCrm, user), account: user };
+  }
+
+  /**
+   * The client to write on an update, decided under the salon lock. `existing` was read
+   * before the transaction, so its `clientId` may be stale: a concurrent sync of the
+   * same booking may have linked it in between. And a payload variant without a client
+   * block (Altegio sometimes omits it) yields no identity, which says nothing about the
+   * person — so the current link stays rather than being blanked. Both the new and the
+   * previous client are returned so the caller can recompute whichever changed.
+   */
+  private async resolveClientLink(
+    tx: Prisma.TransactionClient,
+    bookingId: string,
+    identity: ClientIdentity,
+  ): Promise<{ clientId: string | null; previousClientId: string | null }> {
+    const linked = await this.clients.link(tx, identity);
+    const current = await tx.booking.findUnique({ where: { id: bookingId }, select: { clientId: true } });
+    const previousClientId = current?.clientId ?? null;
+    return { clientId: linked ?? previousClientId, previousClientId };
   }
 
   private altegioIdentity(
