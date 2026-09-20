@@ -245,11 +245,27 @@ describe('BookingHandlerService — salon client linking', () => {
       expect(linker.lockSalon.mock.invocationCallOrder[0]).toBeLessThan(linker.refreshLastVisitIfStale.mock.invocationCallOrder[0]);
     });
 
+    it('leaves the row alone when the other lane attached it while this one waited on the lock', async () => {
+      const { prisma, model } = fakePrisma({
+        booking: { findUnique: jest.fn().mockResolvedValue({ clientId: 'client-from-other-lane' }) },
+      });
+      const linker = linkerStub();
+      const service = new BookingHandlerService(prisma, linker as any);
+      await (service as any).reconcileClientOnUnchanged({ id: 'b1', salonId, clientId: null, ...row }, identity);
+      expect(linker.lockSalon).toHaveBeenCalledTimes(1);
+      expect(linker.link).not.toHaveBeenCalled();
+      expect(model('booking').update).not.toHaveBeenCalled();
+    });
+
     it('links, stores the id and recomputes, without a booking version', async () => {
       const { prisma, tx, model } = fakePrisma();
       const linker = linkerStub();
       const service = new BookingHandlerService(prisma, linker as any);
       await (service as any).reconcileClientOnUnchanged({ id: 'b1', salonId, clientId: null, ...row }, identity);
+      // Lock, re-read, then link.
+      expect(linker.lockSalon.mock.calls[0][1]).toBe(salonId);
+      expect(linker.lockSalon.mock.invocationCallOrder[0]).toBeLessThan(model('booking').findUnique.mock.invocationCallOrder[0]);
+      expect(model('booking').findUnique.mock.invocationCallOrder[0]).toBeLessThan(linker.link.mock.invocationCallOrder[0]);
       expect(linker.link.mock.calls[0][0]).toBe(tx);
       expect(linker.link.mock.calls[0][1]).toBe(identity);
       expect(model('booking').update).toHaveBeenCalledWith({ where: { id: 'b1' }, data: { clientId: 'client-new' } });

@@ -509,6 +509,12 @@ export class BookingHandlerService {
       return;
     }
     await this.prisma.$transaction(async (tx) => {
+      // Lock first, then re-read: `existing` predates the transaction, and the other
+      // sync lane may have attached this row while we waited. Checked before linking so
+      // a second lane never creates a spare client row either.
+      await this.clients.lockSalon(tx, existing.salonId);
+      const current = await tx.booking.findUnique({ where: { id: existing.id }, select: { clientId: true } });
+      if (current?.clientId) return;
       const clientId = await this.clients.link(tx, identity);
       if (!clientId) return;
       await tx.booking.update({ where: { id: existing.id }, data: { clientId } });
