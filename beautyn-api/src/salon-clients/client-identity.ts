@@ -43,6 +43,25 @@ export type ClientIdentity = {
 
 export const EMPTY_NAME: ClientName = { firstName: null, lastName: null, displayName: null };
 
+/**
+ * Column widths from schema.prisma. CRM data is copied into bounded columns, and a
+ * valid-looking but overlong value must not fail the booking write it rides on.
+ * Names are cut to width; an identifier or address that long is junk and is dropped.
+ */
+export const CLIENT_COLUMN_LIMITS = {
+  firstName: 100,
+  lastName: 100,
+  nameKey: 200,
+  phone: 30,
+  email: 255,
+  externalId: 128,
+} as const;
+
+const cut = (value: string | null, max: number): string | null =>
+  value == null ? null : value.length > max ? value.slice(0, max) : value;
+const dropIfLonger = (value: string | null, max: number): string | null =>
+  value != null && value.length > max ? null : value;
+
 /** A true E.164 number — what `toE164` returns on success. Its raw-string fallback never matches. */
 const E164 = /^\+[1-9]\d{6,14}$/;
 /** Loose shape check; CRM email fields sometimes hold junk that must not become a key. */
@@ -77,7 +96,7 @@ export function buildNameKey(name: ClientName | null | undefined): string | null
     .split(/\s+/)
     .filter(Boolean)
     .sort();
-  return tokens.length ? tokens.join(' ') : null;
+  return tokens.length ? cut(tokens.join(' '), CLIENT_COLUMN_LIMITS.nameKey) : null;
 }
 
 export function hasIdentity(identity: ClientIdentity): boolean {
@@ -114,31 +133,30 @@ const trimOrNull = (v: unknown): string | null => (typeof v === 'string' && v.tr
 
 export function nameFromEasyweekCustomer(customer: EasyweekCustomerLike): ClientName {
   if (!customer) return EMPTY_NAME;
-  const firstName = trimOrNull(customer.firstName);
-  const lastName = trimOrNull(customer.lastName);
+  const firstName = cut(trimOrNull(customer.firstName), CLIENT_COLUMN_LIMITS.firstName);
+  const lastName = cut(trimOrNull(customer.lastName), CLIENT_COLUMN_LIMITS.lastName);
   return { firstName, lastName, displayName: cleanName(firstName, lastName) };
 }
 
 export function nameFromAltegioClient(client: AltegioClientLike): ClientName {
   if (!client) return EMPTY_NAME;
-  const firstName = trimOrNull(client.name);
-  const lastName = trimOrNull(client.surname);
+  const firstName = cut(trimOrNull(client.name), CLIENT_COLUMN_LIMITS.firstName);
+  const lastName = cut(trimOrNull(client.surname), CLIENT_COLUMN_LIMITS.lastName);
   const displayName = trimOrNull(client.displayName ?? client.display_name) ?? cleanName(firstName, lastName);
   return { firstName, lastName, displayName };
 }
 
 export function nameFromAccount(account: AccountLike): ClientName {
   if (!account) return EMPTY_NAME;
-  const firstName = trimOrNull(account.name);
-  const lastName = trimOrNull(account.secondName);
+  const firstName = cut(trimOrNull(account.name), CLIENT_COLUMN_LIMITS.firstName);
+  const lastName = cut(trimOrNull(account.secondName), CLIENT_COLUMN_LIMITS.lastName);
   return { firstName, lastName, displayName: cleanName(firstName, lastName) };
 }
 
 export function altegioClientExternalId(client: AltegioClientLike): string | null {
   if (!client) return null;
-  if (client.externalId) return String(client.externalId);
-  if (client.id != null && client.id !== '') return String(client.id);
-  return null;
+  const raw = client.externalId ? String(client.externalId) : client.id != null && client.id !== '' ? String(client.id) : null;
+  return dropIfLonger(raw, CLIENT_COLUMN_LIMITS.externalId);
 }
 
 /**
@@ -192,11 +210,11 @@ export function identityFromSources(args: {
     salonId: args.salonId,
     userId: args.userId ?? null,
     altegioClientId: altegioClientExternalId(args.altegioClient),
-    easyweekCustomerId: trimOrNull(args.easyweekCustomer?.uuid),
+    easyweekCustomerId: dropIfLonger(trimOrNull(args.easyweekCustomer?.uuid), CLIENT_COLUMN_LIMITS.externalId),
     name,
     nameKey: buildNameKey(name),
-    phone: args.snapshot.clientPhone ?? null,
-    email: normalizeEmail(args.snapshot.clientEmail),
+    phone: dropIfLonger(args.snapshot.clientPhone ?? null, CLIENT_COLUMN_LIMITS.phone),
+    email: dropIfLonger(normalizeEmail(args.snapshot.clientEmail), CLIENT_COLUMN_LIMITS.email),
     bookingDatetime: args.bookingDatetime,
   };
 }

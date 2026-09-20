@@ -42,8 +42,15 @@ export function createFakeDb() {
   const accounts: Record<string, { avatarUrl: string | null }> = {};
   let seq = 0;
 
-  const matches = (row: FakeClientRow, where: Record<string, unknown>) =>
-    MATCH_COLUMNS.every((col) => !(col in where) || row[col] === where[col]);
+  // Equality on the match columns, plus the one OR shape the stale-visit check uses.
+  const matches = (row: FakeClientRow, where: Record<string, any>) =>
+    MATCH_COLUMNS.every((col) => !(col in where) || row[col] === where[col]) &&
+    (!where.OR ||
+      where.OR.some((clause: any) =>
+        clause.lastVisitAt === null
+          ? row.lastVisitAt === null
+          : clause.lastVisitAt?.lt !== undefined && row.lastVisitAt !== null && row.lastVisitAt < clause.lastVisitAt.lt,
+      ));
 
   const oldestFirst = (a: FakeClientRow, b: FakeClientRow) =>
     a.firstSeenAt.getTime() - b.firstSeenAt.getTime() || a.id.localeCompare(b.id);

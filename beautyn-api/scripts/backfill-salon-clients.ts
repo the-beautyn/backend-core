@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client';
-import { identityFromBookingRow } from '../src/salon-clients/client-identity';
+import { hasIdentity, identityFromBookingRow } from '../src/salon-clients/client-identity';
 import { SalonClientLinker } from '../src/salon-clients/salon-client-linker.service';
 
 /**
@@ -14,6 +14,14 @@ import { SalonClientLinker } from '../src/salon-clients/salon-client-linker.serv
  * Idempotent — a second run matches the rows the first created and rewrites identical
  * values. Every booking is walked each time (not only unlinked ones) so a rule change
  * or a repaired CRM card is picked up by a re-run.
+ *
+ * Safe to run while syncs are live: each booking's link + update is one transaction
+ * under the linker's per-salon lock, and the booking's client_id is re-read inside it
+ * so a newer link from a sync is never overwritten with what this script read earlier.
+ * The counter pass takes the same lock per chunk.
+ *
+ * --dry-run evaluates every booking's identity and reports what would be eligible; it
+ * cannot tell a would-be-new row from a would-be-match without writing, so it does not.
  *
  * Usage:
  *   npm run backfill:clients:local
@@ -75,23 +83,26 @@ async function main() {
       for (const booking of batch) {
         const account = booking.userId ? await loadAccount(prisma, accounts, booking.userId) : null;
         const identity = identityFromBookingRow(booking, account);
-        if (dryRun) {
-          // Nothing is written, so the linker cannot run; report what it would see.
-          counts[booking.clientId ? 'unchanged' : 'linked']++;
-          continue;
-        }
-        const clientId = await linker.link(prisma, identity);
-        if (!clientId) {
+        if (!hasIdentity(identity)) {
           counts.noIdentity++;
           continue;
         }
-        touchedSalons.add(booking.salonId);
-        if (booking.clientId === clientId) {
-          counts.unchanged++;
-        } else {
-          counts[booking.clientId ? 'relinked' : 'linked']++;
-          await prisma.booking.update({ where: { id: booking.id }, data: { clientId } });
+        if (dryRun) {
+          // Eligibility only: matching needs the rows a real run creates along the way.
+          counts[booking.clientId ? 'unchanged' : 'linked']++;
+          continue;
         }
+        touchedSalons.add(booking.salonId);
+        const outcome = await prisma.$transaction(async (tx) => {
+          const clientId = await linker.link(tx, identity);
+          if (!clientId) return 'noIdentity' as const;
+          // Re-read under the lock: a live sync may have linked this booking since the batch was read.
+          const current = await tx.booking.findUnique({ where: { id: booking.id }, select: { clientId: true } });
+          if (current?.clientId === clientId) return 'unchanged' as const;
+          await tx.booking.update({ where: { id: booking.id }, data: { clientId } });
+          return current?.clientId ? ('relinked' as const) : ('linked' as const);
+        });
+        counts[outcome]++;
       }
 
       processed += batch.length;
@@ -103,14 +114,20 @@ async function main() {
       for (const salonId of touchedSalons) {
         const rows = await prisma.salonClient.findMany({ where: { salonId }, select: { id: true } });
         for (let i = 0; i < rows.length; i += COUNTER_CHUNK) {
-          await linker.recomputeCounters(prisma, rows.slice(i, i + COUNTER_CHUNK).map((r) => r.id));
+          const chunk = rows.slice(i, i + COUNTER_CHUNK).map((r) => r.id);
+          // One short locked transaction per chunk: correct against concurrent booking
+          // writes without holding the salon's lock for the whole pass.
+          await prisma.$transaction(async (tx) => {
+            await linker.lockSalon(tx, salonId);
+            await linker.recomputeCounters(tx, chunk);
+          });
         }
         clients += rows.length;
       }
     }
 
     console.log(
-      `\nDone. linked=${counts.linked} relinked=${counts.relinked} unchanged=${counts.unchanged} no-identity=${counts.noIdentity} clients=${clients} salons=${touchedSalons.size}`,
+      `\nDone. linked=${counts.linked} relinked=${counts.relinked} unchanged=${counts.unchanged} no-identity=${counts.noIdentity} clients=${clients} salons=${touchedSalons.size}${dryRun ? '\n(dry run: eligibility only — matching against existing rows is not simulated)' : ''}`,
     );
   } finally {
     await prisma.$disconnect();

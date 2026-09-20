@@ -214,7 +214,7 @@ export class BookingHandlerService {
 
     const existingSnapshot = this.buildEasyweekExistingState(existing);
     if (this.isEqual(existingSnapshot.snapshot, incoming.snapshot)) {
-      await this.attachClientIfMissing(existing, identity);
+      await this.reconcileClientOnUnchanged(existing, identity);
       return { booking: existing, changed: false };
     }
 
@@ -383,7 +383,7 @@ export class BookingHandlerService {
     const identity = this.altegioIdentity(existing.salonId, existing.userId ?? null, incoming, start);
     const existingSnapshot = this.buildAltegioExistingState(existing);
     if (this.isEqual(existingSnapshot.snapshot, incoming.snapshot)) {
-      await this.attachClientIfMissing(existing, identity);
+      await this.reconcileClientOnUnchanged(existing, identity);
       return { booking: existing, changed: false };
     }
 
@@ -468,16 +468,21 @@ export class BookingHandlerService {
   }
 
   /**
-   * Rows written before BEA-71 have no client, and an unchanged sync returns before
-   * the write that would give them one. Attach it here, without a booking version —
-   * nothing about the booking itself changed. Makes rows synced after deploy correct
-   * ahead of the back-fill.
+   * The sync re-reads every booking and returns early when nothing changed; two
+   * client-side facts still need that pass. Rows written before BEA-71 have no client
+   * yet — attach it, without a booking version, since nothing about the booking itself
+   * changed (rows synced after deploy are right ahead of the back-fill). And a linked
+   * booking that has since become a past visit may not be reflected in the client's
+   * `last_visit_at`, which no write would otherwise refresh.
    */
-  private async attachClientIfMissing(
-    existing: { id: string; clientId: string | null },
+  private async reconcileClientOnUnchanged(
+    existing: { id: string; clientId: string | null; status: string; datetime: Date; endDatetime: Date | null },
     identity: ClientIdentity,
   ): Promise<void> {
-    if (existing.clientId) return;
+    if (existing.clientId) {
+      await this.clients.refreshLastVisitIfStale(this.prisma, existing);
+      return;
+    }
     await this.prisma.$transaction(async (tx) => {
       const clientId = await this.clients.link(tx, identity);
       if (!clientId) return;

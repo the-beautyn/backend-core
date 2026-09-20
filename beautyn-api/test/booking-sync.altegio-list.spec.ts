@@ -29,6 +29,7 @@ describe('BookingSyncService.rebaseFromCrm — Altegio list reconciliation', () 
         updateMany: jest.fn().mockResolvedValue({ count: 1 }),
       },
     };
+    prisma.$transaction = jest.fn((cb: (tx: unknown) => Promise<unknown>) => cb(prisma));
     crm = {
       resolveSalonProvider: jest.fn().mockResolvedValue(CrmType.ALTEGIO),
       // r1 present (owned), rX present (foreign); r2 & r3 absent.
@@ -45,7 +46,7 @@ describe('BookingSyncService.rebaseFromCrm — Altegio list reconciliation', () 
       ),
     };
     bookingQuery = { getByIds: jest.fn().mockResolvedValue([]) };
-    clients = { recomputeCounters: jest.fn().mockResolvedValue(undefined) };
+    clients = { recomputeCounters: jest.fn().mockResolvedValue(undefined), lockSalon: jest.fn().mockResolvedValue(undefined) };
     service = new BookingSyncService(prisma, crm, bookingHandler, bookingQuery, clients);
   });
 
@@ -87,9 +88,17 @@ describe('BookingSyncService.rebaseFromCrm — Altegio list reconciliation', () 
     const purgeLookup = prisma.booking.findMany.mock.calls[1][0];
     expect(purgeLookup.where.id.in).toEqual(['b2']);
     expect(clients.recomputeCounters).toHaveBeenCalledWith(prisma, ['client-b2']);
-    // Read before the write, recompute after it.
-    expect(prisma.booking.findMany.mock.invocationCallOrder[1]).toBeLessThan(prisma.booking.updateMany.mock.invocationCallOrder[0]);
-    expect(clients.recomputeCounters.mock.invocationCallOrder[0]).toBeGreaterThan(prisma.booking.updateMany.mock.invocationCallOrder[0]);
+    // All inside one transaction, under the salon's client lock, so a handler write
+    // cannot land between the count and the update: lock → read → write → recompute.
+    expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+    expect(clients.lockSalon).toHaveBeenCalledWith(prisma, salonId);
+    const order = [
+      clients.lockSalon.mock.invocationCallOrder[0],
+      prisma.booking.findMany.mock.invocationCallOrder[1],
+      prisma.booking.updateMany.mock.invocationCallOrder[0],
+      clients.recomputeCounters.mock.invocationCallOrder[0],
+    ];
+    expect([...order].sort((a, b) => a - b)).toEqual(order);
   });
 
   it('returns the touched + cancelled bookings', async () => {

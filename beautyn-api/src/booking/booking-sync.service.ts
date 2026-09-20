@@ -124,10 +124,14 @@ export class BookingSyncService {
 
     const bookingsPage = await this.crm.pullEasyweekBookings(salonId, bookingIds);
     const bookings = this.prepareEasyweekPayload(bookingsPage?.items ?? []);
-    const results = await Promise.all(
-      bookings.map((booking) => this.bookingHandler.handleEasyweekBooking({ booking })),
-    );
-    const ids = results.map((r) => r.booking?.id).filter((id): id is string => !!id);
+    // Sequential, like the Altegio path. Each handler call is a transaction that takes
+    // the salon's client lock (BEA-71); fired concurrently they would all sit on that
+    // lock holding a pooled connection each, and the slow lane has no cap on the count.
+    const ids: string[] = [];
+    for (const booking of bookings) {
+      const res = await this.bookingHandler.handleEasyweekBooking({ booking });
+      if (res.booking?.id) ids.push(res.booking.id);
+    }
     return this.bookingQuery.getByIds(ids);
   }
 
@@ -195,20 +199,25 @@ export class BookingSyncService {
       .map((b) => b.id);
     if (purgedFutureIds.length) {
       this.log.info('Cancelling Altegio bookings missing from CRM list', { salonId, lane, count: purgedFutureIds.length });
-      // The only booking write that bypasses the handler, so the salon-client
-      // counters have to be maintained here as well (BEA-71).
-      const purged = await this.prisma.booking.findMany({
-        where: { id: { in: purgedFutureIds } },
-        select: { clientId: true },
+      // The only booking write that bypasses the handler, so the salon-client counters
+      // have to be maintained here as well (BEA-71) — under the same per-salon lock and
+      // in one transaction, so a handler write cannot slip between the count and the
+      // update and be overwritten with a stale number.
+      await this.prisma.$transaction(async (tx) => {
+        await this.clients.lockSalon(tx, salonId);
+        const purged = await tx.booking.findMany({
+          where: { id: { in: purgedFutureIds } },
+          select: { clientId: true },
+        });
+        await tx.booking.updateMany({
+          where: { id: { in: purgedFutureIds } },
+          data: { status: 'deleted', cancelledAt: now },
+        });
+        await this.clients.recomputeCounters(
+          tx,
+          purged.map((b) => b.clientId),
+        );
       });
-      await this.prisma.booking.updateMany({
-        where: { id: { in: purgedFutureIds } },
-        data: { status: 'deleted', cancelledAt: now },
-      });
-      await this.clients.recomputeCounters(
-        this.prisma,
-        purged.map((b) => b.clientId),
-      );
     }
 
     return this.bookingQuery.getByIds([...touchedIds, ...purgedFutureIds]);

@@ -33,14 +33,7 @@ export class SalonClientLinker {
    */
   async link(db: LinkerDb, identity: ClientIdentity): Promise<string | null> {
     if (!hasIdentity(identity)) return null;
-
-    // The two bookings-sync lanes can process one salon concurrently and there is no
-    // unique constraint to stop two transactions creating the same person twice.
-    // Serialise linking per salon; the lock is released at commit. Outside a
-    // transaction (back-fill) it is acquired and released immediately — harmless.
-    // $executeRaw, not $queryRaw: the function returns void, which Prisma cannot
-    // deserialize as a result column.
-    await db.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${'salon_client:' + identity.salonId}))`;
+    await this.lockSalon(db, identity.salonId);
 
     const existing = await this.findMatch(db, identity);
     if (!existing) {
@@ -69,6 +62,42 @@ export class SalonClientLinker {
       await db.salonClient.update({ where: { id: existing.id }, data });
     }
     return existing.id;
+  }
+
+  /**
+   * Serialise client writes for one salon. The two bookings-sync lanes can process a
+   * salon concurrently and there is no unique constraint to stop two transactions
+   * creating the same person twice, so every path that links or recomputes takes this
+   * first. Transaction-scoped: released at commit. It only protects anything when `db`
+   * is a transaction — on a bare client it is released as soon as the statement ends,
+   * which is why the back-fill and the purge wrap their work in `$transaction`.
+   *
+   * $executeRaw, not $queryRaw: the function returns void, which Prisma cannot
+   * deserialize as a result column.
+   */
+  async lockSalon(db: LinkerDb, salonId: string): Promise<void> {
+    await db.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${'salon_client:' + salonId}))`;
+  }
+
+  /**
+   * `last_visit_at` is time-dependent: a client whose only booking is in the future has
+   * none today and one tomorrow, with no booking write in between. The sync re-reads
+   * every booking and returns early when nothing changed; this is the hook on that
+   * path. One indexed read when the booking is a past visit the row does not reflect
+   * yet, and a recompute only then — so the counters heal within one slow-lane cycle.
+   */
+  async refreshLastVisitIfStale(
+    db: LinkerDb,
+    booking: { clientId: string | null; status: string; datetime: Date; endDatetime: Date | null },
+    now = new Date(),
+  ): Promise<void> {
+    if (!booking.clientId || BOOKING_CANCELLED_STATUSES.includes(booking.status)) return;
+    if ((booking.endDatetime ?? booking.datetime) >= now) return;
+    const stale = await db.salonClient.findFirst({
+      where: { id: booking.clientId, OR: [{ lastVisitAt: null }, { lastVisitAt: { lt: booking.datetime } }] },
+      select: { id: true },
+    });
+    if (stale) await this.recomputeCounters(db, [booking.clientId], now);
   }
 
   /**

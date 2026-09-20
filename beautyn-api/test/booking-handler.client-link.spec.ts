@@ -45,6 +45,7 @@ describe('BookingHandlerService — salon client linking', () => {
   const linkerStub = () => ({
     link: jest.fn().mockResolvedValue('client-new'),
     recomputeCounters: jest.fn().mockResolvedValue(undefined),
+    refreshLastVisitIfStale: jest.fn().mockResolvedValue(undefined),
   });
 
   describe('Altegio', () => {
@@ -173,23 +174,26 @@ describe('BookingHandlerService — salon client linking', () => {
     });
   });
 
-  describe('attachClientIfMissing (unchanged sync, pre-BEA-71 row)', () => {
+  describe('reconcileClientOnUnchanged (unchanged sync)', () => {
     const identity = { salonId, userId: 'u1' } as any;
+    const row = { status: 'created', datetime: new Date(when), endDatetime: null };
 
-    it('does nothing when the row already has a client', async () => {
+    it('only checks the last visit when the row already has a client', async () => {
       const { prisma, model } = fakePrisma();
       const linker = linkerStub();
       const service = new BookingHandlerService(prisma, linker as any);
-      await (service as any).attachClientIfMissing({ id: 'b1', clientId: 'client-old' }, identity);
+      const existing = { id: 'b1', clientId: 'client-old', ...row };
+      await (service as any).reconcileClientOnUnchanged(existing, identity);
       expect(linker.link).not.toHaveBeenCalled();
       expect(model('booking').update).not.toHaveBeenCalled();
+      expect(linker.refreshLastVisitIfStale).toHaveBeenCalledWith(prisma, existing);
     });
 
     it('links, stores the id and recomputes, without a booking version', async () => {
       const { prisma, tx, model } = fakePrisma();
       const linker = linkerStub();
       const service = new BookingHandlerService(prisma, linker as any);
-      await (service as any).attachClientIfMissing({ id: 'b1', clientId: null }, identity);
+      await (service as any).reconcileClientOnUnchanged({ id: 'b1', clientId: null, ...row }, identity);
       expect(linker.link.mock.calls[0][0]).toBe(tx);
       expect(linker.link.mock.calls[0][1]).toBe(identity);
       expect(model('booking').update).toHaveBeenCalledWith({ where: { id: 'b1' }, data: { clientId: 'client-new' } });
@@ -201,8 +205,9 @@ describe('BookingHandlerService — salon client linking', () => {
       const { prisma, model } = fakePrisma();
       const linker = { ...linkerStub(), link: jest.fn().mockResolvedValue(null) };
       const service = new BookingHandlerService(prisma, linker as any);
-      await (service as any).attachClientIfMissing({ id: 'b1', clientId: null }, identity);
+      await (service as any).reconcileClientOnUnchanged({ id: 'b1', clientId: null, ...row }, identity);
       expect(model('booking').update).not.toHaveBeenCalled();
+      expect(linker.refreshLastVisitIfStale).not.toHaveBeenCalled();
       expect(linker.recomputeCounters).not.toHaveBeenCalled();
     });
   });

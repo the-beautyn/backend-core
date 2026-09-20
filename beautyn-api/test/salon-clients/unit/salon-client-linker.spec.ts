@@ -210,6 +210,37 @@ describe('SalonClientLinker', () => {
     });
   });
 
+  describe('refreshLastVisitIfStale', () => {
+    const now = t('2026-06-15T12:00:00Z');
+    const past = { status: 'created', datetime: t('2026-06-10T10:00:00Z'), endDatetime: t('2026-06-10T11:00:00Z') };
+
+    it('recomputes when a past booking is newer than the row knows', async () => {
+      const db = createFakeDb();
+      const id = (await linker.link(db, identity({ userId: 'u1' })))!;
+      db.bookings.push({ id: 'b1', clientId: id, ...past });
+      await linker.refreshLastVisitIfStale(db, { clientId: id, ...past }, now);
+      expect(db.clients[0].lastVisitAt).toEqual(past.datetime);
+    });
+
+    it('does nothing when the row is already current', async () => {
+      const db = createFakeDb();
+      const id = (await linker.link(db, identity({ userId: 'u1' })))!;
+      db.clients[0].lastVisitAt = past.datetime;
+      await linker.refreshLastVisitIfStale(db, { clientId: id, ...past }, now);
+      expect(db.salonClient.updateMany).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ['a future booking', { clientId: 'c', status: 'created', datetime: t('2026-07-01T10:00:00Z'), endDatetime: null }],
+      ['a cancelled booking', { ...past, clientId: 'c', status: 'canceled' }],
+      ['an unlinked booking', { ...past, clientId: null }],
+    ])('does not even look for %s', async (_label, booking) => {
+      const db = createFakeDb();
+      await linker.refreshLastVisitIfStale(db, booking, now);
+      expect(db.salonClient.findFirst).not.toHaveBeenCalled();
+    });
+  });
+
   describe('recomputeCounters', () => {
     const now = t('2026-06-15T12:00:00Z');
 

@@ -70,8 +70,13 @@ two rows; rows are never merged automatically (merge tooling is out of scope). A
 booking with no usable identity keeps `client_id = NULL` and is absent from the
 Clients page while still present in Bookings.
 
-Concurrency: the linker takes `pg_advisory_xact_lock(hashtext('salon_client:' || salon_id))`
-first, so the two bookings-sync lanes cannot create one person twice.
+Concurrency: every path that links or recomputes first takes
+`pg_advisory_xact_lock(hashtext('salon_client:' || salon_id))` inside its transaction, so
+the two bookings-sync lanes cannot create one person twice and a recompute cannot be
+overwritten with a stale count. The lock is transaction-scoped, which is why the
+back-fill and the Altegio purge wrap their work in `$transaction` rather than using a
+bare client. The EasyWeek sync handles bookings sequentially for the same reason: fired
+concurrently they would all queue on that lock, each holding a pooled connection.
 
 ## Counters
 
@@ -83,6 +88,12 @@ Altegio list reconciliation, the one write that bypasses the handler.
   (`BOOKING_CANCELLED_STATUSES`), past and future.
 - `last_visit_at` — latest such booking whose end (or start, when there is no end) is in
   the past — the same rule as the owner list's `completed` bucket.
+
+`last_visit_at` is time-dependent: a booking in the future today is a past visit tomorrow
+with no write in between. The sync re-reads every booking and returns early when nothing
+changed; on that path the handler checks whether a linked past booking is newer than the
+row's `last_visit_at` (one indexed read) and recomputes only then, so the value heals
+within one slow-lane cycle.
 
 ## Owner endpoints
 
@@ -108,9 +119,12 @@ npm run backfill:clients:dev -- --salon=<salon uuid>
 ```
 
 It walks bookings oldest first through the linker, then recomputes counters for every
-client of the touched salons. Idempotent: a re-run reports `unchanged=N`. Run it on
-each environment once after the migration is deployed; rows synced in between are
-linked by the handler anyway (an unchanged sync still attaches a missing client).
+client of the touched salons. Idempotent: a re-run reports `unchanged=N`. Safe while
+syncs are live: each booking's link + update is one transaction under the salon lock,
+with the booking's `client_id` re-read inside it. Run it on each environment once after
+the migration is deployed; rows synced in between are linked by the handler anyway (an
+unchanged sync still attaches a missing client). `--dry-run` reports eligibility only —
+it cannot tell a would-be-new row from a would-be-match without writing.
 
 ## Troubleshooting
 

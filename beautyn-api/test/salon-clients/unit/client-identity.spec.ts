@@ -240,6 +240,37 @@ describe('client identity', () => {
     });
   });
 
+  // CRM data lands in bounded columns; an overlong value must not fail the booking write.
+  describe('column bounds', () => {
+    const long = (n: number) => 'x'.repeat(n);
+
+    it('cuts names to their column width and the key to its own', () => {
+      const identity = identityFromSources({
+        salonId: 's1',
+        userId: null,
+        snapshot: { clientName: 'n', clientPhone: null, clientEmail: null, clientSource: 'easyweek' },
+        easyweekCustomer: { uuid: 'ew-1', firstName: long(150), lastName: long(150) },
+        bookingDatetime: when,
+      });
+      expect(identity.name.firstName).toHaveLength(100);
+      expect(identity.name.lastName).toHaveLength(100);
+      expect(identity.nameKey!.length).toBeLessThanOrEqual(200);
+    });
+
+    it('drops an identifier, phone or email that cannot be genuine at that length', () => {
+      const identity = identityFromSources({
+        salonId: 's1',
+        userId: null,
+        snapshot: { clientName: 'n', clientPhone: long(31), clientEmail: `${long(250)}@example.com`, clientSource: 'altegio' },
+        altegioClient: { externalId: long(129), name: 'Іван', surname: 'Петренко' },
+        bookingDatetime: when,
+      });
+      expect(identity.altegioClientId).toBeNull();
+      expect(identity.phone).toBeNull();
+      expect(identity.email).toBeNull();
+    });
+  });
+
   it('readEasyweekCustomer tolerates missing or malformed payloads', () => {
     expect(readEasyweekCustomer(null)).toBeNull();
     expect(readEasyweekCustomer({ customer: 'nope' })).toBeNull();
