@@ -12,6 +12,7 @@ describe('BookingSyncService.refreshSingle', () => {
   let crm: any;
   let bookingHandler: any;
   let bookingQuery: any;
+  let clients: any;
   let service: BookingSyncService;
 
   beforeEach(() => {
@@ -25,7 +26,8 @@ describe('BookingSyncService.refreshSingle', () => {
       handleEasyweekBooking: jest.fn().mockResolvedValue({ booking: { id: 'b1' }, changed: true }),
     };
     bookingQuery = { getByIds: jest.fn().mockResolvedValue([{ id: 'b1', status: 'created' }]) };
-    service = new BookingSyncService(prisma, crm, bookingHandler, bookingQuery);
+    clients = { recomputeCounters: jest.fn().mockResolvedValue(undefined) };
+    service = new BookingSyncService(prisma, crm, bookingHandler, bookingQuery, clients);
   });
 
   it('throws NotFound when the booking does not exist', async () => {

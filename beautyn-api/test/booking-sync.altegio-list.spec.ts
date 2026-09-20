@@ -14,6 +14,7 @@ describe('BookingSyncService.rebaseFromCrm — Altegio list reconciliation', () 
   let crm: any;
   let bookingHandler: any;
   let bookingQuery: any;
+  let clients: any;
   let service: BookingSyncService;
 
   // owned local bookings
@@ -44,7 +45,8 @@ describe('BookingSyncService.rebaseFromCrm — Altegio list reconciliation', () 
       ),
     };
     bookingQuery = { getByIds: jest.fn().mockResolvedValue([]) };
-    service = new BookingSyncService(prisma, crm, bookingHandler, bookingQuery);
+    clients = { recomputeCounters: jest.fn().mockResolvedValue(undefined) };
+    service = new BookingSyncService(prisma, crm, bookingHandler, bookingQuery, clients);
   });
 
   it('queries the records window with_deleted, derived from local bookings', async () => {
@@ -73,6 +75,21 @@ describe('BookingSyncService.rebaseFromCrm — Altegio list reconciliation', () 
     expect(arg.data.status).toBe('deleted');
     expect(arg.data.cancelledAt).toBeInstanceOf(Date); // stamp the purge moment as the cancellation time
     expect(arg.where.id.in).toEqual(['b2']); // future absent → cancelled; past 'b3' untouched
+  });
+
+  // BEA-71: the purge is the one booking write that bypasses the handler, so it
+  // has to keep the salon-client counters right on its own.
+  it('recomputes the counters of the clients whose bookings were purged', async () => {
+    prisma.booking.findMany
+      .mockResolvedValueOnce([futureA, futureB, pastC]) // the owned window
+      .mockResolvedValueOnce([{ clientId: 'client-b2' }]); // the purged rows
+    await service.rebaseFromCrm(salonId);
+    const purgeLookup = prisma.booking.findMany.mock.calls[1][0];
+    expect(purgeLookup.where.id.in).toEqual(['b2']);
+    expect(clients.recomputeCounters).toHaveBeenCalledWith(prisma, ['client-b2']);
+    // Read before the write, recompute after it.
+    expect(prisma.booking.findMany.mock.invocationCallOrder[1]).toBeLessThan(prisma.booking.updateMany.mock.invocationCallOrder[0]);
+    expect(clients.recomputeCounters.mock.invocationCallOrder[0]).toBeGreaterThan(prisma.booking.updateMany.mock.invocationCallOrder[0]);
   });
 
   it('returns the touched + cancelled bookings', async () => {

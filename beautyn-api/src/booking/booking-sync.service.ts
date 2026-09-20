@@ -5,6 +5,7 @@ import { PrismaService } from '../shared/database/prisma.service';
 import { CrmIntegrationService } from '../crm-integration/core/crm-integration.service';
 import { BookingHandlerService } from './booking-handler.service';
 import { BookingQueryService } from './booking-query.service';
+import { SalonClientLinker } from '../salon-clients/salon-client-linker.service';
 import { createChildLogger } from '@shared/logger';
 import type { BookingDto } from './dto/booking.response.dto';
 import type { AltegioBooking } from '@crm/provider-core/altegio/bookings';
@@ -18,6 +19,7 @@ export class BookingSyncService {
     private readonly crm: CrmIntegrationService,
     private readonly bookingHandler: BookingHandlerService,
     private readonly bookingQuery: BookingQueryService,
+    private readonly clients: SalonClientLinker,
   ) {}
 
   // `lane` defaults to 'slow' = full reconcile (the long-standing behavior used by the manual
@@ -193,10 +195,20 @@ export class BookingSyncService {
       .map((b) => b.id);
     if (purgedFutureIds.length) {
       this.log.info('Cancelling Altegio bookings missing from CRM list', { salonId, lane, count: purgedFutureIds.length });
+      // The only booking write that bypasses the handler, so the salon-client
+      // counters have to be maintained here as well (BEA-71).
+      const purged = await this.prisma.booking.findMany({
+        where: { id: { in: purgedFutureIds } },
+        select: { clientId: true },
+      });
       await this.prisma.booking.updateMany({
         where: { id: { in: purgedFutureIds } },
         data: { status: 'deleted', cancelledAt: now },
       });
+      await this.clients.recomputeCounters(
+        this.prisma,
+        purged.map((b) => b.clientId),
+      );
     }
 
     return this.bookingQuery.getByIds([...touchedIds, ...purgedFutureIds]);
