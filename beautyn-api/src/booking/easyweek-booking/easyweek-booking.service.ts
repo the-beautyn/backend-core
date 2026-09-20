@@ -18,12 +18,13 @@ export class EasyweekBookingService {
   ) {}
 
   async handleBookings(params: { bookings: EasyWeekBooking[] }): Promise<BookingDto[]> {
-    const results = await Promise.all(
-      params.bookings.map((booking) =>
-        this.bookingHandler.handleEasyweekBooking({ booking }),
-      ),
-    );
-    const bookingIds = results.map((result) => result.booking?.id).filter((id): id is string => !!id);
+    // Sequential: each handler call is a transaction that takes the salon's client lock
+    // (BEA-71); fired concurrently they would queue on it holding a pooled connection each.
+    const bookingIds: string[] = [];
+    for (const booking of params.bookings) {
+      const result = await this.bookingHandler.handleEasyweekBooking({ booking });
+      if (result.booking?.id) bookingIds.push(result.booking.id);
+    }
     return this.bookingQuery.getByIds(bookingIds);
   }
 

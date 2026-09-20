@@ -14,6 +14,7 @@ describe('BookingSyncService.rebaseFromCrm — Altegio list reconciliation', () 
   let crm: any;
   let bookingHandler: any;
   let bookingQuery: any;
+  let clients: any;
   let service: BookingSyncService;
 
   // owned local bookings
@@ -28,6 +29,7 @@ describe('BookingSyncService.rebaseFromCrm — Altegio list reconciliation', () 
         updateMany: jest.fn().mockResolvedValue({ count: 1 }),
       },
     };
+    prisma.$transaction = jest.fn((cb: (tx: unknown) => Promise<unknown>) => cb(prisma));
     crm = {
       resolveSalonProvider: jest.fn().mockResolvedValue(CrmType.ALTEGIO),
       // r1 present (owned), rX present (foreign); r2 & r3 absent.
@@ -44,7 +46,12 @@ describe('BookingSyncService.rebaseFromCrm — Altegio list reconciliation', () 
       ),
     };
     bookingQuery = { getByIds: jest.fn().mockResolvedValue([]) };
-    service = new BookingSyncService(prisma, crm, bookingHandler, bookingQuery);
+    clients = {
+      recomputeCounters: jest.fn().mockResolvedValue(undefined),
+      recomputeCountersLocked: jest.fn().mockResolvedValue(undefined),
+      lockSalon: jest.fn().mockResolvedValue(undefined),
+    };
+    service = new BookingSyncService(prisma, crm, bookingHandler, bookingQuery, clients);
   });
 
   it('queries the records window with_deleted, derived from local bookings', async () => {
@@ -73,6 +80,32 @@ describe('BookingSyncService.rebaseFromCrm — Altegio list reconciliation', () 
     expect(arg.data.status).toBe('deleted');
     expect(arg.data.cancelledAt).toBeInstanceOf(Date); // stamp the purge moment as the cancellation time
     expect(arg.where.id.in).toEqual(['b2']); // future absent → cancelled; past 'b3' untouched
+    // Optimistic guard: a candidate a handler synced after the list was built is left alone.
+    expect(arg.where.updatedAt).toEqual({ lte: arg.data.cancelledAt });
+  });
+
+  // BEA-71: the purge is the one booking write that bypasses the handler, so it
+  // has to keep the salon-client counters right on its own.
+  it('recomputes the counters of the clients whose bookings were purged', async () => {
+    prisma.booking.findMany
+      .mockResolvedValueOnce([futureA, futureB, pastC]) // the owned window
+      .mockResolvedValueOnce([{ clientId: 'client-b2' }]); // the purged rows
+    await service.rebaseFromCrm(salonId);
+    const purgeLookup = prisma.booking.findMany.mock.calls[1][0];
+    expect(purgeLookup.where.id.in).toEqual(['b2']);
+    // The tombstone runs in one transaction under the salon's client lock (lock → read
+    // → write); the recompute follows in short locked chunks, not inside that
+    // transaction, so a bulk purge never holds the lock for one long pass.
+    expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+    expect(clients.lockSalon).toHaveBeenCalledWith(prisma, salonId);
+    expect(clients.recomputeCountersLocked).toHaveBeenCalledWith(prisma, salonId, ['client-b2']);
+    const order = [
+      clients.lockSalon.mock.invocationCallOrder[0],
+      prisma.booking.findMany.mock.invocationCallOrder[1],
+      prisma.booking.updateMany.mock.invocationCallOrder[0],
+      clients.recomputeCountersLocked.mock.invocationCallOrder[0],
+    ];
+    expect([...order].sort((a, b) => a - b)).toEqual(order);
   });
 
   it('returns the touched + cancelled bookings', async () => {

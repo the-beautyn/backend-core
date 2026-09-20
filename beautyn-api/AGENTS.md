@@ -127,6 +127,7 @@ scripts/                # Utility scripts
 - **Worker** — staff member with photo, schedule, specializations
 - **WorkerService** — many-to-many: workers to services
 - **Booking** — appointment record with provider-specific metadata
+- **SalonClient** — one person per salon, linked from bookings; bookings count + last visit, matched by account / CRM id / name+contact (see `docs/salon-clients.md`)
 - **BookingHistory** — version history with diffs for audit trail
 
 ### CRM Entities

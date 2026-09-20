@@ -75,6 +75,8 @@ import { ClientSettingsResponseDto } from './client-settings/dto/client-settings
 import { ClientNotificationSettingsDto } from './client-settings/dto/client-notification-settings.dto';
 import { OwnerSettingsResponseDto } from './owner-settings/dto/owner-settings-response.dto';
 import { OwnerNotificationSettingsDto } from './owner-settings/dto/owner-notification-settings.dto';
+import { SalonClientDto } from './salon-clients/dto/salon-client.dto';
+import { SalonClientsListResponseDto } from './salon-clients/dto/salon-clients-list.response.dto';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -194,6 +196,9 @@ async function bootstrap() {
       ClientNotificationSettingsDto,
       OwnerSettingsResponseDto,
       OwnerNotificationSettingsDto,
+      // Salon clients (BEA-71)
+      SalonClientDto,
+      SalonClientsListResponseDto,
     ],
   });
   SwaggerModule.setup('api/docs', app, doc);

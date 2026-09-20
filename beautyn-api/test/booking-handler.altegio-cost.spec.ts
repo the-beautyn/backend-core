@@ -7,7 +7,7 @@ import { BookingHandlerService } from '../src/booking/booking-handler.service';
 // monetary fields to cents — otherwise a synced booking's price is 100x too
 // small once it overwrites the app-created seed.
 describe('BookingHandlerService.mapAltegioServices — Altegio cost → cents', () => {
-  const service = new BookingHandlerService({} as any);
+  const service = new BookingHandlerService({} as any, { link: jest.fn().mockResolvedValue(null), recomputeCounters: jest.fn() } as any);
   const mapAltegioServices = (services: unknown) =>
     (service as any).mapAltegioServices(services) as Array<Record<string, unknown>>;
 

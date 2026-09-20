@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { Prisma, Booking } from '@prisma/client';
 import { PrismaService } from '../shared/database/prisma.service';
+import { BOOKING_CANCELLED_STATUSES } from './booking-status';
 import { normalizePagination } from '../shared/utils/pagination.util';
 import { BookingDto, BookingListResponseDto, BookingProviderAltegioDto, BookingProviderEasyweekDto } from './dto/booking.response.dto';
 
@@ -74,9 +75,9 @@ export class BookingQueryService {
     },
   } satisfies Prisma.BookingInclude;
 
-  // EasyWeek cancels to 'canceled'; Altegio soft-deletes to 'deleted'. Both belong in the
-  // Cancelled tab and must be excluded from upcoming/past.
-  private static readonly CANCELLED_STATUSES = ['canceled', 'deleted'];
+  // Both belong in the Cancelled tab and must be excluded from upcoming/past.
+  // Shared with the handler and the salon-client counters — see booking-status.ts.
+  private static readonly CANCELLED_STATUSES = BOOKING_CANCELLED_STATUSES;
 
   constructor(private readonly prisma: PrismaService) {}
 
@@ -241,6 +242,7 @@ export class BookingQueryService {
     cursor?: string;
     page?: number;
     limit?: number;
+    clientId?: string;
     includeHistory?: boolean;
   }): Promise<BookingListResponseDto> {
     if (params.page !== undefined && params.cursor) {
@@ -249,8 +251,12 @@ export class BookingQueryService {
 
     // Same bucket logic as the client app's tabs — see buildBucketWhere. The
     // cancelled bucket alone windows on cancelledAt, to match its ordering below.
+    // The client filter (BEA-71) goes into the base so it composes with every bucket.
     const isCancelledBucket = params.status === 'canceled';
-    const where = this.buildBucketWhere({ salonId: params.salonId }, params, new Date(), {
+    const base: Prisma.BookingWhereInput = params.clientId
+      ? { salonId: params.salonId, clientId: params.clientId }
+      : { salonId: params.salonId };
+    const where = this.buildBucketWhere(base, params, new Date(), {
       cancelledWindowOn: isCancelledBucket ? 'cancelledAt' : 'datetime',
     });
     const includeHistory = params.includeHistory ?? true;
@@ -309,8 +315,10 @@ export class BookingQueryService {
       where: { id: { in: unique } },
       include: this.include,
     });
+    // Only the sync paths (owner "sync now", internal rebase) read by ids; both are
+    // salon-facing, so they carry the client fields like the owner list and get do.
     const mapped = new Map<string, BookingDto>(
-      (bookings as unknown as BookingWithRelations[]).map((b) => [b.id, this.mapBooking(b)]),
+      (bookings as unknown as BookingWithRelations[]).map((b) => [b.id, this.mapBooking(b, { includeClient: true })]),
     );
     return unique.map((id) => mapped.get(id)).filter((b): b is BookingDto => !!b);
   }
@@ -377,6 +385,8 @@ export class BookingQueryService {
           }
         : null,
       client: includeClient ? this.mapClient(booking) : undefined,
+      // Owner-only like `client`: the salon-client id means nothing to the client app.
+      client_id: includeClient ? (booking.clientId ?? null) : undefined,
       status: booking.status,
       datetime: booking.datetime.toISOString(),
       end_datetime: booking.endDatetime ? booking.endDatetime.toISOString() : null,

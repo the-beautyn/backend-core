@@ -131,6 +131,8 @@ export type BookingDto = {
   worker?: { id: string; first_name: string; last_name: string; photo_url?: string | null } | null;
   /** Denormalised client snapshot stored on the booking row. */
   client?: BookingClientDto | null;
+  /** The salon client this booking is linked to (BEA-71); owner-facing responses only. */
+  client_id?: string | null;
   status: string;
   datetime: string;
   end_datetime?: string | null;
@@ -243,6 +245,10 @@ export class BookingResponseDto {
   worker?: BookingWorkerResponseDto | null;
   @ApiPropertyOptional({ type: () => BookingClientResponseDto })
   client?: BookingClientResponseDto | null;
+  // Owner-facing only, like `client`. Lets the panel open the Client Info modal
+  // from a booking row and filter the list with ?client_id=.
+  @ApiPropertyOptional({ format: 'uuid', description: 'Linked salon client; owner responses only' })
+  client_id?: string | null;
   @ApiProperty() status!: string;
   @ApiProperty() datetime!: string;
   @ApiPropertyOptional() end_datetime?: string | null;

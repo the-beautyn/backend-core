@@ -114,11 +114,26 @@ describe('Owner bookings API (e2e)', () => {
     );
   });
 
+  // BEA-71: the Client Info modal's history is this list filtered to one client.
+  it('passes client_id through as the client filter', async () => {
+    // A v4-shaped id: @IsUUID() checks the version nibble, and Prisma's uuid() is v4.
+    const clientId = '3f2b1c4e-5d6a-4b7c-8d9e-0f1a2b3c4d5e';
+    await request(app.getHttpServer())
+      .get(`/api/v1/salons/${salonId}/bookings?client_id=${clientId}&status=completed&page=1`)
+      .set('Authorization', 'Bearer token')
+      .expect(200);
+
+    expect(bookingQueryMock.listForSalon).toHaveBeenCalledWith(
+      expect.objectContaining({ clientId, status: 'completed', page: 1 }),
+    );
+  });
+
   it.each([
     ['page below 1', 'page=0'],
     ['limit above the cap', 'limit=500'],
     ['a non-numeric page', 'page=abc'],
     ['a malformed date', 'from=not-a-date'],
+    ['a non-uuid client_id', 'client_id=abc'],
     ['an unknown param', 'bogus=1'],
   ])('rejects %s', async (_label, qs) => {
     await request(app.getHttpServer())

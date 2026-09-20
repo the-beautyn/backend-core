@@ -5,6 +5,7 @@ import { PrismaService } from '../shared/database/prisma.service';
 import { CrmIntegrationService } from '../crm-integration/core/crm-integration.service';
 import { BookingHandlerService } from './booking-handler.service';
 import { BookingQueryService } from './booking-query.service';
+import { SalonClientLinker } from '../salon-clients/salon-client-linker.service';
 import { createChildLogger } from '@shared/logger';
 import type { BookingDto } from './dto/booking.response.dto';
 import type { AltegioBooking } from '@crm/provider-core/altegio/bookings';
@@ -18,6 +19,7 @@ export class BookingSyncService {
     private readonly crm: CrmIntegrationService,
     private readonly bookingHandler: BookingHandlerService,
     private readonly bookingQuery: BookingQueryService,
+    private readonly clients: SalonClientLinker,
   ) {}
 
   // `lane` defaults to 'slow' = full reconcile (the long-standing behavior used by the manual
@@ -122,10 +124,14 @@ export class BookingSyncService {
 
     const bookingsPage = await this.crm.pullEasyweekBookings(salonId, bookingIds);
     const bookings = this.prepareEasyweekPayload(bookingsPage?.items ?? []);
-    const results = await Promise.all(
-      bookings.map((booking) => this.bookingHandler.handleEasyweekBooking({ booking })),
-    );
-    const ids = results.map((r) => r.booking?.id).filter((id): id is string => !!id);
+    // Sequential, like the Altegio path. Each handler call is a transaction that takes
+    // the salon's client lock (BEA-71); fired concurrently they would all sit on that
+    // lock holding a pooled connection each, and the slow lane has no cap on the count.
+    const ids: string[] = [];
+    for (const booking of bookings) {
+      const res = await this.bookingHandler.handleEasyweekBooking({ booking });
+      if (res.booking?.id) ids.push(res.booking.id);
+    }
     return this.bookingQuery.getByIds(ids);
   }
 
@@ -193,10 +199,24 @@ export class BookingSyncService {
       .map((b) => b.id);
     if (purgedFutureIds.length) {
       this.log.info('Cancelling Altegio bookings missing from CRM list', { salonId, lane, count: purgedFutureIds.length });
-      await this.prisma.booking.updateMany({
-        where: { id: { in: purgedFutureIds } },
-        data: { status: 'deleted', cancelledAt: now },
+      // The only booking write that bypasses the handler, so the salon-client counters
+      // have to be maintained here as well (BEA-71). The tombstone runs under the salon
+      // lock; the recompute follows in short locked chunks so a bulk purge cannot hold
+      // the lock — and every live booking write for the salon — for one long pass.
+      const purgedClientIds = await this.prisma.$transaction(async (tx) => {
+        await this.clients.lockSalon(tx, salonId);
+        // The candidates were picked before the lock; a handler may have synced one of
+        // them since (updatedAt moves on every write). Such a row is fresher than this
+        // list and is left alone rather than tombstoned.
+        const purgeWhere = { id: { in: purgedFutureIds }, updatedAt: { lte: now } };
+        const purged = await tx.booking.findMany({ where: purgeWhere, select: { clientId: true } });
+        await tx.booking.updateMany({
+          where: purgeWhere,
+          data: { status: 'deleted', cancelledAt: now },
+        });
+        return purged.map((b) => b.clientId);
       });
+      await this.clients.recomputeCountersLocked(this.prisma, salonId, purgedClientIds);
     }
 
     return this.bookingQuery.getByIds([...touchedIds, ...purgedFutureIds]);

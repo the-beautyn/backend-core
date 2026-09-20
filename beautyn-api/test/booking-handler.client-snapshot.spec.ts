@@ -15,12 +15,16 @@ describe('BookingHandlerService — client snapshot', () => {
 
   const call = (method: string, ...args: unknown[]) =>
     (service as any)[method](...args);
+  // BEA-71 made the resolver hand back the account too; these tests are about the snapshot.
+  const resolveSnapshot = async (...args: unknown[]) =>
+    (await call('resolveClientSnapshot', ...args)).snapshot;
 
   beforeEach(() => {
     usersFindUnique = jest.fn().mockResolvedValue(null);
-    service = new BookingHandlerService({
-      users: { findUnique: usersFindUnique },
-    } as any);
+    service = new BookingHandlerService(
+      { users: { findUnique: usersFindUnique } } as any,
+      { link: jest.fn().mockResolvedValue(null), recomputeCounters: jest.fn() } as any,
+    );
   });
 
   describe('phone normalisation', () => {
@@ -142,7 +146,7 @@ describe('BookingHandlerService — client snapshot', () => {
         displayName: 'Ivan',
         phone: '380501234567',
       });
-      const resolved = await call('resolveClientSnapshot', fromCrm, 'user-1');
+      const resolved = await resolveSnapshot(fromCrm, 'user-1');
 
       expect(resolved.clientName).toBe('Ivan');
       expect(resolved.clientSource).toBe('altegio');
@@ -153,7 +157,7 @@ describe('BookingHandlerService — client snapshot', () => {
       usersFindUnique.mockResolvedValue(account);
       const empty = clientFromEasyweekCustomer(null);
 
-      const resolved = await call('resolveClientSnapshot', empty, 'user-1');
+      const resolved = await resolveSnapshot(empty, 'user-1');
 
       expect(resolved).toEqual({
         clientName: 'Olena Kovalenko',
@@ -175,16 +179,14 @@ describe('BookingHandlerService — client snapshot', () => {
         email: null,
       });
 
-      const resolved = await call('resolveClientSnapshot', allNulls, 'user-1');
+      const resolved = await resolveSnapshot(allNulls, 'user-1');
 
       expect(resolved.clientSource).toBe('user');
       expect(resolved.clientName).toBe('Olena Kovalenko');
     });
 
     it('returns an empty snapshot when there is neither a CRM client nor an account', async () => {
-      const resolved = await call(
-        'resolveClientSnapshot',
-        clientFromEasyweekCustomer(null),
+      const resolved = await resolveSnapshot(clientFromEasyweekCustomer(null),
         null,
       );
       expect(resolved).toEqual({
@@ -203,9 +205,7 @@ describe('BookingHandlerService — client snapshot', () => {
         phone: null,
         email: null,
       });
-      const resolved = await call(
-        'resolveClientSnapshot',
-        clientFromEasyweekCustomer(null),
+      const resolved = await resolveSnapshot(clientFromEasyweekCustomer(null),
         'user-1',
       );
       expect(resolved.clientSource).toBeNull();

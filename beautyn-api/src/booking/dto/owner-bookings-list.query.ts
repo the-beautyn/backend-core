@@ -4,6 +4,7 @@ import {
   IsISO8601,
   IsOptional,
   IsString,
+  IsUUID,
   Max,
   Min,
 } from 'class-validator';
@@ -85,4 +86,14 @@ export class OwnerBookingsListQueryDto {
   @IsOptional()
   @IsString()
   included?: string;
+
+  /** Only bookings linked to this salon client (BEA-71). Composes with every bucket and window. */
+  @ApiProperty({
+    required: false,
+    format: 'uuid',
+    description: 'Only bookings linked to this salon client',
+  })
+  @IsOptional()
+  @IsUUID()
+  client_id?: string;
 }

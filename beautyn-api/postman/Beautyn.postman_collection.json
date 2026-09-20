@@ -3663,6 +3663,13 @@
                           "disabled": true
                         },
                         {
+                          "key": "page",
+                          "value": "1",
+                          "type": "text",
+                          "disabled": true,
+                          "description": "Offset mode; returns page + total. Cannot be combined with cursor."
+                        },
+                        {
                           "key": "limit",
                           "value": "1000",
                           "type": "text",
@@ -3678,6 +3685,13 @@
                           "key": "included",
                           "value": "history",
                           "type": "text"
+                        },
+                        {
+                          "key": "client_id",
+                          "value": "{{clientId}}",
+                          "type": "text",
+                          "disabled": true,
+                          "description": "Only bookings linked to this salon client (BEA-71)"
                         }
                       ]
                     }
@@ -3831,6 +3845,128 @@
               "response": []
             }
           ]
+        }
+      ]
+    },
+    {
+      "name": "Clients",
+      "item": [
+        {
+          "name": "list",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  ""
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/salons/{{salonId}}/clients?page=1&limit=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "salons",
+                "{{salonId}}",
+                "clients"
+              ],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "",
+                  "type": "text",
+                  "disabled": true,
+                  "description": "Name / email (case-insensitive); digits match the phone with or without +380"
+                },
+                {
+                  "key": "sort",
+                  "value": "name_asc",
+                  "type": "text",
+                  "disabled": true,
+                  "description": "name_asc | name_desc | last_visit_desc | bookings_desc"
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "type": "text"
+                },
+                {
+                  "key": "limit",
+                  "value": "20",
+                  "type": "text"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "get_by_id",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  ""
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/salons/{{salonId}}/clients/{{clientId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "salons",
+                "{{salonId}}",
+                "clients",
+                "{{clientId}}"
+              ]
+            }
+          },
+          "response": []
         }
       ]
     },
