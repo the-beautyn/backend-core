@@ -225,6 +225,7 @@ model Salon {
   crmAccounts        CrmAccount[]
   crmCredentials     CrmCredential[]
   savedByUsers       SavedSalon[]
+  clients            SalonClient[]
 
   @@unique([provider, externalSalonId], map: "uniq_salon_provider_external")
   @@index([latitude, longitude])
@@ -400,11 +401,16 @@ model Booking {
   clientPhone   String?  @map("client_phone") @db.VarChar(30)
   clientEmail   String?  @map("client_email")
   clientSource  String?  @map("client_source")
+  // BEA-71: which salon client this booking belongs to. Resolved by SalonClientLinker
+  // inside the same transaction as every booking write; null when the booking carries
+  // no usable identity (no account, no CRM client id, no name+contact pair).
+  clientId      String?  @map("client_id") @db.Uuid
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
 
   salon  Salon  @relation(fields: [salonId], references: [id], onDelete: Cascade)
   worker Worker? @relation(fields: [workerId], references: [id], onDelete: SetNull)
+  client SalonClient? @relation(fields: [clientId], references: [id], onDelete: SetNull)
   easyweekDetails EasyweekBookingDetails?
   altegioDetails AltegioBookingDetails?
   history BookingHistory[]
@@ -415,8 +421,58 @@ model Booking {
   @@index([salonId, datetime(sort: Desc)], map: "bookings_salon_datetime_idx")
   // The owner panel's cancelled tab filters and orders by cancelled_at (BEA-67).
   @@index([salonId, cancelledAt(sort: Desc)], map: "bookings_salon_cancelled_at_idx")
+  // The Client Info modal's history (`?client_id=`) and the per-client counter recompute
+  // both filter on client_id.
+  @@index([clientId], map: "bookings_client_idx")
   @@unique([crmType, crmRecordId], map: "bookings_crm_type_record_unique")
   @@map("bookings")
+}
+
+/// One row per person per salon, linked from bookings (BEA-71). Rows are created and
+/// refreshed only by SalonClientLinker, at booking write time, and never merged
+/// automatically. Matching: user_id, or a CRM client id, or name_key together with
+/// an E.164 phone / a normalised email — contact details alone never link two people.
+model SalonClient {
+  id                 String    @id @default(uuid()) @db.Uuid
+  salonId            String    @map("salon_id") @db.Uuid
+  // What the panel shows: "First Last", or the CRM's own display name as a fallback.
+  displayName        String?   @map("display_name")
+  firstName          String?   @map("first_name") @db.VarChar(100)
+  lastName           String?   @map("last_name") @db.VarChar(100)
+  // Order-, case- and whitespace-insensitive key of the name; the second half of the
+  // phone/email match key. See buildNameKey in salon-clients/client-identity.ts.
+  nameKey            String?   @map("name_key") @db.VarChar(200)
+  // E.164 when parseable, else the CRM's raw string — same rule as bookings.client_phone.
+  phone              String?   @db.VarChar(30)
+  // Lowercased and trimmed.
+  email              String?   @db.VarChar(255)
+  avatarUrl          String?   @map("avatar_url")
+  userId             String?   @map("user_id") @db.Uuid
+  altegioClientId    String?   @map("altegio_client_id") @db.VarChar(128)
+  easyweekCustomerId String?   @map("easyweek_customer_id") @db.VarChar(128)
+  // Earliest linked booking's datetime.
+  firstSeenAt        DateTime  @map("first_seen_at") @db.Timestamptz(6)
+  // Latest non-cancelled booking whose end (or start) is in the past.
+  lastVisitAt        DateTime? @map("last_visit_at") @db.Timestamptz(6)
+  // Non-cancelled linked bookings, past and future.
+  bookingsCount      Int       @default(0) @map("bookings_count")
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
+
+  salon    Salon     @relation(fields: [salonId], references: [id], onDelete: Cascade)
+  bookings Booking[]
+
+  // Match lookups (each is one indexed findFirst).
+  @@index([salonId, userId], map: "salon_clients_salon_user_idx")
+  @@index([salonId, altegioClientId], map: "salon_clients_salon_altegio_idx")
+  @@index([salonId, easyweekCustomerId], map: "salon_clients_salon_easyweek_idx")
+  @@index([salonId, phone, nameKey], map: "salon_clients_salon_phone_name_idx")
+  @@index([salonId, email, nameKey], map: "salon_clients_salon_email_name_idx")
+  // Owner list sorts.
+  @@index([salonId, displayName], map: "salon_clients_salon_name_idx")
+  @@index([salonId, lastVisitAt(sort: Desc)], map: "salon_clients_salon_last_visit_idx")
+  @@index([salonId, bookingsCount(sort: Desc)], map: "salon_clients_salon_bookings_idx")
+  @@map("salon_clients")
 }
 
 model BookingHistory {
