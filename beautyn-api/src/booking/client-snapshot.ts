@@ -58,6 +58,17 @@ export function cleanName(
   return joined || null;
 }
 
+/**
+ * Lower-cased, trimmed email, or null. Used for the `salon_clients.email` column and
+ * its match key only — the booking snapshot keeps the CRM's original casing so the
+ * BEA-68 change detection and back-fill stay byte-identical.
+ */
+export function normalizeEmail(raw: unknown): string | null {
+  if (typeof raw !== 'string') return null;
+  const trimmed = raw.trim().toLowerCase();
+  return trimmed || null;
+}
+
 /** A snapshot is only worth a provenance if it actually carries something. */
 export function hasAnyClientField(snapshot: ClientSnapshot): boolean {
   return Boolean(
