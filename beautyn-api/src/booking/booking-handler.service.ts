@@ -110,7 +110,7 @@ export class BookingHandlerService {
     });
 
     const created = await this.prisma.$transaction(async (tx) => {
-      const clientId = await this.clients.link(tx, identity);
+      const { clientId } = await this.clients.assign(tx, { bookingId: null, identity, mode: 'write' });
       const booking = await tx.booking.create({
         data: {
           salonId: params.salonId,
@@ -220,7 +220,7 @@ export class BookingHandlerService {
 
     const nextVersion = (existing.version ?? 0) + 1;
     await this.prisma.$transaction(async (tx) => {
-      const { clientId, previousClientId } = await this.resolveClientLink(tx, existing.id, identity);
+      const { clientId, previousClientId } = await this.clients.assign(tx, { bookingId: existing.id, identity, mode: 'write' });
       await tx.booking.update({
         where: { id: existing.id },
         data: {
@@ -298,7 +298,7 @@ export class BookingHandlerService {
 
     const identity = this.altegioIdentity(params.salonId, params.userId ?? null, incoming, start);
     const created = await this.prisma.$transaction(async (tx) => {
-      const clientId = await this.clients.link(tx, identity);
+      const { clientId } = await this.clients.assign(tx, { bookingId: null, identity, mode: 'write' });
       const booking = await tx.booking.create({
         data: {
           salonId: params.salonId,
@@ -389,7 +389,7 @@ export class BookingHandlerService {
 
     const nextVersion = (existing.version ?? 0) + 1;
     await this.prisma.$transaction(async (tx) => {
-      const { clientId, previousClientId } = await this.resolveClientLink(tx, existing.id, identity);
+      const { clientId, previousClientId } = await this.clients.assign(tx, { bookingId: existing.id, identity, mode: 'write' });
       await tx.booking.update({
         where: { id: existing.id },
         data: {
@@ -451,28 +451,6 @@ export class BookingHandlerService {
     return { snapshot: resolveSnapshot(fromCrm, user), account: user };
   }
 
-  /**
-   * The client to write on an update, decided under the salon lock. `existing` was read
-   * before the transaction, so its `clientId` may be stale: a concurrent sync of the
-   * same booking may have linked it in between. And a payload variant without a client
-   * block (Altegio sometimes omits it) yields no identity, which says nothing about the
-   * person — so the current link stays rather than being blanked. Both the new and the
-   * previous client are returned so the caller can recompute whichever changed.
-   */
-  private async resolveClientLink(
-    tx: Prisma.TransactionClient,
-    bookingId: string,
-    identity: ClientIdentity,
-  ): Promise<{ clientId: string | null; previousClientId: string | null }> {
-    // Explicitly, not via link(): link() returns before locking when there is no usable
-    // identity, and the re-read below must be under the lock in that case too.
-    await this.clients.lockSalon(tx, identity.salonId);
-    const linked = await this.clients.link(tx, identity);
-    const current = await tx.booking.findUnique({ where: { id: bookingId }, select: { clientId: true } });
-    const previousClientId = current?.clientId ?? null;
-    return { clientId: linked ?? previousClientId, previousClientId };
-  }
-
   private altegioIdentity(
     salonId: string,
     userId: string | null,
@@ -512,14 +490,9 @@ export class BookingHandlerService {
       return;
     }
     await this.prisma.$transaction(async (tx) => {
-      // Lock first, then re-read: `existing` predates the transaction, and the other
-      // sync lane may have attached this row while we waited. Checked before linking so
-      // a second lane never creates a spare client row either.
-      await this.clients.lockSalon(tx, existing.salonId);
-      const current = await tx.booking.findUnique({ where: { id: existing.id }, select: { clientId: true } });
-      if (current?.clientId) return;
-      const clientId = await this.clients.link(tx, identity);
-      if (!clientId) return;
+      // `attach`: fill a missing link only; a link the other lane wrote meanwhile stays.
+      const { clientId, previousClientId } = await this.clients.assign(tx, { bookingId: existing.id, identity, mode: 'attach' });
+      if (!clientId || clientId === previousClientId) return;
       await tx.booking.update({ where: { id: existing.id }, data: { clientId } });
       await this.clients.recomputeCounters(tx, [clientId]);
     });

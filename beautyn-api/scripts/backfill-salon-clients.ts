@@ -15,10 +15,11 @@ import { SalonClientLinker } from '../src/salon-clients/salon-client-linker.serv
  * values. Every booking is walked each time (not only unlinked ones) so a rule change
  * or a repaired CRM card is picked up by a re-run.
  *
- * Safe to run while syncs are live: each booking's link + update is one transaction
- * under the linker's per-salon lock, and the booking's client_id is re-read inside it
- * so a newer link from a sync is never overwritten with what this script read earlier.
- * The counter pass takes the same lock per chunk.
+ * Safe to run while syncs are live: each booking goes through the linker's `assign`
+ * gatekeeper in `attach` mode inside its own transaction — lock, re-read, and only
+ * fill a link that is still missing — so a link a sync wrote meanwhile is never touched.
+ * Already-linked bookings are left alone (`--relink` re-decides them in `write` mode,
+ * for when the matching rule changes). The counter pass takes the same lock per chunk.
  *
  * --dry-run evaluates every booking's identity and reports what would be eligible; it
  * cannot tell a would-be-new row from a would-be-match without writing, so it does not.
@@ -27,6 +28,7 @@ import { SalonClientLinker } from '../src/salon-clients/salon-client-linker.serv
  *   npm run backfill:clients:local
  *   npm run backfill:clients:dev -- --dry-run
  *   npm run backfill:clients:dev -- --salon=<salon uuid>
+ *   npm run backfill:clients:dev -- --relink
  */
 
 const BATCH_SIZE = 500;
@@ -35,6 +37,7 @@ type Counts = { linked: number; relinked: number; unchanged: number; noIdentity:
 
 async function main() {
   const dryRun = process.argv.includes('--dry-run');
+  const mode = process.argv.includes('--relink') ? ('write' as const) : ('attach' as const);
   const salonArg = process.argv.find((a) => a.startsWith('--salon='))?.slice('--salon='.length);
   const prisma = new PrismaClient();
   const linker = new SalonClientLinker();
@@ -93,15 +96,11 @@ async function main() {
         }
         touchedSalons.add(booking.salonId);
         const outcome = await prisma.$transaction(async (tx) => {
-          const clientId = await linker.link(tx, identity);
+          const { clientId, previousClientId } = await linker.assign(tx, { bookingId: booking.id, identity, mode });
           if (!clientId) return 'noIdentity' as const;
-          // Re-read under the lock: a live sync may have linked this booking since the batch
-          // was read. Its link came from a fresher payload than ours, so it wins.
-          const current = await tx.booking.findUnique({ where: { id: booking.id }, select: { clientId: true } });
-          if (current?.clientId === clientId) return 'unchanged' as const;
-          if (current?.clientId && current.clientId !== booking.clientId) return 'unchanged' as const;
+          if (clientId === previousClientId) return 'unchanged' as const;
           await tx.booking.update({ where: { id: booking.id }, data: { clientId } });
-          return current?.clientId ? ('relinked' as const) : ('linked' as const);
+          return previousClientId ? ('relinked' as const) : ('linked' as const);
         });
         counts[outcome]++;
       }

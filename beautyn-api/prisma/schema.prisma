@@ -462,10 +462,14 @@ model SalonClient {
   salon    Salon     @relation(fields: [salonId], references: [id], onDelete: Cascade)
   bookings Booking[]
 
-  // Match lookups (each is one indexed findFirst).
-  @@index([salonId, userId], map: "salon_clients_salon_user_idx")
-  @@index([salonId, altegioClientId], map: "salon_clients_salon_altegio_idx")
-  @@index([salonId, easyweekCustomerId], map: "salon_clients_salon_easyweek_idx")
+  // Exact identities are unique per salon: the database itself refuses a second row
+  // for the same account / CRM client, whatever a code path forgot to lock. NULLs are
+  // distinct in Postgres unique indexes, so rows without that identifier never clash.
+  // The linker catches the conflict (P2002) and re-matches instead of failing a booking.
+  @@unique([salonId, userId], map: "salon_clients_salon_user_unique")
+  @@unique([salonId, altegioClientId], map: "salon_clients_salon_altegio_unique")
+  @@unique([salonId, easyweekCustomerId], map: "salon_clients_salon_easyweek_unique")
+  // Name+contact is a rule, not an identity (two people may share a phone), so only indexed.
   @@index([salonId, phone, nameKey], map: "salon_clients_salon_phone_name_idx")
   @@index([salonId, email, nameKey], map: "salon_clients_salon_email_name_idx")
   // Owner list sorts.

@@ -18,62 +18,92 @@ const OLDEST_FIRST: Prisma.SalonClientOrderByWithRelationInput[] = [{ firstSeenA
 export const COUNTER_CHUNK = 200;
 
 /**
+ * How `assign` treats a booking that already has a client.
+ *  - `write`:  the booking changed; the identity decides, so the link may move.
+ *  - `attach`: nothing about the booking changed; only fill a missing link, never move one.
+ */
+export type AssignMode = 'write' | 'attach';
+
+export type Assignment = {
+  /** The client the booking belongs to now (null when it has no usable identity). */
+  clientId: string | null;
+  /** The client it belonged to before this decision (null when it had none). */
+  previousClientId: string | null;
+};
+
+/**
  * Resolves a booking's identity to a `salon_clients` row and keeps the per-client
- * counters current (BEA-71). Stateless: every method takes the db handle so the
- * handler can pass its transaction and the back-fill a plain client.
+ * counters current (BEA-71). Stateless: every method takes the db handle.
  *
  * Matching rule (decision 2026-09-20): an account id or the CRM's own client id match
  * on their own; a phone or an email only match together with the normalised name.
  * Contact details are shared — a family on one phone, the salon's number typed as a
  * placeholder — and a wrong merge is worse than a duplicate row. Rows are never merged
  * or deleted here; merge tooling is out of scope.
+ *
+ * Two layers keep concurrent syncs from creating one person twice or blanking each
+ * other's links, and neither depends on a caller remembering anything:
+ *  1. The database: exact identities are unique per salon, so a second row for the same
+ *     account / CRM client is refused; `link` re-matches on that conflict.
+ *  2. This class: `assign` is the one entry point for deciding a booking's client, and
+ *     it does lock → re-read → match → decide in that order, inside the caller's
+ *     transaction. Booking write paths call `assign`; nothing else.
  */
 @Injectable()
 export class SalonClientLinker {
   /**
-   * The id of the client this booking belongs to, creating the row when nobody
-   * matches, or `null` when the booking carries no usable identity at all.
+   * Decide which client a booking belongs to. Must run inside the caller's transaction,
+   * which then writes `clientId` on the booking and recomputes both returned clients.
+   *
+   * `bookingId` is null on create (the row does not exist yet). For an existing booking
+   * the current link is re-read under the lock — the row the caller loaded predates the
+   * transaction, and the other sync lane may have linked it meanwhile. A payload without
+   * any usable identity says nothing about the person, so the current link stays.
    */
-  async link(db: LinkerDb, identity: ClientIdentity): Promise<string | null> {
-    if (!hasIdentity(identity)) return null;
-    await this.lockSalon(db, identity.salonId);
-
-    const existing = await this.findMatch(db, identity);
-    if (!existing) {
-      const created = await db.salonClient.create({
-        data: {
-          salonId: identity.salonId,
-          displayName: identity.name.displayName,
-          firstName: identity.name.firstName,
-          lastName: identity.name.lastName,
-          nameKey: identity.nameKey,
-          phone: identity.phone,
-          email: identity.email,
-          avatarUrl: await this.avatarFor(db, identity.userId),
-          userId: identity.userId,
-          altegioClientId: identity.altegioClientId,
-          easyweekCustomerId: identity.easyweekCustomerId,
-          firstSeenAt: identity.bookingDatetime,
-        },
-        select: { id: true },
-      });
-      return created.id;
+  async assign(
+    tx: Prisma.TransactionClient,
+    args: { bookingId: string | null; identity: ClientIdentity; mode: AssignMode },
+  ): Promise<Assignment> {
+    await this.lockSalon(tx, args.identity.salonId);
+    const current = args.bookingId
+      ? ((await tx.booking.findUnique({ where: { id: args.bookingId }, select: { clientId: true } }))?.clientId ?? null)
+      : null;
+    if (args.mode === 'attach' && current) {
+      return { clientId: current, previousClientId: current };
     }
-
-    const data = await this.merge(db, existing, identity);
-    if (data) {
-      await db.salonClient.update({ where: { id: existing.id }, data });
-    }
-    return existing.id;
+    const linked = await this.link(tx, args.identity);
+    return { clientId: linked ?? current, previousClientId: current };
   }
 
   /**
-   * Serialise client writes for one salon. The two bookings-sync lanes can process a
-   * salon concurrently and there is no unique constraint to stop two transactions
-   * creating the same person twice, so every path that links or recomputes takes this
-   * first. Transaction-scoped: released at commit. It only protects anything when `db`
-   * is a transaction — on a bare client it is released as soon as the statement ends,
-   * which is why the back-fill and the purge wrap their work in `$transaction`.
+   * Match-or-create for an identity, or `null` when it has no usable key. The caller is
+   * expected to hold the salon lock (`assign` does); the unique indexes make a race
+   * survivable anyway: a create that loses the race re-matches, and a fill-only
+   * identifier that already belongs to another row is left unset rather than moved.
+   */
+  async link(db: LinkerDb, identity: ClientIdentity): Promise<string | null> {
+    if (!hasIdentity(identity)) return null;
+
+    const existing = await this.findMatch(db, identity);
+    if (!existing) {
+      try {
+        return await this.create(db, identity);
+      } catch (err) {
+        if (!isUniqueViolation(err)) throw err;
+        // Someone created this person between our lookup and our insert.
+        const raced = await this.findMatch(db, identity);
+        if (!raced) throw err;
+        return this.update(db, raced, identity);
+      }
+    }
+    return this.update(db, existing, identity);
+  }
+
+  /**
+   * Serialise client writes for one salon. Transaction-scoped: released at commit. On a
+   * bare client it is released as soon as the statement ends, so bulk paths wrap their
+   * work in `$transaction`. Belt to the unique indexes' braces: it also keeps the
+   * name+contact matches (which cannot be unique) and the counter recomputes serialised.
    *
    * $executeRaw, not $queryRaw: the function returns void, which Prisma cannot
    * deserialize as a result column.
@@ -194,6 +224,51 @@ export class SalonClientLinker {
     return clauses;
   }
 
+  // ---- writing ----------------------------------------------------------------------
+
+  private async create(db: LinkerDb, identity: ClientIdentity): Promise<string> {
+    const created = await db.salonClient.create({
+      data: {
+        salonId: identity.salonId,
+        displayName: identity.name.displayName,
+        firstName: identity.name.firstName,
+        lastName: identity.name.lastName,
+        nameKey: identity.nameKey,
+        phone: identity.phone,
+        email: identity.email,
+        avatarUrl: await this.avatarFor(db, identity.userId),
+        userId: identity.userId,
+        altegioClientId: identity.altegioClientId,
+        easyweekCustomerId: identity.easyweekCustomerId,
+        firstSeenAt: identity.bookingDatetime,
+      },
+      select: { id: true },
+    });
+    return created.id;
+  }
+
+  /**
+   * Apply the merge to a matched row. A fill-only identifier can collide with another
+   * row's — the same person split across two rows that the rule could not bridge (e.g.
+   * one from the app, one from the CRM, spelled differently). The database refuses
+   * that; the identifier is then left unset on this row rather than moved, since rows
+   * are never merged automatically.
+   */
+  private async update(db: LinkerDb, existing: SalonClient, identity: ClientIdentity): Promise<string> {
+    const data = await this.merge(db, existing, identity);
+    if (!data) return existing.id;
+    try {
+      await db.salonClient.update({ where: { id: existing.id }, data });
+    } catch (err) {
+      if (!isUniqueViolation(err)) throw err;
+      const { userId: _u, altegioClientId: _a, easyweekCustomerId: _e, ...withoutIdentifiers } = data;
+      if (Object.keys(withoutIdentifiers).length > 0) {
+        await db.salonClient.update({ where: { id: existing.id }, data: withoutIdentifiers });
+      }
+    }
+    return existing.id;
+  }
+
   // ---- merging ----------------------------------------------------------------------
 
   /**
@@ -246,4 +321,9 @@ export class SalonClientLinker {
     const user = await db.users.findUnique({ where: { id: userId }, select: { avatarUrl: true } });
     return user?.avatarUrl ?? null;
   }
+}
+
+/** Prisma's code for a unique-index violation. */
+export function isUniqueViolation(err: unknown): boolean {
+  return err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002';
 }

@@ -95,6 +95,10 @@ export function createFakeDb() {
       }),
     },
     booking: {
+      findUnique: jest.fn(async ({ where }: any) => {
+        const b = bookings.find((x) => x.id === where.id);
+        return b ? { clientId: b.clientId } : null;
+      }),
       count: jest.fn(async ({ where }: any) =>
         bookings.filter((b) => b.clientId === where.clientId && isActive(b)).length,
       ),

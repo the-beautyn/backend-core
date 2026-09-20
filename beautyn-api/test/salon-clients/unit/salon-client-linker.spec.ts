@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import { COUNTER_CHUNK, SalonClientLinker } from '../../../src/salon-clients/salon-client-linker.service';
 import { buildNameKey, type ClientIdentity } from '../../../src/salon-clients/client-identity';
 import { createFakeDb } from '../utils/fake-db';
@@ -38,9 +39,9 @@ describe('SalonClientLinker', () => {
       expect(db.salonClient.create).not.toHaveBeenCalled();
     });
 
-    it('takes the per-salon advisory lock before looking anything up', async () => {
+    it('assign takes the per-salon advisory lock before looking anything up', async () => {
       const db = createFakeDb();
-      await linker.link(db, identity({ userId: 'u1' }));
+      await linker.assign(db as any, { bookingId: null, identity: identity({ userId: 'u1' }), mode: 'write' });
       expect(db.$executeRaw).toHaveBeenCalledTimes(1);
       const [strings, ...values] = db.$executeRaw.mock.calls[0];
       expect(strings.join('?')).toContain('pg_advisory_xact_lock(hashtext(?))');
@@ -215,6 +216,110 @@ describe('SalonClientLinker', () => {
       expect(db.clients[0].avatarUrl).toBeNull();
       await linker.link(db, identity({ userId: 'u1', phone: P }));
       expect(db.clients[0].avatarUrl).toBe('https://cdn/u1.png');
+    });
+  });
+
+  // The one entry point booking paths use. Lock → re-read → match → decide, so no caller
+  // can get the order wrong, and the two sync lanes cannot undo each other.
+  describe('assign', () => {
+    const booking = (id: string, clientId: string | null) => ({ id, clientId, status: 'created', datetime: t('2026-06-01T10:00:00Z'), endDatetime: null });
+
+    it('locks before it reads or matches', async () => {
+      const db = createFakeDb();
+      db.bookings.push(booking('b1', null));
+      await linker.assign(db as any, { bookingId: 'b1', identity: identity({ userId: 'u1' }), mode: 'write' });
+      const lock = db.$executeRaw.mock.invocationCallOrder[0];
+      expect(lock).toBeLessThan(db.booking.findUnique.mock.invocationCallOrder[0]);
+      expect(lock).toBeLessThan(db.salonClient.findFirst.mock.invocationCallOrder[0]);
+    });
+
+    it('creates on a new booking and reports no previous client', async () => {
+      const db = createFakeDb();
+      const res = await linker.assign(db as any, { bookingId: null, identity: identity({ userId: 'u1' }), mode: 'write' });
+      expect(res).toEqual({ clientId: db.clients[0].id, previousClientId: null });
+      expect(db.booking.findUnique).not.toHaveBeenCalled();
+    });
+
+    it('write: moves the link when the identity points elsewhere, reporting both', async () => {
+      const db = createFakeDb();
+      const a = (await linker.link(db, identity({ userId: 'u1' })))!;
+      db.bookings.push(booking('b1', a));
+      const res = await linker.assign(db as any, { bookingId: 'b1', identity: identity({ altegioClientId: 'A9', name: { firstName: 'Марія', lastName: 'Коваль', displayName: null } }), mode: 'write' });
+      expect(res.previousClientId).toBe(a);
+      expect(res.clientId).not.toBe(a);
+    });
+
+    it('write: keeps the current link when the payload has no usable identity', async () => {
+      const db = createFakeDb();
+      db.bookings.push(booking('b1', 'client-current'));
+      const none = identity({ nameKey: null, name: { firstName: null, lastName: null, displayName: null } });
+      const res = await linker.assign(db as any, { bookingId: 'b1', identity: none, mode: 'write' });
+      expect(res).toEqual({ clientId: 'client-current', previousClientId: 'client-current' });
+      expect(db.salonClient.create).not.toHaveBeenCalled();
+    });
+
+    it('uses the link re-read under the lock, not the one the caller loaded earlier', async () => {
+      // The caller read the row unlinked; the other lane linked it while we waited.
+      const db = createFakeDb();
+      db.bookings.push(booking('b1', 'client-from-other-lane'));
+      const none = identity({ nameKey: null, name: { firstName: null, lastName: null, displayName: null } });
+      const res = await linker.assign(db as any, { bookingId: 'b1', identity: none, mode: 'write' });
+      expect(res.clientId).toBe('client-from-other-lane');
+    });
+
+    it('attach: fills a missing link', async () => {
+      const db = createFakeDb();
+      db.bookings.push(booking('b1', null));
+      const res = await linker.assign(db as any, { bookingId: 'b1', identity: identity({ userId: 'u1' }), mode: 'attach' });
+      expect(res.previousClientId).toBeNull();
+      expect(res.clientId).toBe(db.clients[0].id);
+    });
+
+    it('attach: never touches an existing link, and does not even match', async () => {
+      const db = createFakeDb();
+      db.bookings.push(booking('b1', 'client-current'));
+      const res = await linker.assign(db as any, { bookingId: 'b1', identity: identity({ userId: 'u1' }), mode: 'attach' });
+      expect(res).toEqual({ clientId: 'client-current', previousClientId: 'client-current' });
+      expect(db.salonClient.findFirst).not.toHaveBeenCalled();
+      expect(db.clients).toHaveLength(0);
+    });
+  });
+
+  // The database's unique indexes are the structural guarantee; the linker must survive
+  // the conflict they raise rather than fail the booking write that triggered it.
+  describe('unique-index conflicts', () => {
+    const conflict = () => new Prisma.PrismaClientKnownRequestError('Unique constraint failed', { code: 'P2002', clientVersion: 'test' });
+
+    it('re-matches when another transaction created the person first', async () => {
+      const db = createFakeDb();
+      const original = db.salonClient.create.getMockImplementation()!;
+      db.salonClient.create.mockImplementationOnce(async (args: any) => {
+        // Simulate the other lane inserting the same person just before us.
+        await original({ data: { ...args.data, displayName: 'Other lane' } });
+        throw conflict();
+      });
+      const id = await linker.link(db, identity({ userId: 'u1' }));
+      expect(db.clients).toHaveLength(1);
+      expect(id).toBe(db.clients[0].id);
+    });
+
+    it('leaves a fill-only identifier unset when another row already owns it', async () => {
+      const db = createFakeDb();
+      await linker.link(db, identity({ altegioClientId: 'A1', name: { firstName: 'Дмитро', lastName: 'Погребняк', displayName: null } })); // CRM row
+      const app = (await linker.link(db, identity({ userId: 'u1', name: { firstName: 'Dima', lastName: 'Pohrebniak', displayName: null } })))!; // app row, same person
+      db.salonClient.update.mockImplementationOnce(async () => { throw conflict(); });
+      // A booking carrying both identities matches the app row by account and would fill A1 onto it.
+      const id = await linker.link(db, identity({ userId: 'u1', altegioClientId: 'A1', phone: P, name: { firstName: 'Dima', lastName: 'Pohrebniak', displayName: null } }));
+      expect(id).toBe(app);
+      const retry = db.salonClient.update.mock.calls[1][0].data;
+      expect(retry).not.toHaveProperty('altegioClientId');
+      expect(retry).toHaveProperty('phone', P);
+    });
+
+    it('rethrows anything that is not a unique violation', async () => {
+      const db = createFakeDb();
+      db.salonClient.create.mockImplementationOnce(async () => { throw new Error('connection lost'); });
+      await expect(linker.link(db, identity({ userId: 'u1' }))).rejects.toThrow('connection lost');
     });
   });
 
