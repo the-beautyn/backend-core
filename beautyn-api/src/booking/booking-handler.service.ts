@@ -476,15 +476,24 @@ export class BookingHandlerService {
    * `last_visit_at`, which no write would otherwise refresh.
    */
   private async reconcileClientOnUnchanged(
-    existing: { id: string; salonId: string; clientId: string | null; status: string; datetime: Date; endDatetime: Date | null },
+    existing: {
+      id: string;
+      salonId: string;
+      clientId: string | null;
+      status: string;
+      datetime: Date;
+      endDatetime: Date | null;
+      altegioDetails?: { attendance: number | null } | null;
+    },
     identity: ClientIdentity,
   ): Promise<void> {
     if (existing.clientId) {
+      const visit = { ...existing, attended: existing.altegioDetails?.attendance === 1 };
       // One unlocked read decides whether a locked transaction is worth opening.
-      if (await this.clients.isLastVisitStale(this.prisma, existing)) {
+      if (await this.clients.isLastVisitStale(this.prisma, visit)) {
         await this.prisma.$transaction(async (tx) => {
           await this.clients.lockSalon(tx, existing.salonId);
-          await this.clients.refreshLastVisitIfStale(tx, existing);
+          await this.clients.refreshLastVisitIfStale(tx, visit);
         });
       }
       return;

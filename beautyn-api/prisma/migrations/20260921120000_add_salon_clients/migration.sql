@@ -13,9 +13,13 @@
 -- normalised email) shares its code with the booking handler, and a SQL copy of a
 -- libphonenumber + Unicode-normalisation rule would drift from what the sync writes.
 --
--- No unique constraints on the identity columns on purpose. The linker is the single
--- writer and serialises per salon with an advisory lock, and a unique would turn a CRM
--- data quirk into a failed booking write.
+-- The exact identities (account, Altegio client, EasyWeek customer) are UNIQUE per
+-- salon: the database itself refuses a second row for the same person, whatever a code
+-- path forgets. Postgres aborts the transaction on that violation, so the linker never
+-- provokes it — it holds a per-salon advisory lock across match and create, and checks
+-- ownership before writing an identifier. NULLs are distinct in Postgres unique indexes,
+-- so rows without an identifier never clash. Name+contact is a matching rule, not an
+-- identity (two people may share a phone), so it is a plain index.
 
 -- CreateTable
 CREATE TABLE "salon_clients" (
@@ -51,10 +55,13 @@ ALTER TABLE "salon_clients" ADD CONSTRAINT "salon_clients_salon_id_fkey" FOREIGN
 ALTER TABLE "bookings" ADD CONSTRAINT "bookings_client_id_fkey" FOREIGN KEY ("client_id") REFERENCES "salon_clients"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- CreateIndex
--- Match lookups: each step of the linker is one indexed findFirst within a salon.
-CREATE INDEX "salon_clients_salon_user_idx" ON "salon_clients"("salon_id", "user_id");
-CREATE INDEX "salon_clients_salon_altegio_idx" ON "salon_clients"("salon_id", "altegio_client_id");
-CREATE INDEX "salon_clients_salon_easyweek_idx" ON "salon_clients"("salon_id", "easyweek_customer_id");
+-- Exact identities: unique per salon (see header). Each is also the linker's lookup.
+CREATE UNIQUE INDEX "salon_clients_salon_user_unique" ON "salon_clients"("salon_id", "user_id");
+CREATE UNIQUE INDEX "salon_clients_salon_altegio_unique" ON "salon_clients"("salon_id", "altegio_client_id");
+CREATE UNIQUE INDEX "salon_clients_salon_easyweek_unique" ON "salon_clients"("salon_id", "easyweek_customer_id");
+
+-- CreateIndex
+-- Name+contact lookups: a rule, not an identity, so plain indexes.
 CREATE INDEX "salon_clients_salon_phone_name_idx" ON "salon_clients"("salon_id", "phone", "name_key");
 CREATE INDEX "salon_clients_salon_email_name_idx" ON "salon_clients"("salon_id", "email", "name_key");
 

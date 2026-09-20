@@ -340,6 +340,14 @@ describe('SalonClientLinker', () => {
       expect(db.salonClient.updateMany).not.toHaveBeenCalled();
     });
 
+    it('treats a future booking Altegio marked attended as a visit already', async () => {
+      const db = createFakeDb();
+      const id = (await linker.link(db, identity({ userId: 'u1' })))!;
+      const future = { clientId: id, status: 'created', datetime: t('2026-07-01T10:00:00Z'), endDatetime: null };
+      expect(await linker.isLastVisitStale(db, future, now)).toBe(false);
+      expect(await linker.isLastVisitStale(db, { ...future, attended: true }, now)).toBe(true);
+    });
+
     it.each([
       ['a future booking', { clientId: 'c', status: 'created', datetime: t('2026-07-01T10:00:00Z'), endDatetime: null }],
       ['a cancelled booking', { ...past, clientId: 'c', status: 'canceled' }],

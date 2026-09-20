@@ -114,11 +114,13 @@ export class SalonClientLinker {
    */
   async isLastVisitStale(
     db: LinkerDb,
-    booking: { clientId: string | null; status: string; datetime: Date; endDatetime: Date | null },
+    booking: { clientId: string | null; status: string; datetime: Date; endDatetime: Date | null; attended?: boolean },
     now = new Date(),
   ): Promise<boolean> {
     if (!booking.clientId || BOOKING_CANCELLED_STATUSES.includes(booking.status)) return false;
-    if ((booking.endDatetime ?? booking.datetime) >= now) return false;
+    // A visit once its time has passed — or as soon as Altegio marks it attended, which
+    // is not part of the booking's change-detection snapshot and so only shows up here.
+    if (!booking.attended && (booking.endDatetime ?? booking.datetime) >= now) return false;
     const stale = await db.salonClient.findFirst({
       where: { id: booking.clientId, OR: [{ lastVisitAt: null }, { lastVisitAt: { lt: booking.datetime } }] },
       select: { id: true },
@@ -134,7 +136,7 @@ export class SalonClientLinker {
    */
   async refreshLastVisitIfStale(
     db: LinkerDb,
-    booking: { clientId: string | null; status: string; datetime: Date; endDatetime: Date | null },
+    booking: { clientId: string | null; status: string; datetime: Date; endDatetime: Date | null; attended?: boolean },
     now = new Date(),
   ): Promise<void> {
     if (await this.isLastVisitStale(db, booking, now)) {

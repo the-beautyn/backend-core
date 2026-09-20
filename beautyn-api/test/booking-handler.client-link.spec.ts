@@ -207,7 +207,7 @@ describe('BookingHandlerService — salon client linking', () => {
       await (service as any).reconcileClientOnUnchanged(existing, identity);
       expect(linker.assign).not.toHaveBeenCalled();
       expect(model('booking').update).not.toHaveBeenCalled();
-      expect(linker.isLastVisitStale).toHaveBeenCalledWith(prisma, existing);
+      expect(linker.isLastVisitStale).toHaveBeenCalledWith(prisma, { ...existing, attended: false });
       expect(linker.lockSalon).not.toHaveBeenCalled();
       expect(linker.refreshLastVisitIfStale).not.toHaveBeenCalled();
     });
