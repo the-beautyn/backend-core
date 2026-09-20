@@ -205,12 +205,13 @@ export class BookingSyncService {
       // update and be overwritten with a stale number.
       await this.prisma.$transaction(async (tx) => {
         await this.clients.lockSalon(tx, salonId);
-        const purged = await tx.booking.findMany({
-          where: { id: { in: purgedFutureIds } },
-          select: { clientId: true },
-        });
+        // The candidates were picked before the lock; a handler may have synced one of
+        // them since (updatedAt moves on every write). Such a row is fresher than this
+        // list and is left alone rather than tombstoned.
+        const purgeWhere = { id: { in: purgedFutureIds }, updatedAt: { lte: now } };
+        const purged = await tx.booking.findMany({ where: purgeWhere, select: { clientId: true } });
         await tx.booking.updateMany({
-          where: { id: { in: purgedFutureIds } },
+          where: purgeWhere,
           data: { status: 'deleted', cancelledAt: now },
         });
         await this.clients.recomputeCounters(

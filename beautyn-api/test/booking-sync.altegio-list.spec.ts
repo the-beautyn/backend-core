@@ -76,6 +76,8 @@ describe('BookingSyncService.rebaseFromCrm — Altegio list reconciliation', () 
     expect(arg.data.status).toBe('deleted');
     expect(arg.data.cancelledAt).toBeInstanceOf(Date); // stamp the purge moment as the cancellation time
     expect(arg.where.id.in).toEqual(['b2']); // future absent → cancelled; past 'b3' untouched
+    // Optimistic guard: a candidate a handler synced after the list was built is left alone.
+    expect(arg.where.updatedAt).toEqual({ lte: arg.data.cancelledAt });
   });
 
   // BEA-71: the purge is the one booking write that bypasses the handler, so it

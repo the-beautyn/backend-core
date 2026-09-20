@@ -86,18 +86,34 @@ export class SalonClientLinker {
    * path. One indexed read when the booking is a past visit the row does not reflect
    * yet, and a recompute only then — so the counters heal within one slow-lane cycle.
    */
+  async isLastVisitStale(
+    db: LinkerDb,
+    booking: { clientId: string | null; status: string; datetime: Date; endDatetime: Date | null },
+    now = new Date(),
+  ): Promise<boolean> {
+    if (!booking.clientId || BOOKING_CANCELLED_STATUSES.includes(booking.status)) return false;
+    if ((booking.endDatetime ?? booking.datetime) >= now) return false;
+    const stale = await db.salonClient.findFirst({
+      where: { id: booking.clientId, OR: [{ lastVisitAt: null }, { lastVisitAt: { lt: booking.datetime } }] },
+      select: { id: true },
+    });
+    return Boolean(stale);
+  }
+
+  /**
+   * Re-checks and recomputes. Meant to run inside a transaction that holds the salon
+   * lock, after a cheap unlocked `isLastVisitStale` said it is worth opening one — so
+   * the common "nothing to do" case costs one read, and the recompute can never
+   * overwrite a concurrent writer's fresher counters.
+   */
   async refreshLastVisitIfStale(
     db: LinkerDb,
     booking: { clientId: string | null; status: string; datetime: Date; endDatetime: Date | null },
     now = new Date(),
   ): Promise<void> {
-    if (!booking.clientId || BOOKING_CANCELLED_STATUSES.includes(booking.status)) return;
-    if ((booking.endDatetime ?? booking.datetime) >= now) return;
-    const stale = await db.salonClient.findFirst({
-      where: { id: booking.clientId, OR: [{ lastVisitAt: null }, { lastVisitAt: { lt: booking.datetime } }] },
-      select: { id: true },
-    });
-    if (stale) await this.recomputeCounters(db, [booking.clientId], now);
+    if (await this.isLastVisitStale(db, booking, now)) {
+      await this.recomputeCounters(db, [booking.clientId], now);
+    }
   }
 
   /**

@@ -96,9 +96,11 @@ async function main() {
         const outcome = await prisma.$transaction(async (tx) => {
           const clientId = await linker.link(tx, identity);
           if (!clientId) return 'noIdentity' as const;
-          // Re-read under the lock: a live sync may have linked this booking since the batch was read.
+          // Re-read under the lock: a live sync may have linked this booking since the batch
+          // was read. Its link came from a fresher payload than ours, so it wins.
           const current = await tx.booking.findUnique({ where: { id: booking.id }, select: { clientId: true } });
           if (current?.clientId === clientId) return 'unchanged' as const;
+          if (current?.clientId && current.clientId !== booking.clientId) return 'unchanged' as const;
           await tx.booking.update({ where: { id: booking.id }, data: { clientId } });
           return current?.clientId ? ('relinked' as const) : ('linked' as const);
         });

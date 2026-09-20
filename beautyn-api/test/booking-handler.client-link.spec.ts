@@ -46,6 +46,8 @@ describe('BookingHandlerService — salon client linking', () => {
     link: jest.fn().mockResolvedValue('client-new'),
     recomputeCounters: jest.fn().mockResolvedValue(undefined),
     refreshLastVisitIfStale: jest.fn().mockResolvedValue(undefined),
+    isLastVisitStale: jest.fn().mockResolvedValue(false),
+    lockSalon: jest.fn().mockResolvedValue(undefined),
   });
 
   describe('Altegio', () => {
@@ -178,22 +180,36 @@ describe('BookingHandlerService — salon client linking', () => {
     const identity = { salonId, userId: 'u1' } as any;
     const row = { status: 'created', datetime: new Date(when), endDatetime: null };
 
-    it('only checks the last visit when the row already has a client', async () => {
+    it('costs one unlocked read when the row already has a client and nothing is stale', async () => {
       const { prisma, model } = fakePrisma();
       const linker = linkerStub();
       const service = new BookingHandlerService(prisma, linker as any);
-      const existing = { id: 'b1', clientId: 'client-old', ...row };
+      const existing = { id: 'b1', salonId, clientId: 'client-old', ...row };
       await (service as any).reconcileClientOnUnchanged(existing, identity);
       expect(linker.link).not.toHaveBeenCalled();
       expect(model('booking').update).not.toHaveBeenCalled();
-      expect(linker.refreshLastVisitIfStale).toHaveBeenCalledWith(prisma, existing);
+      expect(linker.isLastVisitStale).toHaveBeenCalledWith(prisma, existing);
+      expect(linker.lockSalon).not.toHaveBeenCalled();
+      expect(linker.refreshLastVisitIfStale).not.toHaveBeenCalled();
+    });
+
+    it('recomputes a stale last visit inside a locked transaction', async () => {
+      const { prisma, tx } = fakePrisma();
+      const linker = { ...linkerStub(), isLastVisitStale: jest.fn().mockResolvedValue(true) };
+      const service = new BookingHandlerService(prisma, linker as any);
+      const existing = { id: 'b1', salonId, clientId: 'client-old', ...row };
+      await (service as any).reconcileClientOnUnchanged(existing, identity);
+      expect(linker.lockSalon.mock.calls[0][0]).toBe(tx);
+      expect(linker.lockSalon.mock.calls[0][1]).toBe(salonId);
+      expect(linker.refreshLastVisitIfStale.mock.calls[0][0]).toBe(tx);
+      expect(linker.lockSalon.mock.invocationCallOrder[0]).toBeLessThan(linker.refreshLastVisitIfStale.mock.invocationCallOrder[0]);
     });
 
     it('links, stores the id and recomputes, without a booking version', async () => {
       const { prisma, tx, model } = fakePrisma();
       const linker = linkerStub();
       const service = new BookingHandlerService(prisma, linker as any);
-      await (service as any).reconcileClientOnUnchanged({ id: 'b1', clientId: null, ...row }, identity);
+      await (service as any).reconcileClientOnUnchanged({ id: 'b1', salonId, clientId: null, ...row }, identity);
       expect(linker.link.mock.calls[0][0]).toBe(tx);
       expect(linker.link.mock.calls[0][1]).toBe(identity);
       expect(model('booking').update).toHaveBeenCalledWith({ where: { id: 'b1' }, data: { clientId: 'client-new' } });
@@ -205,7 +221,7 @@ describe('BookingHandlerService — salon client linking', () => {
       const { prisma, model } = fakePrisma();
       const linker = { ...linkerStub(), link: jest.fn().mockResolvedValue(null) };
       const service = new BookingHandlerService(prisma, linker as any);
-      await (service as any).reconcileClientOnUnchanged({ id: 'b1', clientId: null, ...row }, identity);
+      await (service as any).reconcileClientOnUnchanged({ id: 'b1', salonId, clientId: null, ...row }, identity);
       expect(model('booking').update).not.toHaveBeenCalled();
       expect(linker.refreshLastVisitIfStale).not.toHaveBeenCalled();
       expect(linker.recomputeCounters).not.toHaveBeenCalled();
