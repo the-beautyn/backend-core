@@ -3,6 +3,7 @@ import {
   Get,
   Query,
   BadRequestException,
+  InternalServerErrorException,
   Res,
   Post,
   Body,
@@ -99,6 +100,10 @@ export class AltegioWebhookController {
   async confirm(@Body() dto: AltegioConfirmDto) {
     this.log.info('Confirming Altegio registration', { dto });
     const result = await this.service.confirm({ code: dto.code, externalSalonIds: dto.salon_ids });
+    if (result === 'link_failed') {
+      // Not a success: neither Altegio nor the owner may take the pairing as done.
+      throw new InternalServerErrorException('Failed to link Altegio salon');
+    }
     if (result !== 'ok') {
       throw new BadRequestException('Invalid or expired code');
     }
