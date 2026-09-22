@@ -35,11 +35,20 @@ describe('Onboarding EasyWeek (e2e)', () => {
     const prismaMock: Partial<PrismaService> = {
       $connect: jest.fn(),
       $disconnect: jest.fn(),
-      onboardingStep: { upsert: jest.fn().mockResolvedValue(undefined) } as any,
+      onboardingStep: {
+        updateMany: jest.fn().mockResolvedValue({ count: 0 }),
+        upsert: jest.fn().mockResolvedValue(undefined),
+      } as any,
       salon: {
         findFirst: jest.fn().mockResolvedValue(null),
         delete: jest.fn().mockResolvedValue(undefined),
         create: jest.fn().mockResolvedValue({ id: 'salon-1' }),
+        updateMany: jest.fn().mockResolvedValue({ count: 0 }),
+      } as any,
+      // BEA-75: a linked salon joins the owner brand; none here, so brand_id stays null.
+      brandMember: {
+        findMany: jest.fn().mockResolvedValue([]),
+        updateMany: jest.fn().mockResolvedValue({ count: 0 }),
       } as any,
     };
 

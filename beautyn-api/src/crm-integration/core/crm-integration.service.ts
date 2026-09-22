@@ -5,6 +5,7 @@ import { AccountRegistryService } from '@crm/account-registry';
 import { TokenStorageService } from '@crm/token-storage';
 import { CrmAdapterService } from '@crm/adapter';
 import { createChildLogger } from '@shared/logger';
+import { attachSalonToOwnerBrand } from '../../brand/attach-salon-to-owner-brand';
 import type { BookingDto } from '../../booking/dto/booking.response.dto';
 
 import {
@@ -67,6 +68,7 @@ export class CrmIntegrationService {
             data: { ownerUserId: userId },
           });
         }
+        await this.attachToOwnerBrand(existing.id, userId);
         salonIds.push(existing.id);
         continue;
       }
@@ -75,6 +77,7 @@ export class CrmIntegrationService {
         data: { ownerUserId: userId, externalSalonId: ext, provider: CrmType.ALTEGIO },
         select: { id: true },
       });
+      await this.attachToOwnerBrand(salon.id, userId);
 
       // Persist non-secret account identifiers in Account Registry
       await this.accounts.setAltegio(salon.id, { externalSalonId: Number(ext) });
@@ -131,6 +134,7 @@ export class CrmIntegrationService {
             bookingUrl,
           },
         });
+        await this.attachToOwnerBrand(existing.id, userId);
         await this.accounts.setEasyWeek(existing.id, { workspaceSlug, locationId: ext });
         await this.tokens.store(existing.id, CrmType.EASYWEEK, { apiKey: authToken });
         salonIds.push(existing.id);
@@ -141,6 +145,7 @@ export class CrmIntegrationService {
         data: { ownerUserId: userId, externalSalonId: ext, provider: CrmType.EASYWEEK, bookingUrl },
         select: { id: true },
       });
+      await this.attachToOwnerBrand(salon.id, userId);
       // Persist non-secret identifiers
       await this.accounts.setEasyWeek(salon.id, { workspaceSlug, locationId: ext });
       // Store secret/API key in Token Storage
@@ -148,6 +153,16 @@ export class CrmIntegrationService {
       salonIds.push(salon.id);
     }
     return { salonIds };
+  }
+
+  // BEA-75: a salon linked after the owner's brand exists (late Altegio callback,
+  // re-pair, second CRM) must still join that brand, or the panel never sees it.
+  // Brand creation covers the other order; see attachSalonToOwnerBrand.
+  private async attachToOwnerBrand(salonId: string, userId: string): Promise<void> {
+    const result = await attachSalonToOwnerBrand(this.prisma, salonId, userId);
+    if (result === 'ambiguous') {
+      this.log.warn('Salon left without a brand: owner belongs to several brands', { salonId, userId });
+    }
   }
 
   //** CRM Sync Scheduler **//

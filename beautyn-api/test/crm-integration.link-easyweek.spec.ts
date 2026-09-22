@@ -9,7 +9,8 @@ describe('CrmIntegrationService.linkEasyWeek', () => {
   const userId = 'user-1';
   const uuid = '25fd5793-3025-40db-85e9-bcb7ebbf11d7';
   let prisma: {
-    salon: { findFirst: jest.Mock; update: jest.Mock; create: jest.Mock };
+    salon: { findFirst: jest.Mock; update: jest.Mock; create: jest.Mock; updateMany: jest.Mock };
+    brandMember: { findMany: jest.Mock; updateMany: jest.Mock };
   };
   let accounts: { setEasyWeek: jest.Mock };
   let tokens: { store: jest.Mock };
@@ -21,6 +22,12 @@ describe('CrmIntegrationService.linkEasyWeek', () => {
         findFirst: jest.fn(),
         update: jest.fn().mockResolvedValue({}),
         create: jest.fn().mockResolvedValue({ id: 'salon-new' }),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+      },
+      // BEA-75: the owner already has a brand; every linked salon must join it.
+      brandMember: {
+        findMany: jest.fn().mockResolvedValue([{ brandId: 'brand-1' }]),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
       },
     };
     accounts = { setEasyWeek: jest.fn().mockResolvedValue(undefined) };
@@ -111,5 +118,40 @@ describe('CrmIntegrationService.linkEasyWeek', () => {
 
     await expect(link()).rejects.toThrow(/already linked/);
     expect(tokens.store).not.toHaveBeenCalled();
+    expect(prisma.salon.updateMany).not.toHaveBeenCalled();
+  });
+
+  // BEA-75: a salon linked after the brand was created stayed at brand_id = null and
+  // never showed up in the owner panel.
+  describe('joining the owner brand', () => {
+    const attachedToBrand = (salonId: string) => ({
+      where: { id: salonId, ownerUserId: userId, brandId: null },
+      data: { brandId: 'brand-1' },
+    });
+
+    it('puts a freshly created salon into the brand', async () => {
+      prisma.salon.findFirst.mockResolvedValue(null);
+      await link();
+      expect(prisma.salon.updateMany).toHaveBeenCalledWith(attachedToBrand('salon-new'));
+    });
+
+    it('puts an adopted salon into the brand', async () => {
+      prisma.salon.findFirst.mockResolvedValue({ id: 'salon-old', ownerUserId: null, bookingUrl: null });
+      await link();
+      expect(prisma.salon.updateMany).toHaveBeenCalledWith(attachedToBrand('salon-old'));
+    });
+
+    it('puts a re-linked salon of the same owner into the brand', async () => {
+      prisma.salon.findFirst.mockResolvedValue({ id: 'salon-old', ownerUserId: userId, bookingUrl: null });
+      await link();
+      expect(prisma.salon.updateMany).toHaveBeenCalledWith(attachedToBrand('salon-old'));
+    });
+
+    it('leaves brand_id alone while the owner has no brand yet', async () => {
+      prisma.brandMember.findMany.mockResolvedValue([]);
+      prisma.salon.findFirst.mockResolvedValue(null);
+      await expect(link()).resolves.toEqual({ salonIds: ['salon-new'] });
+      expect(prisma.salon.updateMany).not.toHaveBeenCalled();
+    });
   });
 });
