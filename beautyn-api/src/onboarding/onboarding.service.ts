@@ -45,13 +45,22 @@ export class OnboardingService {
     return { success: true };
   }
 
+  // The CRM step is done; move on to Brand only from CRM. A link after the brand
+  // exists (re-pair, second CRM — BEA-75) used to rewind a completed owner to BRAND,
+  // where the panel then failed with "User already has a brand".
   async markCrmLinkedByUser(userId: string): Promise<void> {
     if (!userId) throw new BadRequestException('user required');
-    await this.prisma.onboardingStep.upsert({
-      where: { userId },
-      create: { userId, crmConnected: true, currentStep: 'BRAND' },
-      update: { crmConnected: true, currentStep: 'BRAND' },
+    const advanced = await this.prisma.onboardingStep.updateMany({
+      where: { userId, currentStep: 'CRM' },
+      data: { crmConnected: true, currentStep: 'BRAND' },
     });
+    if (advanced.count === 0) {
+      await this.prisma.onboardingStep.upsert({
+        where: { userId },
+        create: { userId, crmConnected: true, currentStep: 'BRAND' },
+        update: { crmConnected: true },
+      });
+    }
   }
 
   async generateAltegioPairCode(userId: string) {
