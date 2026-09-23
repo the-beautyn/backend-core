@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../shared/database/prisma.service';
 import { Brand, BrandMember, Salon } from '@prisma/client';
@@ -23,6 +23,11 @@ export class BrandRepository {
       // BEA-75: same lock as attachSalonToOwnerBrand, so a CRM link landing while the
       // brand is being created cannot slip between the two brand_id writers.
       await lockOwnerBrand(tx, userId);
+      // The service's "one brand per user" check ran before this transaction, so two
+      // concurrent creates both pass it. Re-checked under the lock, the second one
+      // fails instead of leaving the user with two brands and later salons orphaned.
+      const owned = await tx.brandMember.findFirst({ where: { userId, role: 'owner' }, select: { id: true } });
+      if (owned) throw new BadRequestException('User already has a brand');
       const brand = await tx.brand.create({ data: { name } });
       const firstSalon = await tx.salon.findFirst({
         where: { ownerUserId: userId, deletedAt: null },
