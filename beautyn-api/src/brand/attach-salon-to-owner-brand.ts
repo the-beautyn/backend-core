@@ -1,7 +1,7 @@
-import type { PrismaClient } from '@prisma/client';
+import type { Prisma, PrismaClient } from '@prisma/client';
 
 /**
- * BEA-75 — put a salon the user owns into the user's brand.
+ * BEA-75 — put a salon the user owns into the brand the user owns.
  *
  * `salons.brand_id` has exactly two writers, and both guard on `brand_id IS NULL`:
  *  - `BrandRepository.createBrandWithOwner` — the brand is created after the salons
@@ -10,40 +10,58 @@ import type { PrismaClient } from '@prisma/client';
  *    Altegio callback, a re-pair, a second CRM). Every CRM link path and the
  *    back-fill script call it, so no path can forget the attach.
  *
- * Both writes are guarded `updateMany`s: each is atomic on its own and a re-run is a
- * no-op, so the caller needs neither a transaction nor a lock. If the second write
- * fails the salon is still in the brand and the next call (or the back-fill) fills
- * `last_selected_salon_id`.
+ * Both writers take the owner's advisory lock (`lockOwnerBrand`) for the length of
+ * their transaction. Without it a brand creation and a late link can interleave so
+ * that each sees the other's rows as not yet there — the brand's `updateMany` runs
+ * before the salon commits, the link's membership lookup runs before the membership
+ * commits — and both commit with the salon still orphaned. With the lock, whichever
+ * runs second sees what the first committed and the guarded writes finish the job.
  *
- * A user in several brands is out of scope (BEA-75): the salon is left without a
- * brand and `'ambiguous'` is returned for the caller to log.
+ * Only an `owner` membership counts: the CRM link endpoints accept any signed-in
+ * user, and a manager's salon must not land in the brand they merely work for. A
+ * user who owns several brands is out of scope (BEA-75): the salon is left without
+ * a brand and `'ambiguous'` is returned for the caller to log.
  */
 
 export type AttachResult = 'attached' | 'unchanged' | 'no_brand' | 'ambiguous';
 
-/** The slice of a Prisma client this needs — fits `PrismaService`, a transaction client and a script's `PrismaClient`. */
-export type AttachDb = Pick<PrismaClient, 'brandMember' | 'salon'>;
+/** Fits `PrismaService` and a script's `PrismaClient`. */
+export type AttachDb = Pick<PrismaClient, '$transaction'>;
+
+/**
+ * Serialises everything that decides which brand an owner's salons belong to.
+ * Transaction-scoped: released at commit/rollback, so callers only have to hold it
+ * inside the transaction that does the writes.
+ */
+export async function lockOwnerBrand(tx: Prisma.TransactionClient, userId: string): Promise<void> {
+  // $executeRaw, not $queryRaw: the lock function returns void.
+  await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${'owner_brand:' + userId}))`;
+}
 
 export async function attachSalonToOwnerBrand(db: AttachDb, salonId: string, userId: string): Promise<AttachResult> {
-  const memberships = await db.brandMember.findMany({
-    where: { userId },
-    select: { brandId: true },
-    orderBy: { createdAt: 'asc' },
-    take: 2,
-  });
-  if (memberships.length === 0) return 'no_brand';
-  if (memberships.length > 1) return 'ambiguous';
-  const { brandId } = memberships[0];
+  return db.$transaction(async (tx) => {
+    await lockOwnerBrand(tx, userId);
 
-  const { count } = await db.salon.updateMany({
-    where: { id: salonId, ownerUserId: userId, brandId: null },
-    data: { brandId },
+    const memberships = await tx.brandMember.findMany({
+      where: { userId, role: 'owner' },
+      select: { brandId: true },
+      orderBy: { createdAt: 'asc' },
+      take: 2,
+    });
+    if (memberships.length === 0) return 'no_brand';
+    if (memberships.length > 1) return 'ambiguous';
+    const { brandId } = memberships[0];
+
+    const { count } = await tx.salon.updateMany({
+      where: { id: salonId, ownerUserId: userId, brandId: null },
+      data: { brandId },
+    });
+    // The panel opens on the member's selected salon; an owner whose brand had none
+    // gets this one, an owner who already picked one keeps their pick.
+    await tx.brandMember.updateMany({
+      where: { brandId, userId, lastSelectedSalonId: null },
+      data: { lastSelectedSalonId: salonId },
+    });
+    return count > 0 ? 'attached' : 'unchanged';
   });
-  // The panel opens on the member's selected salon; an owner whose brand had none
-  // gets this one, an owner who already picked one keeps their pick.
-  await db.brandMember.updateMany({
-    where: { brandId, userId, lastSelectedSalonId: null },
-    data: { lastSelectedSalonId: salonId },
-  });
-  return count > 0 ? 'attached' : 'unchanged';
 }

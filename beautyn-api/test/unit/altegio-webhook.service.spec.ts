@@ -4,16 +4,18 @@ import { AltegioWebhookService } from '../../src/crm-integration/webhooks/altegi
 
 // The confirm webhook used to burn the pairing code, swallow a failed link at debug
 // level, mark the CRM onboarding step done and answer 'ok' regardless — so an owner
-// could reach the Brand step with no salon at all (BEA-75).
+// could reach the Brand step with no salon at all (BEA-75). The code is now claimed
+// atomically up front and handed back when nothing linked.
 describe('AltegioWebhookService.confirm', () => {
   const code = '123456';
   const userId = 'user-1';
   let row: { id: string; userId: string; codeHash: string; usedAt: Date | null; attempts: number; expiresAt: Date };
-  let prisma: { crmPairingCode: { findFirst: jest.Mock; update: jest.Mock } };
+  let prisma: { crmPairingCode: { findFirst: jest.Mock; update: jest.Mock; updateMany: jest.Mock } };
   let partner: { confirmRegistration: jest.Mock };
   let onboarding: { markCrmLinkedByUser: jest.Mock };
   let crm: { linkAltegio: jest.Mock };
   let service: AltegioWebhookService;
+  let logs: { error: jest.SpyInstance; warn: jest.SpyInstance };
 
   beforeEach(() => {
     process.env.PAIRING_CODE_PEPPER = 'test-pepper';
@@ -29,58 +31,108 @@ describe('AltegioWebhookService.confirm', () => {
       crmPairingCode: {
         findFirst: jest.fn().mockResolvedValue(row),
         update: jest.fn().mockResolvedValue(undefined),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
       },
     };
     partner = { confirmRegistration: jest.fn().mockResolvedValue(undefined) };
     onboarding = { markCrmLinkedByUser: jest.fn().mockResolvedValue(undefined) };
     crm = { linkAltegio: jest.fn().mockResolvedValue({ salonIds: ['salon-1'] }) };
     service = new AltegioWebhookService(prisma as any, partner as any, onboarding as any, crm as any);
-    jest.spyOn((service as any).logger, 'error').mockImplementation(() => undefined);
+    const logger = (service as any).logger;
+    logs = {
+      error: jest.spyOn(logger, 'error').mockImplementation(() => undefined),
+      warn: jest.spyOn(logger, 'warn').mockImplementation(() => undefined),
+    };
   });
 
   const confirm = (externalSalonIds = ['1312212']) => service.confirm({ code, externalSalonIds });
-  const codeBurned = () =>
-    prisma.crmPairingCode.update.mock.calls.some(([args]) => args.where.id === row.id && args.data.usedAt);
+  const conflict = () => new BadRequestException('Altegio salon already linked to another user');
+  const codeClaimed = () =>
+    prisma.crmPairingCode.updateMany.mock.calls.some(
+      ([args]) => args.where.id === row.id && args.where.usedAt === null && args.data.usedAt instanceof Date,
+    );
+  const codeReleased = () =>
+    prisma.crmPairingCode.update.mock.calls.some(([args]) => args.where.id === row.id && args.data.usedAt === null);
 
-  it('links, burns the code and marks the CRM step on success', async () => {
+  it('claims the code, links and marks the CRM step on success', async () => {
     await expect(confirm()).resolves.toBe('ok');
 
     expect(crm.linkAltegio).toHaveBeenCalledWith({ userId, externalSalonIds: ['1312212'] });
-    expect(codeBurned()).toBe(true);
+    expect(codeClaimed()).toBe(true);
+    expect(codeReleased()).toBe(false);
     expect(onboarding.markCrmLinkedByUser).toHaveBeenCalledWith(userId);
-    // The code is burned only after the link, never before.
-    const linkOrder = crm.linkAltegio.mock.invocationCallOrder[0];
-    const burnOrder = prisma.crmPairingCode.update.mock.invocationCallOrder[0];
-    expect(linkOrder).toBeLessThan(burnOrder);
+    // The claim guards the whole partner/link work, so it comes before the link.
+    const [claimOrder] = prisma.crmPairingCode.updateMany.mock.invocationCallOrder;
+    const [linkOrder] = crm.linkAltegio.mock.invocationCallOrder;
+    expect(claimOrder).toBeLessThan(linkOrder);
   });
 
-  it('reports link_failed, keeps the code valid and leaves onboarding alone when linking blows up', async () => {
+  it('answers invalid when another confirm already claimed the code', async () => {
+    prisma.crmPairingCode.updateMany.mockResolvedValue({ count: 0 });
+
+    await expect(confirm()).resolves.toBe('invalid');
+    expect(partner.confirmRegistration).not.toHaveBeenCalled();
+    expect(crm.linkAltegio).not.toHaveBeenCalled();
+  });
+
+  it('reports link_failed, hands the code back and leaves onboarding alone when linking blows up', async () => {
     crm.linkAltegio.mockRejectedValue(new Error('db down'));
 
     await expect(confirm()).resolves.toBe('link_failed');
 
-    expect(codeBurned()).toBe(false);
+    expect(codeReleased()).toBe(true);
     expect(onboarding.markCrmLinkedByUser).not.toHaveBeenCalled();
-    expect((service as any).logger.error).toHaveBeenCalledWith(expect.stringContaining('db down'), expect.anything());
+    expect(logs.error).toHaveBeenCalledWith(expect.stringContaining('db down'), expect.anything());
   });
 
-  it('surfaces a salon owned by someone else as the 400 it is, without burning the code', async () => {
-    crm.linkAltegio.mockRejectedValue(new BadRequestException('Altegio salon already linked to another user'));
+  it('surfaces a salon owned by someone else as the 400 it is, handing the code back', async () => {
+    crm.linkAltegio.mockRejectedValue(conflict());
 
     await expect(confirm()).rejects.toThrow(/already linked to another user/);
 
-    expect(codeBurned()).toBe(false);
+    expect(codeReleased()).toBe(true);
     expect(onboarding.markCrmLinkedByUser).not.toHaveBeenCalled();
   });
 
-  it('is ok when at least one of several salons links', async () => {
-    crm.linkAltegio.mockRejectedValueOnce(new Error('first one broke')).mockResolvedValueOnce({ salonIds: ['salon-2'] });
+  it('hands the code back when the Altegio partner call fails', async () => {
+    partner.confirmRegistration.mockRejectedValue(new Error('altegio 500'));
 
-    await expect(confirm(['1', '2'])).resolves.toBe('ok');
+    await expect(confirm()).rejects.toThrow('altegio 500');
+    expect(codeReleased()).toBe(true);
+    expect(crm.linkAltegio).not.toHaveBeenCalled();
+  });
 
-    expect(crm.linkAltegio).toHaveBeenCalledTimes(2);
-    expect(codeBurned()).toBe(true);
-    expect(onboarding.markCrmLinkedByUser).toHaveBeenCalledWith(userId);
+  describe('several salons in one install', () => {
+    it('is ok when one salon fails for a technical reason and another links', async () => {
+      crm.linkAltegio.mockRejectedValueOnce(new Error('first one broke')).mockResolvedValueOnce({ salonIds: ['salon-2'] });
+
+      await expect(confirm(['1', '2'])).resolves.toBe('ok');
+
+      expect(crm.linkAltegio).toHaveBeenCalledTimes(2);
+      expect(codeReleased()).toBe(false);
+      expect(onboarding.markCrmLinkedByUser).toHaveBeenCalledWith(userId);
+    });
+
+    it('does not let one salon owned by someone else block the others', async () => {
+      crm.linkAltegio.mockRejectedValueOnce(conflict()).mockResolvedValueOnce({ salonIds: ['salon-2'] });
+
+      await expect(confirm(['1', '2'])).resolves.toBe('ok');
+
+      expect(crm.linkAltegio).toHaveBeenCalledTimes(2);
+      expect(logs.warn).toHaveBeenCalledWith(expect.stringContaining('salon 1 not linked'));
+      expect(codeReleased()).toBe(false);
+      expect(onboarding.markCrmLinkedByUser).toHaveBeenCalledWith(userId);
+    });
+
+    it('surfaces the conflict only when nothing at all linked', async () => {
+      crm.linkAltegio.mockRejectedValueOnce(conflict()).mockRejectedValueOnce(new Error('second one broke'));
+
+      await expect(confirm(['1', '2'])).rejects.toThrow(/already linked to another user/);
+
+      expect(crm.linkAltegio).toHaveBeenCalledTimes(2);
+      expect(codeReleased()).toBe(true);
+      expect(onboarding.markCrmLinkedByUser).not.toHaveBeenCalled();
+    });
   });
 
   it('still rejects an unknown, used or expired code before touching Altegio', async () => {
@@ -95,5 +147,6 @@ describe('AltegioWebhookService.confirm', () => {
 
     expect(partner.confirmRegistration).not.toHaveBeenCalled();
     expect(crm.linkAltegio).not.toHaveBeenCalled();
+    expect(codeClaimed()).toBe(false);
   });
 });

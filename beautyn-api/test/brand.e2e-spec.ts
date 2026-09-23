@@ -20,6 +20,7 @@ describe('Brand (e2e)', () => {
     $connect: jest.fn(),
     $disconnect: jest.fn(),
     $transaction: jest.fn().mockImplementation(async (cb: any) => cb(prismaMock)),
+    $executeRaw: jest.fn().mockResolvedValue(0) as any,
     brand: {
       create: jest.fn().mockImplementation(({ data }: any) => {
         const now = new Date();

@@ -35,6 +35,8 @@ describe('Onboarding EasyWeek (e2e)', () => {
     const prismaMock: Partial<PrismaService> = {
       $connect: jest.fn(),
       $disconnect: jest.fn(),
+      $transaction: jest.fn((cb: any) => cb(prismaMock)) as any,
+      $executeRaw: jest.fn().mockResolvedValue(0) as any,
       onboardingStep: {
         updateMany: jest.fn().mockResolvedValue({ count: 0 }),
         upsert: jest.fn().mockResolvedValue(undefined),

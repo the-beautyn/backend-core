@@ -2,6 +2,7 @@ import { BrandRepository } from '../../src/brand/brand.repository';
 
 describe('BrandRepository', () => {
   const tx = {
+    $executeRaw: jest.fn(),
     brand: { create: jest.fn() },
     salon: { findFirst: jest.fn(), updateMany: jest.fn() },
     brandMember: { create: jest.fn() },
@@ -22,6 +23,20 @@ describe('BrandRepository', () => {
     tx.salon.updateMany.mockResolvedValue({ count: 0 });
     tx.brandMember.create.mockResolvedValue({});
     tx.onboardingStep.updateMany.mockResolvedValue({ count: 1 });
+  });
+
+  // BEA-75: brand creation and a late CRM link both write salon.brand_id; the
+  // owner lock keeps them from interleaving into an orphaned salon.
+  it('takes the owner lock before anything else in the transaction', async () => {
+    tx.$executeRaw.mockResolvedValue(0);
+    const repo = new BrandRepository(prisma, config);
+
+    await repo.createBrandWithOwner('user-1', 'Acme');
+
+    const [lockOrder] = tx.$executeRaw.mock.invocationCallOrder;
+    const [createOrder] = tx.brand.create.mock.invocationCallOrder;
+    expect(lockOrder).toBeLessThan(createOrder);
+    expect(tx.$executeRaw.mock.calls[0][1]).toBe('owner_brand:user-1');
   });
 
   it('completes onboarding on brand creation when the subscription step is disabled (default)', async () => {

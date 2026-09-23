@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../shared/database/prisma.service';
 import { Brand, BrandMember, Salon } from '@prisma/client';
 import { isSubscriptionStepEnabled } from '../onboarding/onboarding.flags';
+import { lockOwnerBrand } from './attach-salon-to-owner-brand';
 
 type BrandWithCount = Brand & { _count: { salons: number } };
 
@@ -19,6 +20,9 @@ export class BrandRepository {
 
   async createBrandWithOwner(userId: string, name: string): Promise<Brand> {
     return this.prisma.$transaction(async (tx) => {
+      // BEA-75: same lock as attachSalonToOwnerBrand, so a CRM link landing while the
+      // brand is being created cannot slip between the two brand_id writers.
+      await lockOwnerBrand(tx, userId);
       const brand = await tx.brand.create({ data: { name } });
       const firstSalon = await tx.salon.findFirst({
         where: { ownerUserId: userId, deletedAt: null },

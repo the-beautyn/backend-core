@@ -34,6 +34,8 @@ describe('Altegio linking (e2e)', () => {
     prismaMock = {
       $connect: jest.fn(),
       $disconnect: jest.fn(),
+      $transaction: jest.fn((cb: any) => cb(prismaMock)),
+      $executeRaw: jest.fn().mockResolvedValue(0),
       crmPairingCode: {
         create: jest.fn().mockImplementation(({ data }: any) => {
           const row = { id: String(pairingCodes.length + 1), attempts: 0, usedAt: null, ...data };
@@ -49,6 +51,15 @@ describe('Altegio linking (e2e)', () => {
           const idx = pairingCodes.findIndex((r) => r.id === where.id);
           if (idx >= 0) pairingCodes[idx] = { ...pairingCodes[idx], ...data };
           return Promise.resolve(pairingCodes[idx]);
+        }),
+        // The atomic claim: only a row whose usedAt is still null is taken.
+        updateMany: jest.fn().mockImplementation(({ where, data }: any) => {
+          const idx = pairingCodes.findIndex(
+            (r) => r.id === where.id && ('usedAt' in where ? r.usedAt === where.usedAt : true),
+          );
+          if (idx < 0) return Promise.resolve({ count: 0 });
+          pairingCodes[idx] = { ...pairingCodes[idx], ...data };
+          return Promise.resolve({ count: 1 });
         }),
       },
       onboardingStep: {
@@ -181,7 +192,7 @@ describe('Altegio linking (e2e)', () => {
     expect(res.body.success).toBe(false);
     expect(prismaMock.onboardingStep.upsert).not.toHaveBeenCalled();
 
-    // The code was not burned: the same code links on the retry.
+    // The code was handed back: the same code links on the retry.
     await request(app.getHttpServer())
       .post('/api/v1/webhooks/altegio/confirm')
       .send({ code, salon_ids: ['1234'] })

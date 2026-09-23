@@ -9,6 +9,8 @@ describe('CrmIntegrationService.linkEasyWeek', () => {
   const userId = 'user-1';
   const uuid = '25fd5793-3025-40db-85e9-bcb7ebbf11d7';
   let prisma: {
+    $transaction: jest.Mock;
+    $executeRaw: jest.Mock;
     salon: { findFirst: jest.Mock; update: jest.Mock; create: jest.Mock; updateMany: jest.Mock };
     brandMember: { findMany: jest.Mock; updateMany: jest.Mock };
   };
@@ -18,6 +20,8 @@ describe('CrmIntegrationService.linkEasyWeek', () => {
 
   beforeEach(() => {
     prisma = {
+      $transaction: jest.fn((cb: any) => cb(prisma)),
+      $executeRaw: jest.fn().mockResolvedValue(0),
       salon: {
         findFirst: jest.fn(),
         update: jest.fn().mockResolvedValue({}),

@@ -68,6 +68,11 @@ export class CrmIntegrationService {
             data: { ownerUserId: userId },
           });
         }
+        // The row may come from a first attempt that died between salon.create and
+        // the writes below (the pairing code stays valid for a retry). Both stores
+        // upsert, so repairing them here costs nothing and a sync can never hit a
+        // salon with no account entry.
+        await this.registerAltegio(existing.id, ext);
         await this.attachToOwnerBrand(existing.id, userId);
         salonIds.push(existing.id);
         continue;
@@ -77,20 +82,22 @@ export class CrmIntegrationService {
         data: { ownerUserId: userId, externalSalonId: ext, provider: CrmType.ALTEGIO },
         select: { id: true },
       });
+      await this.registerAltegio(salon.id, ext);
       await this.attachToOwnerBrand(salon.id, userId);
-
-      // Persist non-secret account identifiers in Account Registry
-      await this.accounts.setAltegio(salon.id, { externalSalonId: Number(ext) });
-
-      // If global env tokens are configured, persist them as per-salon tokens
-      const envBearer = process.env.ALTEGIO_BEARER?.trim();
-      const envUser = process.env.ALTEGIO_USER?.trim();
-      if (envBearer && envUser) {
-        await this.tokens.store(salon.id, CrmType.ALTEGIO, { accessToken: envBearer, userToken: envUser });
-      }
       salonIds.push(salon.id);
     }
     return { salonIds };
+  }
+
+  // Non-secret account identifiers in the Account Registry, plus the global env
+  // tokens as per-salon tokens when configured.
+  private async registerAltegio(salonId: string, externalSalonId: string): Promise<void> {
+    await this.accounts.setAltegio(salonId, { externalSalonId: Number(externalSalonId) });
+    const envBearer = process.env.ALTEGIO_BEARER?.trim();
+    const envUser = process.env.ALTEGIO_USER?.trim();
+    if (envBearer && envUser) {
+      await this.tokens.store(salonId, CrmType.ALTEGIO, { accessToken: envBearer, userToken: envUser });
+    }
   }
 
   // Creates a draft Salon linked to EasyWeek by external id and provider.
@@ -134,9 +141,9 @@ export class CrmIntegrationService {
             bookingUrl,
           },
         });
-        await this.attachToOwnerBrand(existing.id, userId);
         await this.accounts.setEasyWeek(existing.id, { workspaceSlug, locationId: ext });
         await this.tokens.store(existing.id, CrmType.EASYWEEK, { apiKey: authToken });
+        await this.attachToOwnerBrand(existing.id, userId);
         salonIds.push(existing.id);
         continue;
       }
@@ -145,11 +152,12 @@ export class CrmIntegrationService {
         data: { ownerUserId: userId, externalSalonId: ext, provider: CrmType.EASYWEEK, bookingUrl },
         select: { id: true },
       });
-      await this.attachToOwnerBrand(salon.id, userId);
       // Persist non-secret identifiers
       await this.accounts.setEasyWeek(salon.id, { workspaceSlug, locationId: ext });
       // Store secret/API key in Token Storage
       await this.tokens.store(salon.id, CrmType.EASYWEEK, { apiKey: authToken });
+      // Last, so a retry after a failure above finds a salon that is whole.
+      await this.attachToOwnerBrand(salon.id, userId);
       salonIds.push(salon.id);
     }
     return { salonIds };

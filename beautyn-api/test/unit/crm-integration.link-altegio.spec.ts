@@ -9,6 +9,8 @@ describe('CrmIntegrationService.linkAltegio', () => {
   const userId = 'user-1';
   const ext = '1312212';
   let prisma: {
+    $transaction: jest.Mock;
+    $executeRaw: jest.Mock;
     salon: { findFirst: jest.Mock; update: jest.Mock; create: jest.Mock; updateMany: jest.Mock };
     brandMember: { findMany: jest.Mock; updateMany: jest.Mock };
   };
@@ -25,6 +27,8 @@ describe('CrmIntegrationService.linkAltegio', () => {
     delete process.env.ALTEGIO_BEARER;
     delete process.env.ALTEGIO_USER;
     prisma = {
+      $transaction: jest.fn((cb: any) => cb(prisma)),
+      $executeRaw: jest.fn().mockResolvedValue(0),
       salon: {
         findFirst: jest.fn().mockResolvedValue(null),
         update: jest.fn().mockResolvedValue({}),
@@ -58,21 +62,41 @@ describe('CrmIntegrationService.linkAltegio', () => {
     expect(accounts.setAltegio).toHaveBeenCalledWith('salon-new', { externalSalonId: Number(ext) });
   });
 
-  it('adopts an ownerless salon and puts it into the brand', async () => {
+  it('registers the account before attaching, so a retry after a crash finds a whole salon', async () => {
+    await link();
+    const [registerOrder] = accounts.setAltegio.mock.invocationCallOrder;
+    const [attachOrder] = prisma.salon.updateMany.mock.invocationCallOrder;
+    expect(registerOrder).toBeLessThan(attachOrder);
+  });
+
+  it('adopts an ownerless salon, repairs its account entry and puts it into the brand', async () => {
     prisma.salon.findFirst.mockResolvedValue({ id: 'salon-old', ownerUserId: null });
 
     await expect(link()).resolves.toEqual({ salonIds: ['salon-old'] });
     expect(prisma.salon.update).toHaveBeenCalledWith({ where: { id: 'salon-old' }, data: { ownerUserId: userId } });
+    expect(accounts.setAltegio).toHaveBeenCalledWith('salon-old', { externalSalonId: Number(ext) });
     expect(prisma.salon.updateMany).toHaveBeenCalledWith(attachedToBrand('salon-old'));
     expect(prisma.salon.create).not.toHaveBeenCalled();
   });
 
-  it('puts a re-paired salon of the same owner into the brand', async () => {
+  it('puts a re-paired salon of the same owner into the brand and re-registers its account', async () => {
     prisma.salon.findFirst.mockResolvedValue({ id: 'salon-old', ownerUserId: userId });
 
     await expect(link()).resolves.toEqual({ salonIds: ['salon-old'] });
     expect(prisma.salon.update).not.toHaveBeenCalled();
+    // A first attempt that died right after salon.create left no account entry;
+    // the retry must not leave the salon unsyncable.
+    expect(accounts.setAltegio).toHaveBeenCalledWith('salon-old', { externalSalonId: Number(ext) });
     expect(prisma.salon.updateMany).toHaveBeenCalledWith(attachedToBrand('salon-old'));
+  });
+
+  it('stores the env tokens on a re-pair when they are configured', async () => {
+    process.env.ALTEGIO_BEARER = 'bearer';
+    process.env.ALTEGIO_USER = 'user-token';
+    prisma.salon.findFirst.mockResolvedValue({ id: 'salon-old', ownerUserId: userId });
+
+    await link();
+    expect(tokens.store).toHaveBeenCalledWith('salon-old', CrmType.ALTEGIO, { accessToken: 'bearer', userToken: 'user-token' });
   });
 
   it('leaves brand_id alone while the owner has no brand yet', async () => {
@@ -96,6 +120,7 @@ describe('CrmIntegrationService.linkAltegio', () => {
     await expect(link()).rejects.toThrow(/already linked to another user/);
     expect(prisma.salon.update).not.toHaveBeenCalled();
     expect(prisma.salon.updateMany).not.toHaveBeenCalled();
-    expect(prisma.brandMember.findMany).not.toHaveBeenCalled();
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+    expect(accounts.setAltegio).not.toHaveBeenCalled();
   });
 });
