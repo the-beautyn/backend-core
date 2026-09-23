@@ -74,12 +74,11 @@ describe('CrmIntegrationService.linkEasyWeek', () => {
     });
 
     await expect(link()).resolves.toEqual({ salonIds: ['salon-old'] });
-    expect(prisma.salon.update).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { id: 'salon-old' },
-        data: expect.objectContaining({ ownerUserId: userId }),
-      }),
-    );
+    // Conditional on the row still being ownerless, so two adopters cannot both win.
+    expect(prisma.salon.updateMany).toHaveBeenCalledWith({
+      where: { id: 'salon-old', ownerUserId: null },
+      data: { ownerUserId: userId, bookingUrl: 'https://booking.easyweek.com.ua/the-best-company' },
+    });
     expect(prisma.salon.create).not.toHaveBeenCalled();
     expect(accounts.setEasyWeek).toHaveBeenCalledWith('salon-old', {
       workspaceSlug: 'the-best-company',
@@ -111,6 +110,19 @@ describe('CrmIntegrationService.linkEasyWeek', () => {
     expect(tokens.store).toHaveBeenCalledWith('salon-old', CrmType.EASYWEEK, {
       apiKey: 'rotated-key',
     });
+  });
+
+  it('refuses the salon when someone else adopted it a moment earlier, before storing the key', async () => {
+    prisma.salon.findFirst
+      .mockResolvedValueOnce({ id: 'salon-old', ownerUserId: null, bookingUrl: null })
+      .mockResolvedValueOnce({ ownerUserId: 'someone-else' });
+    prisma.salon.updateMany.mockImplementation(({ where }: any) =>
+      Promise.resolve({ count: where.ownerUserId === null ? 0 : 1 }),
+    );
+
+    await expect(link()).rejects.toThrow(/already linked to another user/);
+    expect(tokens.store).not.toHaveBeenCalled();
+    expect(accounts.setEasyWeek).not.toHaveBeenCalled();
   });
 
   it('still refuses a salon owned by someone else', async () => {

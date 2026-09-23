@@ -57,9 +57,11 @@ export async function attachSalonToOwnerBrand(db: AttachDb, salonId: string, use
       data: { brandId },
     });
     // The panel opens on the member's selected salon; an owner whose brand had none
-    // gets this one, an owner who already picked one keeps their pick.
+    // gets this one, an owner who already picked one keeps their pick. The relation
+    // filter makes the write depend on the salon really being in this brand now —
+    // attached above or already there — never on a salon that sits in another brand.
     await tx.brandMember.updateMany({
-      where: { brandId, userId, lastSelectedSalonId: null },
+      where: { brandId, userId, lastSelectedSalonId: null, brand: { salons: { some: { id: salonId } } } },
       data: { lastSelectedSalonId: salonId },
     });
     return count > 0 ? 'attached' : 'unchanged';

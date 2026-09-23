@@ -63,10 +63,7 @@ export class CrmIntegrationService {
           throw new BadRequestException('Altegio salon already linked to another user');
         }
         if (!existing.ownerUserId) {
-          await this.prisma.salon.update({
-            where: { id: existing.id },
-            data: { ownerUserId: userId },
-          });
+          await this.adoptIfStillOwnerless(existing.id, userId, 'Altegio salon already linked to another user');
         }
         // The row may come from a first attempt that died between salon.create and
         // the writes below (the pairing code stays valid for a retry). Both stores
@@ -87,6 +84,27 @@ export class CrmIntegrationService {
       salonIds.push(salon.id);
     }
     return { salonIds };
+  }
+
+  // Two users reading the same ownerless row must not both "win" it: the update is
+  // conditional on the row still being ownerless, and the loser gets the same
+  // conflict it would have got a moment later instead of registering credentials
+  // and a brand for a salon that is now someone else's.
+  private async adoptIfStillOwnerless(
+    salonId: string,
+    userId: string,
+    conflictMessage: string,
+    extra: { bookingUrl?: string } = {},
+  ): Promise<void> {
+    const { count } = await this.prisma.salon.updateMany({
+      where: { id: salonId, ownerUserId: null },
+      data: { ownerUserId: userId, ...extra },
+    });
+    if (count > 0) return;
+    const taken = await this.prisma.salon.findFirst({ where: { id: salonId }, select: { ownerUserId: true } });
+    if (taken?.ownerUserId !== userId) {
+      throw new BadRequestException(conflictMessage);
+    }
   }
 
   // Non-secret account identifiers in the Account Registry, plus the global env
@@ -134,13 +152,13 @@ export class CrmIntegrationService {
         // Both stores upsert. Skipping this on adoption meant a re-linked salon
         // kept a stale (often revoked) key and every sync after onboarding
         // failed with "EasyWeek unauthorized".
-        await this.prisma.salon.update({
-          where: { id: existing.id },
-          data: {
-            ...(existing.ownerUserId ? {} : { ownerUserId: userId }),
+        if (existing.ownerUserId) {
+          await this.prisma.salon.update({ where: { id: existing.id }, data: { bookingUrl } });
+        } else {
+          await this.adoptIfStillOwnerless(existing.id, userId, 'EasyWeek salon already linked to another user', {
             bookingUrl,
-          },
-        });
+          });
+        }
         await this.accounts.setEasyWeek(existing.id, { workspaceSlug, locationId: ext });
         await this.tokens.store(existing.id, CrmType.EASYWEEK, { apiKey: authToken });
         await this.attachToOwnerBrand(existing.id, userId);

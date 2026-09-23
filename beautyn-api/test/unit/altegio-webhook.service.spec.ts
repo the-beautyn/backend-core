@@ -67,6 +67,17 @@ describe('AltegioWebhookService.confirm', () => {
     expect(claimOrder).toBeLessThan(linkOrder);
   });
 
+  it('claims the code with the TTL and attempt limit in the same guard', async () => {
+    await confirm();
+    const [{ where }] = prisma.crmPairingCode.updateMany.mock.calls[0];
+    expect(where).toEqual({
+      id: row.id,
+      usedAt: null,
+      expiresAt: { gt: expect.any(Date) },
+      attempts: { lt: 10 },
+    });
+  });
+
   it('answers invalid when another confirm already claimed the code', async () => {
     prisma.crmPairingCode.updateMany.mockResolvedValue({ count: 0 });
 

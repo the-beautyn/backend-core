@@ -35,7 +35,7 @@ describe('attachSalonToOwnerBrand', () => {
       data: { brandId: 'brand-1' },
     });
     expect(tx.brandMember.updateMany).toHaveBeenCalledWith({
-      where: { brandId: 'brand-1', userId, lastSelectedSalonId: null },
+      where: { brandId: 'brand-1', userId, lastSelectedSalonId: null, brand: { salons: { some: { id: salonId } } } },
       data: { lastSelectedSalonId: salonId },
     });
   });
@@ -45,9 +45,12 @@ describe('attachSalonToOwnerBrand', () => {
     tx.brandMember.updateMany.mockResolvedValue({ count: 0 });
 
     await expect(attach()).resolves.toBe('unchanged');
-    // The guard on lastSelectedSalonId: null is what keeps an existing pick intact.
+    // The guard on lastSelectedSalonId: null keeps an existing pick intact, and the
+    // relation filter keeps a salon that sits in some other brand from being picked.
     expect(tx.brandMember.updateMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: expect.objectContaining({ lastSelectedSalonId: null }) }),
+      expect.objectContaining({
+        where: expect.objectContaining({ lastSelectedSalonId: null, brand: { salons: { some: { id: salonId } } } }),
+      }),
     );
   });
 

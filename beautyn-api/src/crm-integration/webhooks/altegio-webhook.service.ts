@@ -61,10 +61,11 @@ export class AltegioWebhookService {
     }
 
     // Claim the code atomically: two confirms racing on the same code both passed the
-    // usedAt check above, only one gets past this guard. It is handed back below if
-    // nothing gets linked, so the owner can retry with the same code.
+    // checks above, only one gets past this guard. The TTL and attempt limit are part
+    // of the guard so the row read above cannot go stale in between. The claim is
+    // handed back below if nothing gets linked, so the owner can retry with the code.
     const claimed = await this.prisma.crmPairingCode.updateMany({
-      where: { id: row.id, usedAt: null },
+      where: { id: row.id, usedAt: null, expiresAt: { gt: now }, attempts: { lt: 10 } },
       data: { usedAt: now },
     });
     if (claimed.count === 0) {

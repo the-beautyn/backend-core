@@ -174,7 +174,7 @@ describe('Altegio linking (e2e)', () => {
       data: { brandId: 'brand-1' },
     });
     expect(prismaMock.brandMember.updateMany).toHaveBeenCalledWith({
-      where: { brandId: 'brand-1', userId, lastSelectedSalonId: null },
+      where: { brandId: 'brand-1', userId, lastSelectedSalonId: null, brand: { salons: { some: { id: 'salon-1' } } } },
       data: { lastSelectedSalonId: 'salon-1' },
     });
   });

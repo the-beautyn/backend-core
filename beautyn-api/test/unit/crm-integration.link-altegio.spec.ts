@@ -56,7 +56,7 @@ describe('CrmIntegrationService.linkAltegio', () => {
     });
     expect(prisma.salon.updateMany).toHaveBeenCalledWith(attachedToBrand('salon-new'));
     expect(prisma.brandMember.updateMany).toHaveBeenCalledWith({
-      where: { brandId: 'brand-1', userId, lastSelectedSalonId: null },
+      where: { brandId: 'brand-1', userId, lastSelectedSalonId: null, brand: { salons: { some: { id: 'salon-new' } } } },
       data: { lastSelectedSalonId: 'salon-new' },
     });
     expect(accounts.setAltegio).toHaveBeenCalledWith('salon-new', { externalSalonId: Number(ext) });
@@ -73,10 +73,39 @@ describe('CrmIntegrationService.linkAltegio', () => {
     prisma.salon.findFirst.mockResolvedValue({ id: 'salon-old', ownerUserId: null });
 
     await expect(link()).resolves.toEqual({ salonIds: ['salon-old'] });
-    expect(prisma.salon.update).toHaveBeenCalledWith({ where: { id: 'salon-old' }, data: { ownerUserId: userId } });
+    // Conditional on the row still being ownerless, so two adopters cannot both win.
+    expect(prisma.salon.updateMany).toHaveBeenCalledWith({
+      where: { id: 'salon-old', ownerUserId: null },
+      data: { ownerUserId: userId },
+    });
     expect(accounts.setAltegio).toHaveBeenCalledWith('salon-old', { externalSalonId: Number(ext) });
     expect(prisma.salon.updateMany).toHaveBeenCalledWith(attachedToBrand('salon-old'));
     expect(prisma.salon.create).not.toHaveBeenCalled();
+  });
+
+  it('refuses the salon when someone else adopted it a moment earlier, before registering anything', async () => {
+    prisma.salon.findFirst
+      .mockResolvedValueOnce({ id: 'salon-old', ownerUserId: null })
+      .mockResolvedValueOnce({ ownerUserId: 'someone-else' });
+    prisma.salon.updateMany.mockImplementation(({ where }: any) =>
+      Promise.resolve({ count: where.ownerUserId === null ? 0 : 1 }),
+    );
+
+    await expect(link()).rejects.toThrow(/already linked to another user/);
+    expect(accounts.setAltegio).not.toHaveBeenCalled();
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it('carries on when the adoption race was lost to the same user (a double submit)', async () => {
+    prisma.salon.findFirst
+      .mockResolvedValueOnce({ id: 'salon-old', ownerUserId: null })
+      .mockResolvedValueOnce({ ownerUserId: userId });
+    prisma.salon.updateMany.mockImplementation(({ where }: any) =>
+      Promise.resolve({ count: where.ownerUserId === null ? 0 : 1 }),
+    );
+
+    await expect(link()).resolves.toEqual({ salonIds: ['salon-old'] });
+    expect(prisma.salon.updateMany).toHaveBeenCalledWith(attachedToBrand('salon-old'));
   });
 
   it('puts a re-paired salon of the same owner into the brand and re-registers its account', async () => {
