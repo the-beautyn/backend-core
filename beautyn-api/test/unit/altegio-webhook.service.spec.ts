@@ -10,7 +10,7 @@ describe('AltegioWebhookService.confirm', () => {
   const code = '123456';
   const userId = 'user-1';
   let row: { id: string; userId: string; codeHash: string; usedAt: Date | null; attempts: number; expiresAt: Date };
-  let prisma: { crmPairingCode: { findFirst: jest.Mock; update: jest.Mock; updateMany: jest.Mock } };
+  let prisma: { crmPairingCode: { findMany: jest.Mock; update: jest.Mock; updateMany: jest.Mock } };
   let partner: { confirmRegistration: jest.Mock };
   let onboarding: { markCrmLinkedByUser: jest.Mock };
   let crm: { linkAltegio: jest.Mock };
@@ -29,7 +29,7 @@ describe('AltegioWebhookService.confirm', () => {
     };
     prisma = {
       crmPairingCode: {
-        findFirst: jest.fn().mockResolvedValue(row),
+        findMany: jest.fn().mockImplementation(async () => [row]),
         update: jest.fn().mockResolvedValue(undefined),
         updateMany: jest.fn().mockResolvedValue({ count: 1 }),
       },
@@ -76,6 +76,24 @@ describe('AltegioWebhookService.confirm', () => {
       expiresAt: { gt: expect.any(Date) },
       attempts: { lt: 10 },
     });
+  });
+
+  it('refuses a code that two owners hold live at the same time, without touching Altegio', async () => {
+    prisma.crmPairingCode.findMany.mockResolvedValueOnce([row, { ...row, id: 'code-2', userId: 'user-2' }]);
+
+    await expect(confirm()).resolves.toBe('invalid');
+    expect(partner.confirmRegistration).not.toHaveBeenCalled();
+    expect(codeClaimed()).toBe(false);
+  });
+
+  it('picks the live row over an older used or expired one with the same code', async () => {
+    prisma.crmPairingCode.findMany.mockResolvedValueOnce([
+      row,
+      { ...row, id: 'code-old', userId: 'user-2', usedAt: new Date(Date.now() - 3_600_000) },
+    ]);
+
+    await expect(confirm()).resolves.toBe('ok');
+    expect(crm.linkAltegio).toHaveBeenCalledWith({ userId, externalSalonIds: ['1312212'] });
   });
 
   it('answers invalid when another confirm already claimed the code', async () => {
@@ -165,13 +183,13 @@ describe('AltegioWebhookService.confirm', () => {
   });
 
   it('still rejects an unknown, used or expired code before touching Altegio', async () => {
-    prisma.crmPairingCode.findFirst.mockResolvedValueOnce(null);
+    prisma.crmPairingCode.findMany.mockResolvedValueOnce([]);
     await expect(confirm()).resolves.toBe('invalid');
 
-    prisma.crmPairingCode.findFirst.mockResolvedValueOnce({ ...row, usedAt: new Date() });
+    prisma.crmPairingCode.findMany.mockResolvedValueOnce([{ ...row, usedAt: new Date() }]);
     await expect(confirm()).resolves.toBe('invalid');
 
-    prisma.crmPairingCode.findFirst.mockResolvedValueOnce({ ...row, expiresAt: new Date(Date.now() - 1) });
+    prisma.crmPairingCode.findMany.mockResolvedValueOnce([{ ...row, expiresAt: new Date(Date.now() - 1) }]);
     await expect(confirm()).resolves.toBe('expired');
 
     expect(partner.confirmRegistration).not.toHaveBeenCalled();

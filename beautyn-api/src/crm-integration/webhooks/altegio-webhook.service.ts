@@ -31,17 +31,22 @@ export class AltegioWebhookService {
   }): Promise<AltegioConfirmResult> {
     const pepper = process.env.PAIRING_CODE_PEPPER || '';
     const hash = createHmac('sha256', pepper).update(code).digest('hex');
-    const row = await this.prisma.crmPairingCode.findFirst({
-      where: {
-        provider: 'ALTEGIO',
-        codeHash: hash,
-      },
+    const now = new Date();
+    const rows = await this.prisma.crmPairingCode.findMany({
+      where: { provider: 'ALTEGIO', codeHash: hash },
+      orderBy: { createdAt: 'desc' },
     });
+    // Six-digit codes are not unique: two owners can hold the same live code at once.
+    // Never guess whose salons these are — refuse, and the owner requests a new code.
+    const live = rows.filter((r) => !r.usedAt && r.attempts < 10 && r.expiresAt > now);
+    if (live.length > 1) {
+      return 'invalid';
+    }
+    const row = live[0] ?? rows[0];
     if (!row) {
       return 'invalid';
     }
 
-    const now = new Date();
     if (row.usedAt || row.attempts >= 10) {
       return 'invalid';
     }

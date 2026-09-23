@@ -47,6 +47,9 @@ describe('Altegio linking (e2e)', () => {
             pairingCodes.find((r) => r.provider === where.provider && r.codeHash === where.codeHash) || null,
           );
         }),
+        findMany: jest.fn().mockImplementation(({ where }: any) =>
+          Promise.resolve(pairingCodes.filter((r) => r.provider === where.provider && r.codeHash === where.codeHash)),
+        ),
         update: jest.fn().mockImplementation(({ where, data }: any) => {
           const idx = pairingCodes.findIndex((r) => r.id === where.id);
           if (idx >= 0) pairingCodes[idx] = { ...pairingCodes[idx], ...data };
