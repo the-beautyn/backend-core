@@ -5,6 +5,7 @@ import { AccountRegistryService } from '@crm/account-registry';
 import { TokenStorageService } from '@crm/token-storage';
 import { CrmAdapterService } from '@crm/adapter';
 import { createChildLogger } from '@shared/logger';
+import { attachSalonToOwnerBrand } from '../../brand/attach-salon-to-owner-brand';
 import type { BookingDto } from '../../booking/dto/booking.response.dto';
 
 import {
@@ -62,11 +63,14 @@ export class CrmIntegrationService {
           throw new BadRequestException('Altegio salon already linked to another user');
         }
         if (!existing.ownerUserId) {
-          await this.prisma.salon.update({
-            where: { id: existing.id },
-            data: { ownerUserId: userId },
-          });
+          await this.adoptIfStillOwnerless(existing.id, userId, 'Altegio salon already linked to another user');
         }
+        // The row may come from a first attempt that died between salon.create and
+        // the writes below (the pairing code stays valid for a retry). Both stores
+        // upsert, so repairing them here costs nothing and a sync can never hit a
+        // salon with no account entry.
+        await this.registerAltegio(existing.id, ext);
+        await this.attachToOwnerBrand(existing.id, userId);
         salonIds.push(existing.id);
         continue;
       }
@@ -75,19 +79,43 @@ export class CrmIntegrationService {
         data: { ownerUserId: userId, externalSalonId: ext, provider: CrmType.ALTEGIO },
         select: { id: true },
       });
-
-      // Persist non-secret account identifiers in Account Registry
-      await this.accounts.setAltegio(salon.id, { externalSalonId: Number(ext) });
-
-      // If global env tokens are configured, persist them as per-salon tokens
-      const envBearer = process.env.ALTEGIO_BEARER?.trim();
-      const envUser = process.env.ALTEGIO_USER?.trim();
-      if (envBearer && envUser) {
-        await this.tokens.store(salon.id, CrmType.ALTEGIO, { accessToken: envBearer, userToken: envUser });
-      }
+      await this.registerAltegio(salon.id, ext);
+      await this.attachToOwnerBrand(salon.id, userId);
       salonIds.push(salon.id);
     }
     return { salonIds };
+  }
+
+  // Two users reading the same ownerless row must not both "win" it: the update is
+  // conditional on the row still being ownerless, and the loser gets the same
+  // conflict it would have got a moment later instead of registering credentials
+  // and a brand for a salon that is now someone else's.
+  private async adoptIfStillOwnerless(
+    salonId: string,
+    userId: string,
+    conflictMessage: string,
+    extra: { bookingUrl?: string } = {},
+  ): Promise<void> {
+    const { count } = await this.prisma.salon.updateMany({
+      where: { id: salonId, ownerUserId: null },
+      data: { ownerUserId: userId, ...extra },
+    });
+    if (count > 0) return;
+    const taken = await this.prisma.salon.findFirst({ where: { id: salonId }, select: { ownerUserId: true } });
+    if (taken?.ownerUserId !== userId) {
+      throw new BadRequestException(conflictMessage);
+    }
+  }
+
+  // Non-secret account identifiers in the Account Registry, plus the global env
+  // tokens as per-salon tokens when configured.
+  private async registerAltegio(salonId: string, externalSalonId: string): Promise<void> {
+    await this.accounts.setAltegio(salonId, { externalSalonId: Number(externalSalonId) });
+    const envBearer = process.env.ALTEGIO_BEARER?.trim();
+    const envUser = process.env.ALTEGIO_USER?.trim();
+    if (envBearer && envUser) {
+      await this.tokens.store(salonId, CrmType.ALTEGIO, { accessToken: envBearer, userToken: envUser });
+    }
   }
 
   // Creates a draft Salon linked to EasyWeek by external id and provider.
@@ -124,15 +152,16 @@ export class CrmIntegrationService {
         // Both stores upsert. Skipping this on adoption meant a re-linked salon
         // kept a stale (often revoked) key and every sync after onboarding
         // failed with "EasyWeek unauthorized".
-        await this.prisma.salon.update({
-          where: { id: existing.id },
-          data: {
-            ...(existing.ownerUserId ? {} : { ownerUserId: userId }),
+        if (existing.ownerUserId) {
+          await this.prisma.salon.update({ where: { id: existing.id }, data: { bookingUrl } });
+        } else {
+          await this.adoptIfStillOwnerless(existing.id, userId, 'EasyWeek salon already linked to another user', {
             bookingUrl,
-          },
-        });
+          });
+        }
         await this.accounts.setEasyWeek(existing.id, { workspaceSlug, locationId: ext });
         await this.tokens.store(existing.id, CrmType.EASYWEEK, { apiKey: authToken });
+        await this.attachToOwnerBrand(existing.id, userId);
         salonIds.push(existing.id);
         continue;
       }
@@ -145,9 +174,21 @@ export class CrmIntegrationService {
       await this.accounts.setEasyWeek(salon.id, { workspaceSlug, locationId: ext });
       // Store secret/API key in Token Storage
       await this.tokens.store(salon.id, CrmType.EASYWEEK, { apiKey: authToken });
+      // Last, so a retry after a failure above finds a salon that is whole.
+      await this.attachToOwnerBrand(salon.id, userId);
       salonIds.push(salon.id);
     }
     return { salonIds };
+  }
+
+  // BEA-75: a salon linked after the owner's brand exists (late Altegio callback,
+  // re-pair, second CRM) must still join that brand, or the panel never sees it.
+  // Brand creation covers the other order; see attachSalonToOwnerBrand.
+  private async attachToOwnerBrand(salonId: string, userId: string): Promise<void> {
+    const result = await attachSalonToOwnerBrand(this.prisma, salonId, userId);
+    if (result === 'ambiguous') {
+      this.log.warn('Salon left without a brand: owner belongs to several brands', { salonId, userId });
+    }
   }
 
   //** CRM Sync Scheduler **//

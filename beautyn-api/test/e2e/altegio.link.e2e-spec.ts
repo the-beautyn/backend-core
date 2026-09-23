@@ -34,6 +34,8 @@ describe('Altegio linking (e2e)', () => {
     prismaMock = {
       $connect: jest.fn(),
       $disconnect: jest.fn(),
+      $transaction: jest.fn((cb: any) => cb(prismaMock)),
+      $executeRaw: jest.fn().mockResolvedValue(0),
       crmPairingCode: {
         create: jest.fn().mockImplementation(({ data }: any) => {
           const row = { id: String(pairingCodes.length + 1), attempts: 0, usedAt: null, ...data };
@@ -45,18 +47,37 @@ describe('Altegio linking (e2e)', () => {
             pairingCodes.find((r) => r.provider === where.provider && r.codeHash === where.codeHash) || null,
           );
         }),
+        findMany: jest.fn().mockImplementation(({ where }: any) =>
+          Promise.resolve(pairingCodes.filter((r) => r.provider === where.provider && r.codeHash === where.codeHash)),
+        ),
         update: jest.fn().mockImplementation(({ where, data }: any) => {
           const idx = pairingCodes.findIndex((r) => r.id === where.id);
           if (idx >= 0) pairingCodes[idx] = { ...pairingCodes[idx], ...data };
           return Promise.resolve(pairingCodes[idx]);
         }),
+        // The atomic claim: only a row whose usedAt is still null is taken.
+        updateMany: jest.fn().mockImplementation(({ where, data }: any) => {
+          const idx = pairingCodes.findIndex(
+            (r) => r.id === where.id && ('usedAt' in where ? r.usedAt === where.usedAt : true),
+          );
+          if (idx < 0) return Promise.resolve({ count: 0 });
+          pairingCodes[idx] = { ...pairingCodes[idx], ...data };
+          return Promise.resolve({ count: 1 });
+        }),
       },
       onboardingStep: {
+        updateMany: jest.fn().mockResolvedValue({ count: 0 }),
         upsert: jest.fn().mockResolvedValue(undefined),
       },
       salon: {
         findFirst: jest.fn().mockResolvedValue(null),
         create: jest.fn().mockResolvedValue({ id: 'salon-1' }),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+      },
+      // BEA-75: a salon linked after the brand exists must join it.
+      brandMember: {
+        findMany: jest.fn().mockResolvedValue([]),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
       },
     } as Partial<PrismaService> as any;
 
@@ -128,6 +149,58 @@ describe('Altegio linking (e2e)', () => {
     expect(prismaMock.onboardingStep.upsert).toHaveBeenCalledWith(
       expect.objectContaining({ where: { userId } }),
     );
+    // No brand yet: the salon is left for brand creation to pick up.
+    expect(prismaMock.salon.updateMany).not.toHaveBeenCalled();
+  });
+
+  const pairCode = async () => {
+    const pc = await request(app.getHttpServer())
+      .post('/api/v1/onboarding/altegio/pair-code')
+      .set('Authorization', 'Bearer valid')
+      .send({})
+      .expect(201);
+    return pc.body.data.code as string;
+  };
+
+  it('a salon paired after the brand exists joins that brand', async () => {
+    prismaMock.brandMember.findMany.mockResolvedValueOnce([{ brandId: 'brand-1' }]);
+    const code = await pairCode();
+
+    await request(app.getHttpServer())
+      .post('/api/v1/webhooks/altegio/confirm')
+      .send({ code, salon_ids: ['1234'] })
+      .expect(201)
+      .expect({ success: true });
+
+    expect(prismaMock.salon.updateMany).toHaveBeenCalledWith({
+      where: { id: 'salon-1', ownerUserId: userId, brandId: null },
+      data: { brandId: 'brand-1' },
+    });
+    expect(prismaMock.brandMember.updateMany).toHaveBeenCalledWith({
+      where: { brandId: 'brand-1', userId, lastSelectedSalonId: null, brand: { salons: { some: { id: 'salon-1' } } } },
+      data: { lastSelectedSalonId: 'salon-1' },
+    });
+  });
+
+  it('a failed link is not a success and does not advance onboarding', async () => {
+    prismaMock.salon.create.mockRejectedValueOnce(new Error('db down'));
+    prismaMock.onboardingStep.upsert.mockClear();
+    const code = await pairCode();
+
+    const res = await request(app.getHttpServer())
+      .post('/api/v1/webhooks/altegio/confirm')
+      .send({ code, salon_ids: ['1234'] })
+      .expect(500);
+
+    expect(res.body.success).toBe(false);
+    expect(prismaMock.onboardingStep.upsert).not.toHaveBeenCalled();
+
+    // The code was handed back: the same code links on the retry.
+    await request(app.getHttpServer())
+      .post('/api/v1/webhooks/altegio/confirm')
+      .send({ code, salon_ids: ['1234'] })
+      .expect(201)
+      .expect({ success: true });
   });
 });
 

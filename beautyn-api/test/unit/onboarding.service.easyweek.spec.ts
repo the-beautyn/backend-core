@@ -12,7 +12,12 @@ describe('OnboardingService EasyWeek', () => {
   let service: OnboardingService;
   const discovery = { listLocations: jest.fn() };
   const crm = { linkEasyWeek: jest.fn(), enqueueInitialSync: jest.fn() } as any;
-  const prisma = { onboardingStep: { upsert: jest.fn().mockResolvedValue(undefined) } } as any;
+  const prisma = {
+    onboardingStep: {
+      updateMany: jest.fn().mockResolvedValue({ count: 0 }),
+      upsert: jest.fn().mockResolvedValue(undefined),
+    },
+  } as any;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({

@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import { HttpException, Injectable, Logger } from '@nestjs/common';
 import { createHmac, timingSafeEqual } from 'crypto';
 import { PrismaService } from '../../shared/database/prisma.service';
 import { AltegioPartnerClient } from '../clients/altegio-partner.client';
@@ -7,6 +7,9 @@ import { CrmIntegrationService } from '../core/crm-integration.service';
 
 // Connect flow via link token has been removed
 
+// 'link_failed': the code was right but no salon could be linked. The code is
+// released again so the owner can submit it once more within its TTL.
+export type AltegioConfirmResult = 'ok' | 'invalid' | 'expired' | 'link_failed';
 
 @Injectable()
 export class AltegioWebhookService {
@@ -25,20 +28,25 @@ export class AltegioWebhookService {
   }: {
     code: string;
     externalSalonIds: string[];
-  }): Promise<'ok' | 'invalid' | 'expired'> {
+  }): Promise<AltegioConfirmResult> {
     const pepper = process.env.PAIRING_CODE_PEPPER || '';
     const hash = createHmac('sha256', pepper).update(code).digest('hex');
-    const row = await this.prisma.crmPairingCode.findFirst({
-      where: {
-        provider: 'ALTEGIO',
-        codeHash: hash,
-      },
+    const now = new Date();
+    const rows = await this.prisma.crmPairingCode.findMany({
+      where: { provider: 'ALTEGIO', codeHash: hash },
+      orderBy: { createdAt: 'desc' },
     });
+    // Six-digit codes are not unique: two owners can hold the same live code at once.
+    // Never guess whose salons these are — refuse, and the owner requests a new code.
+    const live = rows.filter((r) => !r.usedAt && r.attempts < 10 && r.expiresAt > now);
+    if (live.length > 1) {
+      return 'invalid';
+    }
+    const row = live[0] ?? rows[0];
     if (!row) {
       return 'invalid';
     }
-    
-    const now = new Date();
+
     if (row.usedAt || row.attempts >= 10) {
       return 'invalid';
     }
@@ -56,24 +64,57 @@ export class AltegioWebhookService {
       });
       return 'invalid';
     }
-    
-    await this.prisma.crmPairingCode.update({ where: { id: row.id }, data: { usedAt: now } });
+
+    // Claim the code atomically: two confirms racing on the same code both passed the
+    // checks above, only one gets past this guard. The TTL and attempt limit are part
+    // of the guard so the row read above cannot go stale in between. The claim is
+    // handed back below if nothing gets linked, so the owner can retry with the code.
+    const claimed = await this.prisma.crmPairingCode.updateMany({
+      where: { id: row.id, usedAt: null, expiresAt: { gt: now }, attempts: { lt: 10 } },
+      data: { usedAt: now },
+    });
+    if (claimed.count === 0) {
+      return 'invalid';
+    }
+
+    // BEA-75: the CRM step is only done once a salon is actually linked. A failed link
+    // used to be logged at debug, the step marked anyway and 'ok' returned, so the owner
+    // reached Brand with zero salons and the salon that paired later never joined it.
+    // One bad salon in a multi-salon install must not block the others — whether the
+    // partner refused it or it belongs to someone else. The first such rejection is
+    // kept and surfaced only when nothing at all linked.
+    let linked = 0;
+    let rejection: HttpException | undefined;
     for (const externalSalonId of externalSalonIds) {
-      // Confirm with Altegio partner API
-      await this.altegioPartner.confirmRegistration(externalSalonId);
-      // Link salon; in e2e tests Prisma is sometimes overridden without full schema, so guard findFirst
       try {
+        // Confirm with Altegio partner API, then link
+        await this.altegioPartner.confirmRegistration(externalSalonId);
         await this.crmIntegration.linkAltegio({ userId: row.userId, externalSalonIds: [externalSalonId] });
+        linked += 1;
       } catch (error) {
-        // ignore linking failures in test mocks, but log in non-test environments
-        if (process.env.NODE_ENV !== 'test') {
-          this.logger.debug(`Failed to link Altegio: ${error?.message}`, error instanceof Error ? error.stack : undefined);
+        if (error instanceof HttpException) {
+          rejection ??= error;
+          this.logger.warn(`Altegio salon ${externalSalonId} not linked for user ${row.userId}: ${error.message}`);
+          continue;
         }
+        this.logger.error(
+          `Failed to link Altegio salon ${externalSalonId} for user ${row.userId}: ${(error as Error)?.message}`,
+          error instanceof Error ? error.stack : undefined,
+        );
       }
     }
-    // Mark onboarding step as linked (uses upsert only)
-    await this.onboardingService.markCrmLinkedByUser(row.userId);
 
+    if (linked === 0) {
+      await this.releaseCode(row.id);
+      if (rejection) throw rejection;
+      return 'link_failed';
+    }
+
+    await this.onboardingService.markCrmLinkedByUser(row.userId);
     return 'ok';
+  }
+
+  private async releaseCode(id: string): Promise<void> {
+    await this.prisma.crmPairingCode.update({ where: { id }, data: { usedAt: null } });
   }
 }
