@@ -94,12 +94,20 @@ describe('AltegioWebhookService.confirm', () => {
     expect(onboarding.markCrmLinkedByUser).not.toHaveBeenCalled();
   });
 
-  it('hands the code back when the Altegio partner call fails', async () => {
+  it('treats a failed Altegio partner call like a failed link: code handed back, nothing marked', async () => {
     partner.confirmRegistration.mockRejectedValue(new Error('altegio 500'));
 
-    await expect(confirm()).rejects.toThrow('altegio 500');
+    await expect(confirm()).resolves.toBe('link_failed');
     expect(codeReleased()).toBe(true);
     expect(crm.linkAltegio).not.toHaveBeenCalled();
+    expect(onboarding.markCrmLinkedByUser).not.toHaveBeenCalled();
+  });
+
+  it('surfaces the partner refusal (a 400) when it was the only salon', async () => {
+    partner.confirmRegistration.mockRejectedValue(new BadRequestException('Altegio callback failed: 422'));
+
+    await expect(confirm()).rejects.toThrow(/Altegio callback failed/);
+    expect(codeReleased()).toBe(true);
   });
 
   describe('several salons in one install', () => {
@@ -120,6 +128,16 @@ describe('AltegioWebhookService.confirm', () => {
 
       expect(crm.linkAltegio).toHaveBeenCalledTimes(2);
       expect(logs.warn).toHaveBeenCalledWith(expect.stringContaining('salon 1 not linked'));
+      expect(codeReleased()).toBe(false);
+      expect(onboarding.markCrmLinkedByUser).toHaveBeenCalledWith(userId);
+    });
+
+    it('does not let a partner failure on one salon strand the one that already linked', async () => {
+      partner.confirmRegistration.mockResolvedValueOnce(undefined).mockRejectedValueOnce(new Error('altegio 500'));
+
+      await expect(confirm(['1', '2'])).resolves.toBe('ok');
+
+      expect(crm.linkAltegio).toHaveBeenCalledTimes(1);
       expect(codeReleased()).toBe(false);
       expect(onboarding.markCrmLinkedByUser).toHaveBeenCalledWith(userId);
     });

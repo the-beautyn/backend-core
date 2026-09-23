@@ -50,8 +50,9 @@ async function main() {
     }
 
     for (const [userId, salonIds] of byOwner) {
+      // Same rule as attachSalonToOwnerBrand: only brands the user owns count.
       const memberships = await prisma.brandMember.findMany({
-        where: { userId },
+        where: { userId, role: 'owner' },
         select: { brandId: true, lastSelectedSalonId: true },
         orderBy: { createdAt: 'asc' },
         take: 2,
