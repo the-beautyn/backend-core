@@ -10,6 +10,9 @@ process.env.THROTTLE_OTP_VERIFY_LIMIT = '3';
 process.env.THROTTLE_OTP_VERIFY_TTL_MS = '300000';
 process.env.THROTTLE_EMAIL_CHECK_LIMIT = '3';
 process.env.THROTTLE_EMAIL_CHECK_TTL_MS = '60000';
+process.env.THROTTLE_FORGOT_PASSWORD_LIMIT = '3';
+process.env.THROTTLE_FORGOT_PASSWORD_TTL_MS = '900000';
+process.env.APP_URL = process.env.APP_URL || 'http://localhost:3000';
 
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
@@ -61,7 +64,7 @@ describe('Throttler (e2e)', () => {
         auth: {
           signUp: jest.fn(),
           signInWithPassword: jest.fn(),
-          resetPasswordForEmail: jest.fn(),
+          resetPasswordForEmail: jest.fn().mockResolvedValue({ error: null }),
           verifyOtp: jest.fn(),
           admin: { signOut: jest.fn(), updateUserById: jest.fn() },
         },
@@ -100,6 +103,33 @@ describe('Throttler (e2e)', () => {
         .post('/api/v1/auth/check-email')
         .send(payload);
       expect(blocked.status).toBe(429);
+    });
+  });
+
+  // Runs after 'email-check' has exhausted its bucket for the same anonymous
+  // tracker (127.0.0.1), so passing requests here also prove the two named
+  // throttlers count separately.
+  describe('forgot-password', () => {
+    it('is not blocked by an exhausted email-check bucket, and 429s past its own limit', async () => {
+      const limit = Number(process.env.THROTTLE_FORGOT_PASSWORD_LIMIT);
+      const payload = { email: 'reset-probe@example.com', client: 'web-admin' };
+
+      const emailCheck = await request(app.getHttpServer())
+        .post('/api/v1/auth/check-email')
+        .send({ email: 'enumeration-probe@example.com' });
+      expect(emailCheck.status).toBe(429);
+
+      for (let i = 0; i < limit; i++) {
+        await request(app.getHttpServer())
+          .post('/api/v1/auth/forgot-password')
+          .send(payload)
+          .expect(202);
+      }
+
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/forgot-password')
+        .send(payload)
+        .expect(429);
     });
   });
 

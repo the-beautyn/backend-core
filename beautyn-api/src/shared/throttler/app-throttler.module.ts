@@ -50,6 +50,15 @@ const num = (config: ConfigService, key: string, fallback: number): number => {
           ttl: num(config, 'THROTTLE_EMAIL_CHECK_TTL_MS', 60 * 1000),
           limit: num(config, 'THROTTLE_EMAIL_CHECK_LIMIT', 10),
         },
+        // Per-IP limit for forgot-password: every accepted call sends an
+        // email through Supabase, so an unthrottled endpoint lets a script
+        // drain the project's email quota. Supabase's own 60 s per-address
+        // limit does not help against many different addresses.
+        {
+          name: 'forgot-password',
+          ttl: num(config, 'THROTTLE_FORGOT_PASSWORD_TTL_MS', 15 * 60 * 1000),
+          limit: num(config, 'THROTTLE_FORGOT_PASSWORD_LIMIT', 5),
+        },
       ],
     }),
   ],

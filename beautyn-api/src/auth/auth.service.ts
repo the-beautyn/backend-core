@@ -4,6 +4,7 @@ import {
   UnauthorizedException,
   BadRequestException,
   InternalServerErrorException,
+  Logger,
 } from '@nestjs/common';
 import { LoginDto } from './dto/v1/login.dto';
 import { RegisterDto, REGISTERABLE_ROLES } from './dto/v1/register.dto';
@@ -21,6 +22,8 @@ import { PhoneVerificationService } from './phone-verification.service';
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     private readonly users: UserService,
     private readonly sb: SupabaseClient,
@@ -304,6 +307,17 @@ export class AuthService {
     const { error } = await this.sb.auth.resetPasswordForEmail(email, {
       redirectTo: `${baseUrl}/auth/reset`,
     });
+    // Supabase's per-address cooldown only trips for registered addresses —
+    // an unknown one is accepted silently every time. Surfacing it as a 400
+    // would tell a caller which emails have accounts, so it is reported as
+    // accepted like any other request. The panel counts the cooldown down
+    // on its own before offering a resend.
+    if (error?.code === 'over_email_send_rate_limit') {
+      this.logger.warn(
+        `forgot-password rate-limited by Supabase: ${error.message}`,
+      );
+      return { message: 'Password-reset email sent' };
+    }
     if (error) throw new BadRequestException(error.message);
     return { message: 'Password-reset email sent' };
   }

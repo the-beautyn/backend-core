@@ -461,9 +461,29 @@ describe('AuthService', () => {
       );
     });
 
+    it('should report success when Supabase rate-limits the address (no enumeration)', async () => {
+      // Arrange — Supabase only applies its per-address cooldown to
+      // registered emails; surfacing it would reveal that an account exists.
+      (
+        supabaseClient.auth.resetPasswordForEmail as unknown as jest.Mock
+      ).mockResolvedValue({
+        error: {
+          code: 'over_email_send_rate_limit',
+          status: 429,
+          message:
+            'For security purposes, you can only request this after 59 seconds.',
+        },
+      });
+
+      // Act & Assert
+      await expect(service.forgotPassword(forgotPasswordDto)).resolves.toEqual({
+        message: 'Password-reset email sent',
+      });
+    });
+
     it('should throw BadRequestException when reset email fails', async () => {
       // Arrange
-      const mockError = { message: 'Email not found' };
+      const mockError = { message: 'Error sending recovery email' };
       const mockResetResponse = {
         error: mockError,
       };
