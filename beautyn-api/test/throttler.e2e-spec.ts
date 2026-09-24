@@ -13,9 +13,12 @@ process.env.THROTTLE_EMAIL_CHECK_TTL_MS = '60000';
 process.env.THROTTLE_FORGOT_PASSWORD_LIMIT = '3';
 process.env.THROTTLE_FORGOT_PASSWORD_TTL_MS = '900000';
 process.env.APP_URL = process.env.APP_URL || 'http://localhost:3000';
+process.env.TRUST_PROXY_HOPS = '2';
 
 import { Test, TestingModule } from '@nestjs/testing';
-import { INestApplication } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { NestExpressApplication } from '@nestjs/platform-express';
+import { applyTrustProxy } from '../src/shared/utils/trust-proxy.util';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/shared/database/prisma.service';
@@ -24,7 +27,7 @@ import { JwtAuthGuard } from '../src/shared/guards/jwt-auth.guard';
 import { SMS_PROVIDER } from '../src/auth/sms/sms-provider.interface';
 
 describe('Throttler (e2e)', () => {
-  let app: INestApplication;
+  let app: NestExpressApplication;
 
   // Each test uses a unique user id via the Authorization header suffix —
   // UserThrottlerGuard.getTracker keys on req.user.id, so unique ids isolate
@@ -77,7 +80,8 @@ describe('Throttler (e2e)', () => {
       .useValue(smsProviderMock)
       .compile();
 
-    app = moduleFixture.createNestApplication();
+    app = moduleFixture.createNestApplication<NestExpressApplication>();
+    applyTrustProxy(app, app.get(ConfigService));
     await app.init();
   });
 
@@ -130,6 +134,35 @@ describe('Throttler (e2e)', () => {
         .post('/api/v1/auth/forgot-password')
         .send(payload)
         .expect(429);
+    });
+  });
+
+  // The app trusts TRUST_PROXY_HOPS=2 like the deployed Cloudflare → Railway
+  // edge chain. supertest's socket stands in for the Railway edge; the last
+  // X-Forwarded-For entry is the Cloudflare server, the one before it the
+  // client. Requests without the header (every other test) keep 127.0.0.1.
+  describe('forwarded client IPs (TRUST_PROXY_HOPS=2)', () => {
+    const forgotPassword = (xff: string) =>
+      request(app.getHttpServer())
+        .post('/api/v1/auth/forgot-password')
+        .set('X-Forwarded-For', xff)
+        .send({ email: 'proxy-probe@example.com' });
+
+    it('buckets per client behind the same proxy, and ignores entries a client forges', async () => {
+      const limit = Number(process.env.THROTTLE_FORGOT_PASSWORD_LIMIT);
+
+      for (let i = 0; i < limit; i++) {
+        await forgotPassword('198.51.100.1, 172.64.0.1').expect(202);
+      }
+      await forgotPassword('198.51.100.1, 172.64.0.1').expect(429);
+
+      // Another client through the same Cloudflare server has its own bucket.
+      await forgotPassword('198.51.100.2, 172.64.0.1').expect(202);
+
+      // A client prepending a made-up address is still counted as itself.
+      await forgotPassword('203.0.113.99, 198.51.100.1, 172.64.0.1').expect(
+        429,
+      );
     });
   });
 

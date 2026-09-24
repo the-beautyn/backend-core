@@ -481,19 +481,22 @@ describe('AuthService', () => {
       });
     });
 
-    it('should throw BadRequestException when reset email fails', async () => {
-      // Arrange
-      const mockError = { message: 'Error sending recovery email' };
+    it('should report success when sending the email fails (no enumeration)', async () => {
+      // Arrange — SMTP / hook failures only happen for registered addresses,
+      // since unknown ones never send mail.
       const mockResetResponse = {
-        error: mockError,
+        error: {
+          code: 'unexpected_failure',
+          message: 'Error sending recovery email',
+        },
       };
 
       (supabaseClient.auth.resetPasswordForEmail as unknown as jest.Mock).mockResolvedValue(mockResetResponse);
 
       // Act & Assert
-      await expect(service.forgotPassword(forgotPasswordDto)).rejects.toThrow(
-        new BadRequestException(mockError.message),
-      );
+      await expect(service.forgotPassword(forgotPasswordDto)).resolves.toEqual({
+        message: 'Password-reset email sent',
+      });
     });
   });
 

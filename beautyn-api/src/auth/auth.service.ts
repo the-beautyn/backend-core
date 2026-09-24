@@ -307,18 +307,21 @@ export class AuthService {
     const { error } = await this.sb.auth.resetPasswordForEmail(email, {
       redirectTo: `${baseUrl}/auth/reset`,
     });
-    // Supabase's per-address cooldown only trips for registered addresses —
-    // an unknown one is accepted silently every time. Surfacing it as a 400
-    // would tell a caller which emails have accounts, so it is reported as
-    // accepted like any other request. The panel counts the cooldown down
-    // on its own before offering a resend.
+    // An unknown address is accepted silently every time, while Supabase's
+    // failures (the per-address cooldown, SMTP or hook errors) can only happen
+    // for a registered one because only then is an email sent. Surfacing any
+    // of them would tell a caller which emails have accounts, so every call
+    // is reported as accepted and failures go to the log instead. The panel
+    // counts the resend cooldown down on its own.
     if (error?.code === 'over_email_send_rate_limit') {
       this.logger.warn(
         `forgot-password rate-limited by Supabase: ${error.message}`,
       );
-      return { message: 'Password-reset email sent' };
+    } else if (error) {
+      this.logger.error(
+        `forgot-password email failed: ${error.code ?? 'unknown'} ${error.message}`,
+      );
     }
-    if (error) throw new BadRequestException(error.message);
     return { message: 'Password-reset email sent' };
   }
 

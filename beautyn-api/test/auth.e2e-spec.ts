@@ -5,7 +5,10 @@ process.env.THROTTLE_FORGOT_PASSWORD_LIMIT = '1000';
 
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
+import { plainToInstance } from 'class-transformer';
+import { validate } from 'class-validator';
 import request from 'supertest';
+import { ForgotPasswordDto } from '../src/auth/dto/v1/forgot-password.dto';
 import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/shared/database/prisma.service';
 import { SupabaseClient } from '@supabase/supabase-js';
@@ -433,7 +436,7 @@ describe('Auth (e2e)', () => {
       expect(response.body).toEqual({ success: true });
     });
 
-    it('should return 400 when Supabase fails for any other reason', async () => {
+    it('should return 202 when sending the email fails (only registered addresses send mail)', async () => {
       (
         supabaseClient.auth.resetPasswordForEmail as jest.Mock
       ).mockResolvedValue({
@@ -447,20 +450,18 @@ describe('Auth (e2e)', () => {
       await request(app.getHttpServer())
         .post('/api/v1/auth/forgot-password')
         .send({ email: 'user@example.com' })
-        .expect(400);
+        .expect(202);
     });
 
-    it('should return 400 for invalid email', async () => {
-      // Arrange
-      const invalidDto = {
-        email: 'invalid-email',
-      };
-
-      // Act & Assert
-      await request(app.getHttpServer())
-        .post('/api/v1/auth/forgot-password')
-        .send(invalidDto)
-        .expect(400);
+    // This suite's app has no global ValidationPipe (main.ts installs it), so
+    // an HTTP request here never reaches DTO validation — the old version of
+    // this test only saw a 400 because a previous test's mocked Supabase error
+    // leaked into it. Check the DTO rule directly instead.
+    it('should reject an invalid email in ForgotPasswordDto', async () => {
+      const errors = await validate(
+        plainToInstance(ForgotPasswordDto, { email: 'invalid-email' }),
+      );
+      expect(errors.map((e) => e.property)).toEqual(['email']);
     });
   });
 

@@ -6,6 +6,7 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { TransformInterceptor } from './shared/interceptors/transform.interceptor';
 import { corsOptionsFromConfig } from './shared/utils/cors-options.util';
+import { applyTrustProxy } from './shared/utils/trust-proxy.util';
 import { LoginResponseDto } from './auth/dto/v1/login-response.dto';
 import { RegisterResponseDto } from './auth/dto/v1/register-response.dto';
 import { ResetPasswordResponseDto } from './auth/dto/v1/reset-password-response.dto';
@@ -83,15 +84,7 @@ async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
   const configService = app.get(ConfigService);
 
-  // Deployed, requests reach the app through Cloudflare and the Railway edge,
-  // so the socket address is a proxy's, and every anonymous caller would share
-  // one per-IP throttler bucket (UserThrottlerGuard keys on req.ip). Trusting
-  // exactly N hops makes req.ip the client address. Never `true`: that trusts
-  // any X-Forwarded-For a client sends and lets it pick its own bucket.
-  const trustProxyHops = Number(configService.get<string>('TRUST_PROXY_HOPS'));
-  if (Number.isInteger(trustProxyHops) && trustProxyHops > 0) {
-    app.set('trust proxy', trustProxyHops);
-  }
+  applyTrustProxy(app, configService);
 
   app.enableCors(corsOptionsFromConfig(configService));
 
