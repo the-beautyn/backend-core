@@ -4,9 +4,19 @@ import { THROTTLER_LIMIT, THROTTLER_SKIP } from '@nestjs/throttler/dist/throttle
 
 @Injectable()
 export class UserThrottlerGuard extends ThrottlerGuard {
+  // Anonymous callers are tracked by CF-Connecting-IP. Deployed, requests pass
+  // Cloudflare → Railway edge → app, and the Railway edge rewrites
+  // X-Forwarded-For starting from the Cloudflare server, so req.ip and every
+  // XFF hop are rotating Cloudflare addresses shared by unrelated users.
+  // Cloudflare sets CF-Connecting-IP itself and rejects requests that send
+  // their own (403). That only holds while the app is reachable solely
+  // through Cloudflare, so the Railway-generated public domain must stay off.
+  // ponytail: header trust tied to that topology; use a verified proxy list
+  // if the app ever gets a second way in.
   protected async getTracker(req: Record<string, any>): Promise<string> {
     const userId = req.user?.id as string | undefined;
-    return userId ?? req.ip ?? 'anonymous';
+    const cfClientIp = req.headers?.['cf-connecting-ip'] as string | undefined;
+    return userId ?? cfClientIp ?? req.ip ?? 'anonymous';
   }
 
   // Drop the route-specific prefix so that different endpoints sharing the
