@@ -137,6 +137,11 @@ describe('Altegio linking (e2e)', () => {
       .query({ salon_ids: ['1234'] })
       .expect(200);
     expect(String(rd.text || '')).toContain('<form');
+    // Relative action: posts back over whatever scheme/host served the page,
+    // never a req.protocol-derived http:// URL behind the TLS-ending proxies.
+    expect(String(rd.text || '')).toContain(
+      'action="/api/v1/webhooks/altegio/confirm"',
+    );
 
     // Confirm with code
     await request(app.getHttpServer())
