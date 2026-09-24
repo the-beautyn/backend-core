@@ -80,8 +80,11 @@ export class AltegioWebhookController {
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#39;');
-    const base = `${req.protocol}://${req.get('host')}`; //process.env.APP_URL || `${req.protocol}://${req.get('host')}`;
-    const action = `${base.replace(/\/$/, '')}/api/v1/webhooks/altegio/confirm`;
+    // Relative on purpose: the browser posts back to the scheme and host it
+    // loaded this page from. Behind Cloudflare + Railway, req.protocol is
+    // "http" (TLS ends at the proxies), so an absolute URL built from it sent
+    // the pairing code to an http:// action.
+    const action = '/api/v1/webhooks/altegio/confirm';
     const salonInputs = salonIds
       .map((salonId) => `<input type="hidden" name="salon_ids[]" value="${esc(salonId)}"/>`)
       .join('');
