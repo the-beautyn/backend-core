@@ -1,12 +1,12 @@
 import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
-import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { TransformInterceptor } from './shared/interceptors/transform.interceptor';
 import { corsOptionsFromConfig } from './shared/utils/cors-options.util';
 import { applyTrustProxy } from './shared/utils/trust-proxy.util';
+import { createValidationPipe } from './shared/utils/validation-pipe.util';
 import { LoginResponseDto } from './auth/dto/v1/login-response.dto';
 import { RegisterResponseDto } from './auth/dto/v1/register-response.dto';
 import { ResetPasswordResponseDto } from './auth/dto/v1/reset-password-response.dto';
@@ -89,14 +89,7 @@ async function bootstrap() {
   app.enableCors(corsOptionsFromConfig(configService));
 
   // Enable validation for all endpoints
-  app.useGlobalPipes(new ValidationPipe({
-    whitelist: true,        // Remove properties not in DTO
-    forbidNonWhitelisted: true,  // Throw error for extra properties
-    transform: true,        // Auto-transform payloads to DTO instances
-    transformOptions: {
-      enableImplicitConversion: true,  // Convert strings to numbers etc.
-    },
-  }));
+  app.useGlobalPipes(createValidationPipe());
 
   const transformInterceptor = app.get(TransformInterceptor);
   app.useGlobalInterceptors(transformInterceptor);

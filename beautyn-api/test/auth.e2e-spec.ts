@@ -4,11 +4,10 @@
 process.env.THROTTLE_FORGOT_PASSWORD_LIMIT = '1000';
 
 import { Test, TestingModule } from '@nestjs/testing';
-import { INestApplication } from '@nestjs/common';
-import { plainToInstance } from 'class-transformer';
-import { validate } from 'class-validator';
+import { BadRequestException, INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { ForgotPasswordDto } from '../src/auth/dto/v1/forgot-password.dto';
+import { createValidationPipe } from '../src/shared/utils/validation-pipe.util';
 import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/shared/database/prisma.service';
 import { SupabaseClient } from '@supabase/supabase-js';
@@ -453,15 +452,25 @@ describe('Auth (e2e)', () => {
         .expect(202);
     });
 
-    // This suite's app has no global ValidationPipe (main.ts installs it), so
-    // an HTTP request here never reaches DTO validation — the old version of
-    // this test only saw a 400 because a previous test's mocked Supabase error
-    // leaked into it. Check the DTO rule directly instead.
-    it('should reject an invalid email in ForgotPasswordDto', async () => {
-      const errors = await validate(
-        plainToInstance(ForgotPasswordDto, { email: 'invalid-email' }),
-      );
-      expect(errors.map((e) => e.property)).toEqual(['email']);
+    // This suite's app has no global ValidationPipe, so an HTTP request here
+    // never reaches DTO validation — the old version of this test only saw a
+    // 400 because a previous test's mocked Supabase error leaked into it. Run
+    // the body through the exact pipe main.ts installs instead; a
+    // BadRequestException from it is the 400 the endpoint returns.
+    it('should reject an invalid email with the production validation pipe', async () => {
+      await expect(
+        createValidationPipe().transform(
+          { email: 'invalid-email', client: 'web-admin' },
+          { type: 'body', metatype: ForgotPasswordDto },
+        ),
+      ).rejects.toBeInstanceOf(BadRequestException);
+
+      await expect(
+        createValidationPipe().transform(
+          { email: 'owner@example.com', client: 'web-admin' },
+          { type: 'body', metatype: ForgotPasswordDto },
+        ),
+      ).resolves.toBeInstanceOf(ForgotPasswordDto);
     });
   });
 
