@@ -1,5 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
+import { Logger } from '@nestjs/common';
+import type { NextFunction, Request, Response } from 'express';
 import { ConfigService } from '@nestjs/config';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
@@ -85,6 +87,29 @@ async function bootstrap() {
   const configService = app.get(ConfigService);
 
   applyTrustProxy(app, configService);
+
+  // TEMPORARY (BEA-76): log the proxy chain for forgot-password so the right
+  // TRUST_PROXY_HOPS can be read off the deployed logs. Runs before guards, so
+  // throttled (429) requests are logged too. Remove once the hop count is set.
+  const proxyProbeLog = new Logger('ProxyProbe');
+  app.use(
+    '/api/v1/auth/forgot-password',
+    (req: Request, _res: Response, next: NextFunction) => {
+      proxyProbeLog.warn(
+        JSON.stringify({
+          url: req.originalUrl,
+          ip: req.ip,
+          ips: req.ips,
+          socket: req.socket.remoteAddress,
+          xff: req.headers['x-forwarded-for'] ?? null,
+          xRealIp: req.headers['x-real-ip'] ?? null,
+          cfConnectingIp: req.headers['cf-connecting-ip'] ?? null,
+          trustProxy: configService.get<string>('TRUST_PROXY_HOPS') ?? null,
+        }),
+      );
+      next();
+    },
+  );
 
   app.enableCors(corsOptionsFromConfig(configService));
 
