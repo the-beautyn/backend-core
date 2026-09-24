@@ -1,6 +1,13 @@
+// forgot-password is throttled per IP (default 5 / 15 min) and every request
+// here comes from 127.0.0.1; lift the limit so this suite tests the endpoint,
+// not the throttler (covered in throttler.e2e-spec.ts).
+process.env.THROTTLE_FORGOT_PASSWORD_LIMIT = '1000';
+
 import { Test, TestingModule } from '@nestjs/testing';
-import { INestApplication } from '@nestjs/common';
+import { BadRequestException, INestApplication } from '@nestjs/common';
 import request from 'supertest';
+import { ForgotPasswordDto } from '../src/auth/dto/v1/forgot-password.dto';
+import { createValidationPipe } from '../src/shared/utils/validation-pipe.util';
 import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/shared/database/prisma.service';
 import { SupabaseClient } from '@supabase/supabase-js';
@@ -378,36 +385,92 @@ describe('Auth (e2e)', () => {
       );
     });
 
-    it('should return 400 when email not found', async () => {
-      // Arrange
-      const forgotPasswordDto = {
-        email: 'notfound@example.com',
-      };
+    it('should point web-admin resets at ADMIN_PANEL_URL and mobile resets at APP_URL', async () => {
+      process.env.ADMIN_PANEL_URL = 'https://panel.example.com/';
+      const resetPasswordForEmail = supabaseClient.auth
+        .resetPasswordForEmail as jest.Mock;
+      resetPasswordForEmail.mockResolvedValue({ error: null });
 
-      const mockResetResponse = {
-        error: { message: 'Email not found' },
-      };
+      try {
+        await request(app.getHttpServer())
+          .post('/api/v1/auth/forgot-password')
+          .send({ email: 'owner@example.com', client: 'web-admin' })
+          .expect(202);
+        expect(resetPasswordForEmail).toHaveBeenLastCalledWith(
+          'owner@example.com',
+          { redirectTo: 'https://panel.example.com/auth/reset' },
+        );
 
-      (supabaseClient.auth.resetPasswordForEmail as jest.Mock).mockResolvedValue(mockResetResponse);
-
-      // Act & Assert
-      await request(app.getHttpServer())
-        .post('/api/v1/auth/forgot-password')
-        .send(forgotPasswordDto)
-        .expect(400);
+        await request(app.getHttpServer())
+          .post('/api/v1/auth/forgot-password')
+          .send({ email: 'client@example.com' })
+          .expect(202);
+        expect(resetPasswordForEmail).toHaveBeenLastCalledWith(
+          'client@example.com',
+          { redirectTo: 'http://localhost:3000/auth/reset' },
+        );
+      } finally {
+        delete process.env.ADMIN_PANEL_URL;
+      }
     });
 
-    it('should return 400 for invalid email', async () => {
-      // Arrange
-      const invalidDto = {
-        email: 'invalid-email',
-      };
+    it('should return 202 when Supabase rate-limits the address (no account enumeration)', async () => {
+      // Supabase's per-address cooldown only fires for registered emails, so
+      // a 400 here would reveal that the address has an account.
+      (
+        supabaseClient.auth.resetPasswordForEmail as jest.Mock
+      ).mockResolvedValue({
+        error: {
+          code: 'over_email_send_rate_limit',
+          status: 429,
+          message:
+            'For security purposes, you can only request this after 59 seconds.',
+        },
+      });
 
-      // Act & Assert
+      const response = await request(app.getHttpServer())
+        .post('/api/v1/auth/forgot-password')
+        .send({ email: 'registered@example.com' })
+        .expect(202);
+      expect(response.body).toEqual({ success: true });
+    });
+
+    it('should return 202 when sending the email fails (only registered addresses send mail)', async () => {
+      (
+        supabaseClient.auth.resetPasswordForEmail as jest.Mock
+      ).mockResolvedValue({
+        error: {
+          code: 'unexpected_failure',
+          status: 500,
+          message: 'Error sending recovery email',
+        },
+      });
+
       await request(app.getHttpServer())
         .post('/api/v1/auth/forgot-password')
-        .send(invalidDto)
-        .expect(400);
+        .send({ email: 'user@example.com' })
+        .expect(202);
+    });
+
+    // This suite's app has no global ValidationPipe, so an HTTP request here
+    // never reaches DTO validation — the old version of this test only saw a
+    // 400 because a previous test's mocked Supabase error leaked into it. Run
+    // the body through the exact pipe main.ts installs instead; a
+    // BadRequestException from it is the 400 the endpoint returns.
+    it('should reject an invalid email with the production validation pipe', async () => {
+      await expect(
+        createValidationPipe().transform(
+          { email: 'invalid-email', client: 'web-admin' },
+          { type: 'body', metatype: ForgotPasswordDto },
+        ),
+      ).rejects.toBeInstanceOf(BadRequestException);
+
+      await expect(
+        createValidationPipe().transform(
+          { email: 'owner@example.com', client: 'web-admin' },
+          { type: 'body', metatype: ForgotPasswordDto },
+        ),
+      ).resolves.toBeInstanceOf(ForgotPasswordDto);
     });
   });
 

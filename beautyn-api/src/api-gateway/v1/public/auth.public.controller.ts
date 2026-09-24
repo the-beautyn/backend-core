@@ -146,6 +146,8 @@ export class AuthPublicController {
   }
 
   @Post('forgot-password')
+  @UseGuards(UserThrottlerGuard)
+  @Throttle({ 'forgot-password': {} })
   @HttpCode(HttpStatus.ACCEPTED)
   @ApiOperation({ summary: 'Send password reset email' })
   @ApiBody({ type: ForgotPasswordDto })

@@ -4,6 +4,7 @@ import {
   UnauthorizedException,
   BadRequestException,
   InternalServerErrorException,
+  Logger,
 } from '@nestjs/common';
 import { LoginDto } from './dto/v1/login.dto';
 import { RegisterDto, REGISTERABLE_ROLES } from './dto/v1/register.dto';
@@ -21,6 +22,8 @@ import { PhoneVerificationService } from './phone-verification.service';
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     private readonly users: UserService,
     private readonly sb: SupabaseClient,
@@ -304,7 +307,21 @@ export class AuthService {
     const { error } = await this.sb.auth.resetPasswordForEmail(email, {
       redirectTo: `${baseUrl}/auth/reset`,
     });
-    if (error) throw new BadRequestException(error.message);
+    // An unknown address is accepted silently every time, while Supabase's
+    // failures (the per-address cooldown, SMTP or hook errors) can only happen
+    // for a registered one because only then is an email sent. Surfacing any
+    // of them would tell a caller which emails have accounts, so every call
+    // is reported as accepted and failures go to the log instead. The panel
+    // counts the resend cooldown down on its own.
+    if (error?.code === 'over_email_send_rate_limit') {
+      this.logger.warn(
+        `forgot-password rate-limited by Supabase: ${error.message}`,
+      );
+    } else if (error) {
+      this.logger.error(
+        `forgot-password email failed: ${error.code ?? 'unknown'} ${error.message}`,
+      );
+    }
     return { message: 'Password-reset email sent' };
   }
 
