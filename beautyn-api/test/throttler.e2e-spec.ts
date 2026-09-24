@@ -134,8 +134,9 @@ describe('Throttler (e2e)', () => {
   });
 
   // Deployed, the Railway edge rewrites X-Forwarded-For with Cloudflare's
-  // address, so anonymous callers are tracked by CF-Connecting-IP. Requests
-  // without it (every other test) fall back to req.ip, i.e. 127.0.0.1.
+  // address, so anonymous callers are tracked by CF-Connecting-IP. Anonymous
+  // requests without it fall back to req.ip, i.e. 127.0.0.1 here;
+  // authenticated ones are tracked by user id.
   describe('anonymous callers are tracked by CF-Connecting-IP', () => {
     const forgotPassword = (clientIp: string) =>
       request(app.getHttpServer())
